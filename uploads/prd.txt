@@ -1,0 +1,817 @@
+
+CENDRA
+Cendra Agent OS
+UX Product Requirements Document
+Brain Engine kabiliyetlerini son kullanıcı için anlaşılır, güvenilir, kontrol edilebilir ve agent-native bir hospitality operations UX’ine dönüştürme PRD’si.
+
+Alan
+Tanım
+Doküman tipi
+PRD + UX Architecture Brief
+Sürüm
+v1.0 / Design handoff draft
+Tarih
+9 Mayıs 2026
+Hedef ekip
+Product, UX Design, UI Design, Frontend, Backend, QA, Customer Success
+Ürün alanı
+Cendra Agent OS / Mission Control / Brain Engine UX
+Temel karar
+Cendra bir AI inbox değil; exception-first hospitality operations Mission Control olacak.
+
+North Star
+Cendra işi yapar. Kullanıcı sadece risk, onay, belirsizlik, fırsat ve öğrenme anlarında devreye girer.
+
+0. Executive One-Pager
+Tek cümlelik ürün vaadi
+Cendra, hospitality operasyonlarını kullanıcının çalışma tarzına göre yöneten; düşük riskli işleri otomatik çözen, riskli kararlarda onay isteyen ve her karardan öğrenen Agent OS’tir.
+Bu PRD’nin amacı Brain Engine’in teknik kabiliyetlerini UX ve Design team için uygulanabilir ürün gereksinimlerine çevirmektir. Ürün, kullanıcıya “AI cevap yazıyor” hissi değil, “operasyonumu benim adıma yönetiyor ama kontrol bende” hissi vermelidir.
+
+Ana metafor: Mission Control + Autopilot + Property Brain.
+
+Ana yüzey: Dashboard veya chatbot değil; exception-first operasyon merkezi.
+
+Ana UI atomu: Decision Card. Her kararın bağlamı, nedeni, aksiyonu, risk seviyesi ve geri alınabilirliği görünür.
+
+Ana güven modeli: Progressive autonomy: Observe → Approval Required → Semi-auto → Autopilot → Never Auto.
+
+Ana öğrenme modeli: Kullanıcı edit/approval yaptığında Cendra bunu öğrenme önerisine dönüştürür; kritik davranışlar kullanıcı onayı olmadan kalıcılaşmaz.
+Alan
+Tanım
+MVP sonucu
+Kullanıcı Today ekranını açtığında Cendra’nın neyi çözdüğünü, nerede onay istediğini, hangi risklerin olduğunu ve hangi bilgileri öğrenmek istediğini 5 saniyede anlar.
+Kapsam dışı
+Raw memory browser, prompt editor, model settings, teknik pipeline ekranları, genel vanity dashboard, multi-agent graph.
+Başarı kriteri
+Rutin guest/ops mesajlarında kullanıcı müdahalesi azalır; riskli aksiyonlarda güven artar; PM editleri öğrenme döngüsüne girer; her aksiyon audit edilebilir olur.
+
+A) Kısa teşhis: Bugünkü sistem neyi yanlış / eksik anlatıyor?
+Brain Engine teknik olarak güçlü fakat son kullanıcıya “engine” olarak anlatıldığında bilişsel yük yaratır. 7 katmanlı hafıza, 9 aşamalı pipeline, 6 katmanlı karar zinciri, PatternRule mining ve Golden Cases son kullanıcı için ürün yüzeyi değil; güvenilir agent davranışının altyapısıdır.
+
+Eksik anlatım 1: Sistem “LLM’den farklı” olduğunu iyi anlatıyor, fakat kullanıcı için “bugün benim yerime ne yaptı?” sorusunu yeterince öne çıkarmıyor.
+
+Eksik anlatım 2: Inbox merkezli düşünme riski var. Cendra’nın işi mesajları değil, operasyonel kararları yönetmek olmalı.
+
+Eksik anlatım 3: Öğrenme mekanizması görünmez kalırsa kullanıcı “AI kendi kendine değişiyor” hisseder.
+
+Eksik anlatım 4: Tek AI aç/kapat kontrolü güven kırar. Autonomy her workflow için ayrı yönetilmeli.
+
+Eksik anlatım 5: Hard rules, blocker ve approval gibi güven mekanizmaları product primitive olarak görünür olmalı.
+
+Validated Brain Engine primitives
+Backend primitive
+Kullanıcıya dönüşen UX nesnesi
+Tasarım anlamı
+DecisionCard
+Karar Kartı
+Her önerinin nedeni, aksiyonu, risk seviyesi ve geri alınabilirliği tek yerde.
+WorkflowAutonomy
+Autopilot seviyesi
+Her iş akışının ayrı güven seviyesi: Observe, Semi-auto, Autopilot.
+ApprovalGateway
+Onay akışı
+Riskli aksiyonlar kullanıcı izni olmadan çalışmaz.
+BlockerEngine
+Durma sebebi / aktif risk
+Kapı kodu, ödeme, kimlik, hasar gibi konularda hard stop.
+DecisionCase
+Karar kaydı
+Her operasyonel karar audit ve öğrenme için saklanır.
+PatternRule
+Öğrenilmiş kural
+PM davranışından çıkarılan, kapsamlı ve onaylanabilir kural.
+SOPParser
+SOP’dan playbook oluşturma
+Müşteri dokümanları operasyon kurallarına çevrilir.
+AG-UI event stream
+Canlı agent activity
+Agent’ın tool, reasoning, state ve missing-info adımları milestone olarak görünür.
+Golden Cases
+Gece kalite kontrolü
+Dünkü kararlar kalite, PM match ve hallucination riski açısından değerlendirilir.
+Memory layers
+Cendra’nın bildikleri
+Property facts, guest memory, procedural rules, preferences ve atomic facts kullanıcı diline çevrilir.
+
+B) Ürün mental modeli
+Doğru metafor
+Cendra = Hospitality Operations Autopilot. Kullanıcı “AI ile sohbet” etmiyor; operasyonlarını Cendra’ya emanet ediyor, kontrol ediyor ve öğretiyor.
+Kullanıcı ürünü üç katman olarak anlamalı:
+
+Mission Control: Bugün ne oluyor, nerede müdahale gerekiyor, Cendra neyi halletti?
+
+Autopilot: Hangi işleri Cendra otomatik yapıyor, hangileri onay istiyor, hangileri asla otomatikleşmez?
+
+Property Brain: Cendra bu mülk, rezervasyon, misafir ve işletme kuralları hakkında ne biliyor?
+Alan
+Tanım
+Kullanıcı cümlesi
+“Cendra benim operasyon ekibimde çalışan, misafir mesajlarını, tesis bilgisini, rezervasyon bağlamını, SOP’ları, geçmiş kararları ve riskleri bilen bir operasyon autopilot’u.”
+Ana ürün hissi
+Sakin, premium, kontrol edilebilir, çalışıyor hissi veren; kullanıcıyı mikro-yönetimden kurtaran bir sistem.
+Yanlış metaforlar
+Chatbot, AI inbox, prompt editor, dashboard, analytics-only tool.
+
+C) Agentic UX prensipleri
+Prensip
+PRD karşılığı
+Exception-first interface
+Varsayılan yüzey tüm işleri değil, müdahale gerektiren işleri gösterir.
+Trust calibration
+Kullanıcı ne zaman güveneceğini, ne zaman müdahale edeceğini anlamalı.
+Explainability
+Her karar sade dille açıklanmalı: ne anladı, neye baktı, hangi kuralı kullandı?
+Controllability
+Approve, edit, reject, takeover, pause, hand back her zaman erişilebilir olmalı.
+Progressive autonomy
+Her workflow güven kazandıkça Observe → Semi-auto → Autopilot merdiveninden ilerlemeli.
+Human-in-the-loop by design
+Approval popup değil, ürünün ana çalışma modeli olmalı.
+Reversibility
+Aksiyonların geri alınabilirliği UI’da açık görünmeli.
+Auditability
+Kim, ne zaman, hangi bilgiyle, hangi kararı aldı her zaman izlenebilir olmalı.
+Confidence &amp; uncertainty
+Agent emin olmadığı yerde bunu saklamamalı; tahmin yerine soru sormalı.
+Safe autonomy
+Riskli aksiyonlarda izin, bütçe, hard rule, SOP ve rollback mantığı olmalı.
+
+Cognitive laws uygulaması
+Alan
+Tanım
+Hick’s Law
+Today ekranında en fazla 5 ana kategori: Needs me, At risk, Opportunities, Learning, Done by Cendra.
+Fitts’s Law
+Approve/Edit/Reject/Takeover/Pause/Hand back action bar sabit ve kolay erişilebilir. Red-risk aksiyonlarda bilinçli friction.
+Aesthetic Usability Effect
+Sakin, net, premium yüzey; teknik kompleksiteyi güzel ve basit karar kartlarına indirgeme.
+Jakob’s Law
+SaaS, inbox, task manager, approval queue ve command palette pattern’lerini tanıdık tutma.
+Cognitive Load
+Özet → neden → kanıt → audit → teknik log şeklinde progressive disclosure.
+Von Restorff Effect
+Risk, approval, anomaly, high-value opportunity ve low-confidence durumları görsel olarak ayrışmalı.
+
+D) Ana ürün konsepti
+Ürün konsepti
+Cendra Mission Control: guest, property, team, vendor ve revenue operasyonlarının tek exception-first çalışma yüzeyi.
+Ana ekran chat değil, klasik inbox değil, vanity dashboard değil. Hibrit çalışma yüzeyi olmalı: solda exception queue, ortada conversation + operations timeline, sağda Decision Card + context + action panel, üstte universal command bar.
+Alan
+Tanım
+Sol panel
+Needs me, At risk, Revenue, Waiting, Done by Cendra, Learning önerileri.
+Orta panel
+Seçilen işin konuşma + operasyon timeline’ı: guest, Cendra, team, vendor, PMS events.
+Sağ panel
+Decision Card, Why drawer, Evidence, Trust, primary actions.
+Üst bar
+Cendra’ya söyle: doğal dille kural, soru, analiz veya aksiyon başlatma.
+Sabit action bar
+Approve, Edit, Reject, Take over, Pause, Hand back.
+İlk 5 saniye kuralı
+Kullanıcı ürünü açınca Cendra’nın çalıştığını, neyi çözdüğünü, nerede kullanıcıya ihtiyaç olduğunu, hangi konunun riskli olduğunu ve neyi öğrenmek istediğini hemen anlamalı.
+
+E) Bilgi mimarisi
+Navigation
+Amaç
+Öncelik
+Today
+Günlük operasyon komuta merkezi. Dashboard değil, aksiyon merkezi.
+P0
+Work
+Inbox yerine aktif işler, exception’lar, approvals, guest/team/vendor timeline.
+P0
+Properties
+Property Brain: doğrulanmış facts, eksikler, çelişkiler, source ve scope.
+P0
+Playbooks
+Journey/SOP builder: Cendra’ya iş akışlarını öğretme ve test etme.
+P1
+Autopilot
+Workflow bazlı autonomy, trust meter, promotion/demotion kontrolleri.
+P0
+Learning
+Cendra’nın önerdiği yeni kural, knowledge ve davranış pattern’leri.
+P1
+Trust
+Audit, hard rules, permissions, evidence packs, incident review.
+P0
+Insights
+Portfolio trendleri, repeated issues, revenue opportunities, automation health.
+P2
+Geri plana alınması gereken teknik ekranlar: raw memory browser, prompt editor, model settings, feature flags, classifier metrics, raw vector search/RRF/reranker UI, generic logs.
+
+F) Kritik ekranlar
+
+1. Today / Command Center
+Alan
+Tanım
+Kullanıcının amacı
+“Bugün neye bakmam gerekiyor?” sorusunu 5 saniyede cevaplamak.
+Minimum bilgi
+Cendra’nın çözdüğü işler, approval’lar, riskli işler, eksik bilgiler, gelir fırsatları, öğrenme önerileri.
+Ana aksiyonlar
+İlk approval’ı aç, riskli işi incele, agent’ı pause et, öğrenme önerisini onayla.
+Agent davranışı
+Tüm event’leri mesaj bazında değil, operasyon konusu bazında gruplar.
+Güven / açıklama
+Her kartta reason badge: approval required, missing info, policy risk, low confidence, revenue opportunity.
+Cognitive load riski
+Metrik çöplüğü. Kullanıcı her şeyi değil, sadece “beni bekleyen” şeyleri görmeli.
+Sadeleştirme prensibi
+Maksimum 5 ana kart. Geri kalanlar View all altında.
+
+2. Work / Exception Queue
+Alan
+Tanım
+Kullanıcının amacı
+Cendra’nın çözemediği veya onay istediği işleri hızlıca bitirmek.
+Minimum bilgi
+Guest/property, konu, neden bana düştü, risk seviyesi, önerilen aksiyon, bekleme süresi.
+Ana aksiyonlar
+Approve, edit, reject, takeover, assign, snooze, resolve, hand back.
+Agent davranışı
+Exception oluşturmadan önce PMS, Property Brain, SOP, geçmiş karar ve team/vendor bilgilerini kontrol eder.
+Güven / açıklama
+Exception reason badge: blocked, missing, uncertain, approval required, escalated.
+Cognitive load riski
+Klasik inbox gibi 200 satır gösterirse ürün gücünü kaybeder.
+Sadeleştirme prensibi
+Default sort: approval required → SLA risk → safety/security → revenue → learning.
+
+3. Work Detail / Conversation + Operations Timeline
+Alan
+Tanım
+Kullanıcının amacı
+Bu işte ne oldu, Cendra ne yaptı, ben ne karar vermeliyim?
+Minimum bilgi
+Guest message, Cendra interpretation, system checks, suggested reply/action, approval request, human decision, outcome.
+Ana aksiyonlar
+Send, edit, ask Cendra, approve, reject, takeover, pause for this guest, hand back.
+Agent davranışı
+Planı milestone olarak gösterir: understood → checked → proposed → waiting/approved → executed.
+Güven / açıklama
+Sağ panelde Decision Card sabit kalır; Why drawer ve Evidence açılabilir.
+Cognitive load riski
+Conversation, task, evidence ve audit aynı anda görünürse boğar.
+Sadeleştirme prensibi
+Orta timeline + sağ decision card; evidence ve audit drawer olarak açılır.
+
+4. Decision Card
+Alan
+Tanım
+Kullanıcının amacı
+Bu karara güvenebilir miyim?
+Minimum bilgi
+Context tag, recommendation, 3-4 reasoning line, action, trust footer.
+Ana aksiyonlar
+Approve, edit, reject, takeover, make rule, see why, open audit.
+Agent davranışı
+Rule/case/blocker/preference/heuristic/manual evidence satırlarını sadeleştirir.
+Güven / açıklama
+Autonomy state, risk, reversibility, blocker var/yok ve source görünür.
+Cognitive load riski
+Kart çok uzarsa kimse okumaz.
+Sadeleştirme prensibi
+İlk görünüm 5 satırı geçmez; detay Why drawer’da.
+
+5. Approval Needed
+Alan
+Tanım
+Kullanıcının amacı
+Bu aksiyona izin vereyim mi, değiştireyim mi, reddedeyim mi?
+Minimum bilgi
+Önerilen aksiyon, etki, risk, tutar/maliyet, geri alınabilirlik, alternatif güvenli cevap.
+Ana aksiyonlar
+Approve once, approve and make rule, edit, reject, ask more info, takeover.
+Agent davranışı
+Yüksek riskte karar vermez; EvidencePack hazırlar ve kullanıcıdan izin ister.
+Güven / açıklama
+Approval reason açık: “charge guest”, “access code”, “refund threshold” vb.
+Cognitive load riski
+Approval ekranı hukuk formuna dönerse hız kaybolur.
+Sadeleştirme prensibi
+Tek öneri + en fazla 2 alternatif; riskli aksiyonda confirmation summary.
+
+6. Autopilot / Trust Meter
+Alan
+Tanım
+Kullanıcının amacı
+Hangi işleri Cendra’ya bırakabilirim?
+Minimum bilgi
+Workflow state, son 30 gün örnek sayısı, success, override, incident, hold window, neden hazır/hazır değil.
+Ana aksiyonlar
+Pause workflow, move to observe, review examples, accept/reject promotion, change hold window, set never-auto.
+Agent davranışı
+Promotion önerir ama konservatif davranır; risk görünce demotion önerir veya otomatik geri çeker.
+Güven / açıklama
+“Neden autopilot?” ve “Neden değil?” açıklaması görünür.
+Cognitive load riski
+Çok fazla metrik karar yükü yaratır.
+Sadeleştirme prensibi
+Varsayılan state + neden; detay metrikleri drawer’da.
+
+7. Playbook / SOP Builder
+Alan
+Tanım
+Kullanıcının amacı
+Cendra’ya işimi nasıl yapacağını öğretmek.
+Minimum bilgi
+Trigger, checks, allowed actions, approval conditions, never rules, scope, simulation result.
+Ana aksiyonlar
+Create with Cendra, edit, test, publish, rollback, scope.
+Agent davranışı
+Kullanıcının doğal dilini structured playbook’a dönüştürür; publish öncesi simülasyon çalıştırır.
+Güven / açıklama
+Test passed/failed, affected workflows ve hard rule impact görünür.
+Cognitive load riski
+Rule schema gösterilirse kullanıcı boğulur.
+Sadeleştirme prensibi
+“Cendra’ya anlat → Cendra yapılandırsın → test et → yayınla”.
+
+8. Property Brain / Knowledge Gaps
+Alan
+Tanım
+Kullanıcının amacı
+Cendra bu mülk hakkında ne biliyor, ne eksik, ne çelişkili?
+Minimum bilgi
+Eksik bilgiler, çelişkiler, güncelliği şüpheli facts, sık sorulan ama KB’de olmayan bilgiler.
+Ana aksiyonlar
+Confirm, correct, apply to all properties, internal-only, never use in guest reply, ask owner/team.
+Agent davranışı
+Form doldurtmaz; bağlamsal küçük sorular sorar.
+Güven / açıklama
+Her fact için source ve confidence/source freshness görünür.
+Cognitive load riski
+Property Brain bilgi deposuna dönerse kullanılmaz.
+Sadeleştirme prensibi
+Varsayılan “attention needed”; all facts ikincil.
+
+9. Learning Center
+Alan
+Tanım
+Kullanıcının amacı
+Cendra’nın öğrendiği şeyleri kontrol etmek.
+Minimum bilgi
+Ne fark etti, kaç örnekten çıkardı, önerilen kural, kapsam, risk, simulation result.
+Ana aksiyonlar
+Approve, edit, reject, simulate, scope, mark never auto.
+Agent davranışı
+DecisionCase’lerden PatternRule önerir; ham istatistik değil davranış önerisi sunar.
+Güven / açıklama
+Based on examples/overrides/incidents gibi sade kanıt.
+Cognitive load riski
+Her pattern gösterilirse gürültü olur.
+Sadeleştirme prensibi
+Sadece yüksek değerli, düşük riskli veya sık tekrarlanan öneriler.
+
+10. Audit Trail
+Alan
+Tanım
+Kullanıcının amacı
+Ne oldu, kim onayladı, Cendra neye dayanarak karar verdi?
+Minimum bilgi
+Karar zamanı, aktör, kaynaklar, kural, tool action, before/after state, rollback, incident/override.
+Ana aksiyonlar
+Export, rollback, mark incident, create blocker, create rule, send to support.
+Agent davranışı
+Her DecisionCase’i audit’e bağlar; Golden Cases kalite sonucu da görünür.
+Güven / açıklama
+Immutable hissettiren karar izi.
+Cognitive load riski
+Günlük kullanıcı için ağır olabilir.
+Sadeleştirme prensibi
+Derin drawer / Trust bölümünde; sadece gerektiğinde açılır.
+
+G) Kullanıcı akışları
+
+Flow 1 — Early check-in + Wi-Fi aynı mesajda
+
+Misafir “Can we check in at 12? Also what is the Wi-Fi?” yazar.
+
+Cendra iki işi ayırır: Wi-Fi bilgisi ve early check-in talebi.
+
+Wi-Fi düşük riskliyse otomatik/draft; early check-in için reservation, temizlik, takvim, property rule kontrol edilir.
+
+Temizlik hazır değilse erken giriş sözü verilmez; Decision Card oluşur.
+
+Kullanıcı “Ask cleaner” veya “Send safe reply” seçer.
+
+Kullanıcı edit yaparsa Cendra “Bunu öğreneyim mi?” sorar.
+
+Flow 2 — Doğal dille hard rule oluşturma
+
+Kullanıcı command bar’a “Bu owner’ın mülklerinde kapı kodunu check-in günü 12:00’den önce asla gönderme” yazar.
+
+Cendra kural taslağı çıkarır: type=hard rule, scope=owner, trigger=access code request, mode=block/approval.
+
+Affected workflows ve simulation sonucu gösterilir.
+
+Kullanıcı publish etmeden kural aktif olmaz.
+
+Production dependency: manual_directive_store ve blocker/safety resolver’ları gerçek store ile wired olmalı.
+
+Flow 3 — Teach Cendra
+
+Cendra cevap önerir; kullanıcı değiştirir.
+
+Sistem “Bunu öğreneyim mi?” sorar.
+
+Scope seçenekleri: bu mesaj, bu misafir, bu property, bu owner, tüm portföy, öğrenme.
+
+Cendra structured rule + simulation + publish preview üretir.
+
+Kullanıcı onaylarsa rule aktif olur ve audit’e yazılır.
+
+Flow 4 — Missing information
+
+Misafir park sorar; Property Brain’de bilgi yoktur.
+
+Cendra misafire güvenli “hemen teyit ediyorum” taslağı hazırlar.
+
+Kullanıcıya mini card: “Bu mülkte otopark var mı?” çıkar.
+
+Kullanıcı cevabı seçer; fact source=PM confirmed olarak kaydedilir.
+
+Cendra misafire cevap verir ve benzer soruları artık daha güvenle çözer.
+
+Flow 5 — Vendor dispatch
+
+Misafir “bathroom is leaking” der.
+
+Cendra maintenance issue olarak sınıflandırır; fotoğraf ister.
+
+Fotoğraf gelince vendor listesi ve property context kontrol edilir.
+
+Vendor’a özet gönderilir; maliyet/ETA gelirse approval card oluşturulur.
+
+Guest düzenli güncellenir; timeline’da tüm adımlar görünür.
+
+Flow 6 — Damage claim
+
+Damage claim workflow’u Never Auto / Approval Required kalır.
+
+Cendra kanıt toplar, rezervasyon ve OTA policy özetler, nötr cevap taslağı üretir.
+
+Cendra otomatik charge/refund/claim yapmaz.
+
+Kullanıcı karar verir; karar audit ve learning için DecisionCase’e yazılır.
+
+H) Güven, kontrol ve açıklanabilirlik modeli
+Güven copy’si
+Cendra önce hard kurallara, sonra aktif risklere, sonra güvenlik kontrollerine, sonra öğrenilmiş davranışlara, sonra owner tercihlerine bakar. Emin değilse tahmin etmez, sorar.
+
+Execution modes
+Alan
+Tanım
+Blocked
+Cendra bu aksiyonu yapamaz; hard rule veya hard blocker var.
+Draft
+Cendra cevap hazırlar, insan gönderir.
+Approval Required
+Cendra aksiyon planlar, insan izin verir.
+Semi-auto
+Cendra kısa hold window sonrası yapar; insan iptal edebilir.
+Autopilot
+Cendra güvenli ve kanıtlanmış işi otomatik yapar; digest üretir.
+Never Auto
+Cendra bağlam toplar ve önerir, fakat karar daima insanda kalır.
+
+Reversibility badges
+Alan
+Tanım
+Green
+Tam geri alınabilir. Örnek: draft, reminder, bilgi cevabı. Primary action hızlı olabilir.
+Amber
+Telafi aksiyonu gerekir. Örnek: vendor’a zaman bilgisi, guest’e operasyon update’i. Confirmation gerekebilir.
+Red
+Geri alınamaz veya hassas. Örnek: charge, refund, access code, cancellation, damage claim. Strong friction + audit zorunlu.
+
+Always human approval / never-auto defaults
+
+Damage claim
+
+Refund
+
+Charge guest
+
+Cancellation exception
+
+Access code before safe release conditions
+
+Price negotiation
+
+Compensation above threshold
+
+Legal threat
+
+Safety incident
+
+OTA policy-sensitive payment
+
+Functional requirements
+ID
+Gereksinim
+Öncelik
+Acceptance criteria
+FR-01
+Today ekranı exception-first açılmalı; varsayılan görünüm müdahale gerektiren işleri göstermeli.
+P0
+Kullanıcı 5 saniyede “beni bekleyen işler” listesini görür; Done by Cendra ayrı digest olarak görünür.
+FR-02
+Her Cendra önerisi veya aksiyonu Decision Card üretmeli.
+P0
+Card context, title, reasoning, prepared action, trust footer ve reversibility bilgisi içerir.
+FR-03
+Approve/Edit/Reject/Takeover/Pause/Hand back aksiyonları work detail içinde sabit erişilebilir olmalı.
+P0
+Primary action risk seviyesine göre değişir; red-risk aksiyonlarda confirmation summary gösterilir.
+FR-04
+Autonomy workflow bazlı olmalı; global AI on/off kullanılmamalı.
+P0
+Her WorkflowKind için Observe/Semi-auto/Autopilot/Never Auto state görünür ve yönetilebilir.
+FR-05
+Riskli aksiyonlar approval gateway’den geçmeli.
+P0
+Damage claim ve charge guest daima approval; access code conditional blocker check sonrası ilerler.
+FR-06
+Property Brain varsayılan olarak missing/conflicting info göstermeli.
+P0
+Kullanıcı tüm facts listesinden önce eksik/çelişkili bilgileri görür.
+FR-07
+Teach Cendra flow, kullanıcı editinden sonra öğrenme önerisi üretmeli.
+P1
+Kullanıcı scope seçmeden kalıcı kural oluşmaz.
+FR-08
+Command bar doğal dille kural/analiz/aksiyon başlatmalı fakat doğrudan irreversible aksiyon yapmamalı.
+P1
+Command sonucunda preview, affected workflows ve publish/test adımı gösterilir.
+FR-09
+Playbook Builder SOP veya doğal dilden structured journey oluşturmalı.
+P1
+Trigger/checks/allowed/approval/never/scope/test result alanları görünür.
+FR-10
+Learning Center sadece yüksek değerli ve actionable önerileri göstermeli.
+P1
+Öneride support count, confidence, override/incident ve risk özetleri görünür.
+FR-11
+Audit Trail her critical action ve approval için kalıcı kayıt sunmalı.
+P0
+Kim/ne zaman/hangi kaynak/hangi kural/before-after/rollback bilgisi görünür.
+FR-12
+Agent Activity event stream milestone’a çevrilmeli.
+P1
+Raw tool events yerine understood/checked/contacted/waiting/approval needed/executed adımları görünür.
+FR-13
+Golden Cases sonucu Weekly Brain Report olarak ürünleşmeli.
+P2
+PM match, hallucination risk, regression ve improvement önerileri sade dille sunulur.
+FR-14
+Her rule ve playbook publish öncesi simulation’dan geçmeli.
+P1
+Simulation failed ise publish disabled veya strong warning gösterilir.
+
+Non-functional requirements
+Alan
+Tanım
+Latency
+Decision Card ve approval view kullanıcı hissiyatında hızlı açılmalı; backend geç kalırsa skeleton + “Cendra kontrol ediyor” state’i gösterilmeli.
+Reliability
+AG-UI stream koparsa fallback polling ve state snapshot kullanılmalı.
+Security
+PII ve access code gibi hassas bilgiler source/evidence içinde maskelenmeli; role bazlı görünürlük uygulanmalı.
+Accessibility
+Risk renkleri tek başına anlam taşımamalı; icon + label + text kullanılmalı.
+Internationalization
+Ürün dili TR/EN desteklemeli; guest-facing text channel language ile ayrılmalı.
+Mobile
+Mobile’da Today ve Approval first; full timeline desktop/tablet için optimize.
+Audit
+Critical action audit log olmadan yürütülmemeli.
+
+Technical integration mapping
+Alan
+Tanım
+Decision Cards API
+POST /api/v1/cards/propose, GET by property/status, GET by card_id, confirm, dismiss.
+Workflow API
+Cleaner dispatch, PMS selection, cleaner report, vendor response, workflow status.
+Pattern API
+DecisionCase logging, case search, pattern extraction, active rules, blockers, calendar intelligence.
+Autonomy service
+WorkflowAutonomy records, PromotionGate, TrustMeterView; unknown workflows default Observe.
+AG-UI Events
+run, text, tool, state, flow, reasoning, action, intent, memory, rag, guardrail, sentiment, missing_info_detected, learning_decision.
+SOP Parser
+Uploaded SOP text → procedural rules; priority order: immutable/manual/SOP/learned.
+NL Rule Creator
+Natural language → validated rule preview; publish only after user approval.
+Manual Directive dependency
+Hard “never do” UX requires persistent manual_directive_store wired in production. If absent, UI must degrade to approval mode and warn internally.
+
+I) MVP önerisi
+MVP goal
+MVP’nin amacı çok özellik değil; güvenilir agent deneyimi. Kullanıcı Cendra’nın neden böyle davrandığını görebilmeli ve düşük riskli işleri workflow bazlı otomatikleştirebilmeli.
+
+P0 scope
+
+Today / Exception Queue
+
+Work detail: conversation + operations timeline
+
+Decision Card + Why drawer
+
+Approval Needed flow
+
+Workflow bazlı Autopilot / Trust Meter
+
+Property Brain missing/conflict cards
+
+Basic Teach Cendra after edit
+
+Hard never-auto defaults for riskli workflows
+
+Basic audit trail for approvals/overrides/auto-sends
+
+MVP dışı
+
+Full analytics dashboard
+
+Raw memory browser
+
+Model settings
+
+Complex visual workflow builder
+
+Multi-agent graph
+
+Voice
+
+Advanced benchmark UI
+
+Deep simulation suite
+
+MVP launch acceptance criteria
+
+Kullanıcı Today ekranında en önemli 3 aksiyonu 5 saniyede bulabiliyor.
+
+Her Cendra önerisinde Decision Card var.
+
+Damage/refund/charge/access code gibi riskli aksiyonlar approval olmadan yürümüyor.
+
+Autonomy state workflow bazlı görülebiliyor ve değiştirilebiliyor.
+
+Edit sonrası Teach Cendra flow tetikleniyor.
+
+Her critical action için audit kaydı oluşuyor.
+
+J) 6–12 aylık ürün vizyonu
+Alan
+Tanım
+0–3 ay: Trusted Autopilot Foundation
+Today, Exception Queue, Decision Cards, Approval Gateway, Autopilot Trust Meter, Property Brain gaps, Teach Cendra, hard rules, audit.
+3–6 ay: Playbook Studio + Learning OS
+Natural language playbook creation, SOP import, simulation before publish, rule scope, Learning Center, Weekly Brain Report, Golden Cases review.
+6–12 ay: Hospitality Agent OS
+Guest Agent, Ops Agent, Revenue Agent, Maintenance Agent, Review Recovery Agent ve Night Manager içerde çalışır; kullanıcı tek Cendra zekâsı görür.
+12 ay sonunda Cendra çoklu agent graph olarak değil, tek operasyon zekâsı olarak hissedilmeli. İçerde agent collaboration olabilir; dışarıda tek Mission Control ve tek güven modeli kalmalı.
+
+K) En güçlü 10 UX fikri
+
+Decision Card ürünün atomu olsun.
+
+Inbox yerine exception-first Mission Control.
+
+Workflow bazlı Autopilot ladder; global toggle yok.
+
+Why drawer: özet → neden → kanıt → audit → teknik trace.
+
+Teach Cendra: edit/approval’dan öğrenme önerisi.
+
+Missing-info cards: ayar formu değil, bağlamsal küçük soru.
+
+Simulation before publish.
+
+Reversibility badges: Green / Amber / Red.
+
+Weekly Brain Report: Cendra ne öğrendi, ne çözdü, nerede risk gördü?
+
+Command bar preview-first; irreversible action’ı direkt çalıştırmaz.
+
+L) En tehlikeli 10 ürün riski
+
+Brain Engine’i fazla teknik göstermek.
+
+Global AI on/off toggle kullanmak.
+
+Riskli aksiyonları fazla otomatikleştirmek.
+
+Manual hard rule store production’da tam wired olmadan “asla yapma” vaadi vermek.
+
+Öğrenmeyi görünmez yapmak.
+
+Vanity dashboard metrics ile kullanıcıyı boğmak.
+
+Raw event feed gürültüsü yaratmak.
+
+Confidence score’u gerçek güven gibi göstermek.
+
+OTA/channel policy context’ini journey içinde zorunlu yapmamak.
+
+Rollback ve audit’i sonradan eklenmiş feature gibi bırakmak.
+
+M) Nihai önerilen ürün hikayesi
+
+30 saniyelik demo anlatımı
+Cendra’yı açıyorsun. Inbox yerine Today ekranı geliyor. Cendra gece boyunca 43 işi çözmüş; sadece 4 konu seni bekliyor. İlk kart erken check-in talebi. Cendra rezervasyonu, temizlik durumunu, aynı gün çıkışı ve mülk kuralını kontrol etmiş. Temizlik hazır olmadığı için erken giriş sözü vermiyor; güvenli cevap taslağı hazırlıyor. Sen onaylıyorsun. Sonra Cendra soruyor: “Bu mülkte temizlik hazır değilse hep bu cevabı kullanayım mı?” Onaylıyorsun. Cendra bunu kural yapıyor, test ediyor ve bundan sonra benzer işleri otomatik yönetiyor.
+
+Aha moment
+Aha moment
+Kullanıcı bir AI cevabını düzeltir. Cendra bu düzeltmeden hospitality playbook çıkarır, kapsamını sorar, simülasyonla test eder ve bir sonraki benzer misafir mesajını doğru şekilde çözer.
+
+3 dakikalık ürün hikayesi
+Property manager’lar bugün inbox içinde boğuluyor. Her mesaj ayrı görünüyor ama aslında hepsi operasyonel karar: early check-in, late checkout, access code, bakım, temizlik, vendor, refund, damage, review riski, upsell.
+Cendra bu işleri mesaj olarak değil, karar ve aksiyon akışı olarak yönetir. Misafir mesajı geldiğinde önce ne istendiğini anlar; sonra PMS, property bilgisi, reservation context, SOP, geçmiş PM kararları, owner preference ve risk kurallarına bakar.
+Düşük riskli ve geri alınabilir işse çözer. Riskli, eksik veya policy-sensitive ise durur, Decision Card üretir ve kullanıcıdan onay ister.
+Kullanıcı her konuşmayı okumaz. Sadece exception’ları görür. Cendra nedenini açıklar: neye baktı, hangi kuralı kullandı, hangi risk var, aksiyon geri alınabilir mi?
+Kullanıcı Cendra’yı düzelttiğinde bu sadece mesaj edit’i olarak kalmaz. Cendra “Bunu öğreneyim mi?” diye sorar, kapsamı seçtirir, rule taslağı çıkarır, test eder ve onayla yayınlar.
+Zamanla Wi-Fi, parking, checkout reminder gibi düşük riskli işler autopilot’a geçer. Refund, damage, charge, access code gibi işler approval’da kalır. Cendra risk görünce kendini geri çeker.
+
+Design team handoff checklist
+
+Information architecture map: Today, Work, Properties, Playbooks, Autopilot, Learning, Trust.
+
+Lo-fi wireframes: Today, Exception Queue, Work Detail, Decision Card, Approval, Autopilot, Property Brain, Learning Center, Audit Trail.
+
+Hi-fi design system components: decision card, risk badge, reason badge, autonomy state pill, reversibility badge, action bar, Why drawer, evidence row, missing info card, learning suggestion card.
+
+Interactive prototype for 4 flows: early check-in, missing info, teach Cendra, damage approval.
+
+Empty/loading/error/offline states for AG-UI stream and card generation.
+
+Mobile-first approval flow and desktop mission-control layout.
+
+Copy guide: teknik terim yerine kullanıcı dili.
+
+Accessibility review: keyboard actions, color+label risk states, readable tables/cards.
+
+Design component inventory
+Alan
+Tanım
+DecisionCard
+Context, title, reasoning rows, prepared action, trust footer, reversibility.
+ReasonBadge
+Approval required, blocker, missing info, low confidence, policy risk, revenue opportunity.
+AutonomyPill
+Observe, Approval, Semi-auto, Autopilot, Never Auto.
+RiskBadge
+Low, Medium, High, Critical with text labels.
+ReversibilityBadge
+Green/Amber/Red plus explanation.
+ActionBar
+Approve, Edit, Reject, Takeover, Pause, Hand back.
+WhyDrawer
+Özet → neden → kanıt → audit.
+EvidenceRow
+Source type, label, source/reference, freshness.
+LearningSuggestionCard
+Observed behavior, examples, proposed rule, scope, simulation result.
+MissingInfoCard
+Question, quick choices, scope, internal/guest-facing toggle.
+
+Metrics and instrumentation
+Alan
+Tanım
+Operational success
+Resolved by Cendra, approval volume, human takeover rate, SLA saved, time to resolution.
+Trust
+Decision Card open rate, Why drawer open rate, approval acceptance rate, override rate, pause rate.
+Autonomy
+Workflow state distribution, promotion/demotion count, incidents, hold-window cancel rate.
+Learning
+Learning suggestion approval rate, rejected patterns, rule rollback rate, simulation pass/fail.
+Knowledge
+Missing info count, conflict resolution time, source freshness, repeated unknown questions.
+Revenue
+Upsell offers, accepted upsells, late checkout conversion, orphan-night offers.
+Quality
+Golden Cases PM match, hallucination rate, regression alerts.
+
+Open questions / dependencies
+
+ManualDirectiveStore production persistence and UI write path: hangi store, hangi scope, hangi migration?
+
+Role permissions: kim hard rule yayınlayabilir, kim refund/charge onaylayabilir?
+
+Channel policy source: Airbnb/Booking/Expedia kuralları nereden gelecek ve nasıl güncellenecek?
+
+Reversibility taxonomy: hangi action_type Green/Amber/Red olacak?
+
+Simulation engine MVP kapsamı: kaç senaryo, hangi workflows, publish gating nasıl?
+
+Mobile UX önceliği: PM approvals mobilde mi daha kritik, yoksa desktop ops center mı?
+
+Audit retention ve export gereksinimleri: enterprise müşteriler için süre ve format.
+
+Multi-agent naming: kullanıcı tek Cendra mı görecek, yoksa agent rollerini isimlendirecek miyiz?
+

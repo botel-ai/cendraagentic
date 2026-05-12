@@ -1,0 +1,1518 @@
+// Cendra screens: Today, Work, Work Detail, Approval
+const { Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar, DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState } = window.CendraAtoms;
+const D = window.CENDRA_DATA;
+const DP = window.CENDRA_DATA2;
+
+// ───────────────────────────────────────────────────────────────────
+// TODAY / Command Center — Day Spine
+// ───────────────────────────────────────────────────────────────────
+function TodayScreen({ onOpen, tweaks }) {
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    return h < 5 ? "Late again" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  }, []);
+
+  const heroVariant = tweaks?.todayHero || "spine";
+  const s = DP.signals;
+  const sections = DP.today_sections;
+  const [filter, setFilter] = useState("all");
+
+  return (
+    <div className="stage">
+      <PageHeader
+        eyebrow="TODAY · 09 MAY · 09:14 LOCAL"
+        title={<><span style={{fontStyle:'italic'}}>{greeting},</span> Maya.<br />Cendra has the watch.</>}
+        lead={<><b style={{color:'var(--ink)'}}>{s.needs_you} need you.</b>  Cendra handled {s.actions_total.toLocaleString()} actions overnight across {DP.portfolio.properties_count} properties — {s.incidents} incidents.</>}
+        right={
+          <div className="col gap-2" style={{textAlign:'right'}}>
+            <div className="mono dim" style={{fontSize:11, letterSpacing:'.1em'}}>SYSTEM</div>
+            <div style={{display:'flex', alignItems:'center', gap:8, justifyContent:'flex-end'}}>
+              <span style={{width:8, height:8, borderRadius:'50%', background:'var(--ok)'}} />
+              <span style={{fontFamily:'var(--mono)', fontSize:12}}>{s.incidents} incidents · 30d</span>
+            </div>
+            <div className="mono dim" style={{fontSize:10.5}}>OPS · {DP.portfolio.properties_count} props · {D.bookings_today} bookings</div>
+          </div>
+        }
+      />
+
+      {/* Signal strip — high-signal top bar */}
+      <TodaySignalStrip signals={s} onOpen={onOpen} />
+
+      {/* Portfolio filter bar */}
+      <PortfolioFilterBar filter={filter} onChange={setFilter} />
+
+      {/* Five Today sections */}
+      <TodaySection
+        title="Needs your decision"
+        eyebrow={`${sections.needs_decision.length} ITEMS · ORDERED BY URGENCY`}
+        accent="ink"
+      >
+        {sections.needs_decision.map(it => <NeedsDecisionRow key={it.id} item={it} onOpen={onOpen} />)}
+      </TodaySection>
+
+      <TodaySection
+        title="Risk & SLA"
+        eyebrow={`${sections.risk_sla.length} SIGNALS · SAFETY FIRST`}
+        accent="risk"
+      >
+        {sections.risk_sla.map(it => <RiskRow key={it.id} item={it} onOpen={onOpen} />)}
+      </TodaySection>
+
+      <TodaySection
+        title="Revenue opportunities"
+        eyebrow={`${sections.revenue.length} OPPORTUNITIES · €${sections.revenue.reduce((a,b)=>a+b.est_eur,0)} EST.`}
+        accent="ok"
+      >
+        {sections.revenue.map(it => <RevenueRow key={it.id} item={it} onOpen={onOpen} />)}
+      </TodaySection>
+
+      <TodaySection
+        title="Missing knowledge"
+        eyebrow={`${sections.missing_knowledge.length} GAPS · BLOCKING AUTOMATION`}
+        accent="warn"
+      >
+        {sections.missing_knowledge.map(it => <MissingRow key={it.id} item={it} onOpen={onOpen} />)}
+      </TodaySection>
+
+      <window.CendraVision.BrainReport />
+
+      {/* Done by Cendra digest */}
+      <section style={{marginTop: 48}}>
+        <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom: 14}}>
+          <div>
+            <div className="eyebrow">DONE BY CENDRA · LAST 12H</div>
+            <h2 className="h2 mt-1">{D.digest.handled} resolutions, no incidents.</h2>
+          </div>
+          <Btn kind="ghost" size="sm">View digest →</Btn>
+        </div>
+
+        <div className="dcard" style={{padding:'4px 0'}}>
+          {D.done.map((d, i) => (
+            <div key={d.id} style={{
+              display:'grid', gridTemplateColumns:'70px 1fr 130px 110px 38px',
+              alignItems:'center', gap:14, padding:'12px 18px',
+              borderBottom: i < D.done.length-1 ? '1px solid var(--hair-soft)' : 'none'
+            }}>
+              <div className="mono dim" style={{fontSize:11}}>{d.time}</div>
+              <div>
+                <div style={{fontSize:13.5}}>{d.title}</div>
+                <div className="mono dim" style={{fontSize:10.5, marginTop:2}}>{d.who}</div>
+              </div>
+              <div className="mono dim" style={{fontSize:10.5}}>{d.workflow}</div>
+              <AutonomyPill state={d.autonomy} />
+              
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:'flex', gap:10, justifyContent:'space-between', marginTop:18, alignItems:'center'}}>
+          <div className="mono dim" style={{fontSize:11}}>
+            {D.digest.drafts_sent} info replies · {D.digest.upsells_offered} upsells offered · {D.digest.facts_confirmed} property facts confirmed
+          </div>
+          <div className="mono dim" style={{fontSize:11}}>↵ press <span className="kbd" style={{border:'1px solid var(--hair)',padding:'1px 5px',borderRadius:3,background:'white'}}>?</span> to ask Cendra</div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// Today v2 atoms — signal strip, portfolio filter, sections, rows
+function TodaySignalStrip({ signals, onOpen }) {
+  const cells = [
+    { label: "Cendra handled",     value: signals.actions_total.toLocaleString(), foot: signals.actions_delta, tone: "ink" },
+    { label: "Need you",           value: signals.needs_you, foot: `${signals.approvals} approvals`, tone: "ink", route: "work" },
+    { label: "At risk",            value: signals.risks,     foot: "SLA / sentiment",        tone: "warn" },
+    { label: "Missing facts",      value: signals.missing_facts, foot: "blocking automation", tone: "warn", route: "property_brain" },
+    { label: "Revenue opp.",       value: `€${signals.revenue_eur}`, foot: "this week",       tone: "ok" },
+    { label: "Incidents",          value: signals.incidents, foot: "0 in 30d",                tone: "ok" },
+    { label: "Ready to promote",   value: signals.promotions_ready, foot: "Late checkout",   tone: "ink", route: "autopilot" },
+  ];
+  return (
+    <div style={{
+      display:'grid',
+      gridTemplateColumns:`repeat(${cells.length}, 1fr)`,
+      gap: 0,
+      border:'1px solid var(--hair)',
+      background:'var(--card)',
+      borderRadius: 6,
+      marginBottom: 18,
+    }}>
+      {cells.map((c, i) => {
+        const valueColor = c.tone === 'warn' ? 'var(--warn)' : c.tone === 'ok' ? 'var(--ok)' : 'var(--ink)';
+        return (
+          <button key={i} onClick={() => c.route && onOpen(c.route)} style={{
+            all:'unset', cursor: c.route ? 'pointer' : 'default',
+            padding: '14px 16px',
+            borderLeft: i === 0 ? 'none' : '1px solid var(--hair-soft)',
+            display:'flex', flexDirection:'column', gap:4,
+          }}>
+            <div className="mono dim" style={{fontSize:9.5, letterSpacing:'.16em', textTransform:'uppercase'}}>{c.label}</div>
+            <div style={{fontFamily:'var(--mono)', fontSize: 22, fontWeight: 500, color: valueColor, lineHeight: 1.1}}>{c.value}</div>
+            <div className="mono dim" style={{fontSize:10.5}}>{c.foot}</div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PortfolioFilterBar({ filter, onChange }) {
+  const chips = [
+    { id: "all", label: "All properties", count: DP.portfolio.properties_count },
+    { id: "owner", label: "By owner", count: DP.portfolio.owners.length },
+    { id: "region", label: "By region", count: DP.portfolio.regions.length },
+    { id: "channel", label: "By channel", count: DP.portfolio.channels.length },
+    { id: "group", label: "Property group", count: DP.portfolio.groups.length },
+    { id: "sla", label: "SLA risk", count: 14 },
+    { id: "wf", label: "Workflow", count: 21 },
+  ];
+  return (
+    <div style={{
+      display:'flex', gap:6, flexWrap:'wrap', marginBottom: 26,
+      paddingBottom: 14, borderBottom:'1px solid var(--hair-soft)',
+    }}>
+      <span className="mono dim" style={{fontSize:10.5, letterSpacing:'.16em', alignSelf:'center', marginRight: 8}}>SCOPE ·</span>
+      {chips.map(c => (
+        <button
+          key={c.id}
+          onClick={() => onChange(c.id)}
+          className={CendraAtoms.cls("btn", "btn-sm", filter === c.id && "btn-primary")}
+        >
+          {c.label} <span className="mono" style={{opacity:.55, marginLeft:4, fontSize:10.5}}>{c.count}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TodaySection({ title, eyebrow, accent, children }) {
+  const accentColor = accent === 'risk' ? 'var(--risk)' : accent === 'warn' ? 'var(--warn)' : accent === 'ok' ? 'var(--ok)' : 'var(--ink)';
+  return (
+    <section style={{marginBottom: 32}}>
+      <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom: 12, gap: 14}}>
+        <div style={{display:'flex', alignItems:'baseline', gap: 12}}>
+          <span style={{width:6, height:6, borderRadius:'50%', background: accentColor, transform:'translateY(-2px)'}} />
+          <h2 style={{fontFamily:'var(--serif)', fontSize: 24, fontWeight: 400, letterSpacing:'-.005em', margin: 0, lineHeight: 1.15}}>{title}</h2>
+        </div>
+        <span className="mono dim" style={{fontSize:10.5, letterSpacing:'.16em'}}>{eyebrow}</span>
+      </div>
+      <div className="dcard" style={{padding: 0}}>{children}</div>
+    </section>
+  );
+}
+
+function TodayRow({ children, onClick, lastChild, columns }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        all:'unset', cursor:'pointer', display:'grid',
+        gridTemplateColumns: columns,
+        alignItems:'center', gap:14,
+        padding:'14px 18px', width:'calc(100% - 36px)',
+        borderBottom: lastChild ? 'none' : '1px solid var(--hair-soft)',
+      }}
+    >{children}</button>
+  );
+}
+
+function NeedsDecisionRow({ item, onOpen }) {
+  const isLast = item === DP.today_sections.needs_decision[DP.today_sections.needs_decision.length-1];
+  const open = () => {
+    const r = item.route || "work";
+    if (r.includes(":")) { const [n,a] = r.split(":"); onOpen(n,a); } else onOpen(r);
+  };
+  return (
+    <TodayRow onClick={open} lastChild={isLast} columns="80px 1fr 200px 130px 110px 90px">
+      <div className="mono dim" style={{fontSize:11}}>{item.waited}</div>
+      <div>
+        <div style={{fontSize:14, fontWeight:500, marginBottom:3}}>{item.title}</div>
+        <div className="dim" style={{fontSize:12.5, lineHeight:1.4}}>{item.sub}</div>
+      </div>
+      <div className="mono dim" style={{fontSize:11, lineHeight:1.4}}>{item.reason}</div>
+      <AutonomyPill state={item.autonomy} />
+      
+      <span style={{fontFamily:'var(--mono)', fontSize:11, color:'var(--ink)', textAlign:'right'}}>{item.action} →</span>
+    </TodayRow>
+  );
+}
+
+function RiskRow({ item, onOpen }) {
+  const isLast = item === DP.today_sections.risk_sla[DP.today_sections.risk_sla.length-1];
+  return (
+    <TodayRow onClick={() => onOpen("work")} lastChild={isLast} columns="1fr 220px 110px 110px">
+      <div>
+        <div style={{fontSize:14, fontWeight:500, marginBottom:3}}>{item.title}</div>
+        <div className="dim" style={{fontSize:12.5}}>{item.sub}</div>
+      </div>
+      <div className="mono dim" style={{fontSize:11}}>{item.reason}</div>
+      <Pill tone={item.risk === "high" ? "risk" : "warn"}>{item.risk?.toUpperCase()}</Pill>
+      <span style={{fontFamily:'var(--mono)', fontSize:11, color:'var(--ink)', textAlign:'right'}}>{item.action} →</span>
+    </TodayRow>
+  );
+}
+
+function RevenueRow({ item, onOpen }) {
+  const isLast = item === DP.today_sections.revenue[DP.today_sections.revenue.length-1];
+  return (
+    <TodayRow onClick={() => onOpen("work")} lastChild={isLast} columns="1fr 200px 100px 130px">
+      <div>
+        <div style={{fontSize:14, fontWeight:500, marginBottom:3}}>{item.title}</div>
+        <div className="dim" style={{fontSize:12.5}}>{item.sub}</div>
+      </div>
+      <div className="mono dim" style={{fontSize:11}}>{item.property}</div>
+      <div className="mono" style={{fontSize:13, color:'var(--ok)'}}>+€{item.est_eur}</div>
+      <span style={{fontFamily:'var(--mono)', fontSize:11, color:'var(--ink)', textAlign:'right'}}>{item.action} →</span>
+    </TodayRow>
+  );
+}
+
+function MissingRow({ item, onOpen }) {
+  const isLast = item === DP.today_sections.missing_knowledge[DP.today_sections.missing_knowledge.length-1];
+  return (
+    <TodayRow onClick={() => onOpen("property_brain")} lastChild={isLast} columns="180px 1fr 100px 130px">
+      <div className="mono" style={{fontSize:12, color:'var(--ink)'}}>{item.scope}</div>
+      <div style={{fontSize:14}}>{item.fact}</div>
+      <div className="mono dim" style={{fontSize:11}}>{item.asks ? `${item.asks} asks` : "conflict"}</div>
+      <span style={{fontFamily:'var(--mono)', fontSize:11, color:'var(--ink)', textAlign:'right'}}>{item.action} →</span>
+    </TodayRow>
+  );
+}
+
+// Day Spine — the bold/novel hero composition
+function DaySpine({ onOpen, tweaks }) {
+  const exc = D.exceptions;
+  return (
+    <section>
+      <div className="eyebrow mb-2" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span>NEEDS YOU · {D.exceptions.length} ITEMS · ORDERED BY URGENCY</span>
+        <span className="mono">{new Date().toISOString().slice(0,10)}</span>
+      </div>
+
+      <div className="day-spine" style={{
+        display:'grid',
+        gridTemplateColumns:'1fr 84px 1fr',
+        gap: 0,
+        position:'relative',
+        background: 'var(--card)',
+        border: '1px solid var(--hair)',
+        borderRadius: 6,
+      }}>
+        {/* Spine center column */}
+        <div className="spine-center spine-divider" style={{
+          gridColumn: 2,
+          gridRow: '1 / -1',
+          background: 'var(--paper)',
+          borderLeft: '1px solid var(--hair)',
+          borderRight: '1px solid var(--hair)',
+          position: 'relative',
+        }}>
+          <div style={{
+            position:'absolute', left:'50%', top: 0, bottom: 0,
+            width: 1, background: 'var(--hair)',
+          }} />
+        </div>
+
+        {/* Header row */}
+        <div className="spine-head-left" style={{padding:'12px 18px', borderBottom:'1px solid var(--hair)', display:'flex',justifyContent:'space-between'}}>
+          <span className="mono dim" style={{fontSize:10.5, letterSpacing:'.16em'}}>NEEDS YOU</span>
+          <span className="mono dim" style={{fontSize:10.5}}>{exc.length}</span>
+        </div>
+        <div className="spine-head-center" style={{borderBottom:'1px solid var(--hair)', textAlign:'center', padding:'12px 0'}}>
+          <span className="mono dim" style={{fontSize:9.5, letterSpacing:'.2em'}}>SPINE</span>
+        </div>
+        <div className="spine-head-right" style={{padding:'12px 18px', borderBottom:'1px solid var(--hair)', textAlign:'right'}}>
+          <span className="mono dim" style={{fontSize:10.5, letterSpacing:'.16em'}}>HANDLED BY CENDRA</span>
+        </div>
+
+        {/* Spine items */}
+        {exc.map((e, i) => (
+          <SpineRow key={e.id} exc={e} idx={i} onOpen={onOpen} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SpineRow({ exc, idx, onOpen }) {
+  const handledOnRight = D.done[idx % D.done.length];
+  const tone = exc.tone || "info";
+  return (
+    <>
+      {/* LEFT: exception card */}
+      <div className="spine-row spine-left" style={{padding:'18px 20px', borderBottom: idx === D.exceptions.length-1 ? 'none' : '1px solid var(--hair-soft)'}}>
+        <button
+          onClick={() => onOpen('work_detail', exc.id)}
+          style={{all:'unset', display:'block', cursor:'pointer', width:'100%'}}
+        >
+          <div style={{display:'flex', gap:8, marginBottom:8, flexWrap:'wrap', alignItems:'center'}}>
+            <ReasonPill kind={exc.kind} />
+            <Pill tone={tone === "risk" ? "risk" : "info"}><span className="mono" style={{fontSize:10.5}}>{exc.waiting} waiting</span></Pill>
+            <window.CendraVision.ChannelChip channel={exc.channel} />
+          </div>
+          <h3 style={{fontFamily:'var(--serif)', fontSize: 22, lineHeight:1.18, fontWeight:400, margin:'4px 0 6px', letterSpacing:'-.005em'}}>
+            {exc.title}
+          </h3>
+          <p className="dim" style={{margin:'0 0 8px', fontSize:13, lineHeight:1.5}}>{exc.summary}</p>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop: 10}}>
+            <div className="mono dim" style={{fontSize:10.5}}>
+              {exc.guest !== "—" ? exc.guest : "—"} · {exc.property} · {exc.channel}
+            </div>
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
+              
+              <span style={{fontFamily:'var(--mono)', fontSize:11, color:'var(--ink)'}}>OPEN →</span>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* CENTER: spine marker */}
+      <div className="spine-center" style={{
+        position:'relative',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        borderBottom: idx === D.exceptions.length-1 ? 'none' : '1px solid var(--hair-soft)',
+      }}>
+        <div style={{
+          width: 14, height: 14, borderRadius: '50%',
+          background: exc.tone === 'risk' ? 'var(--risk)' : exc.tone === 'warn' ? 'var(--warn)' : exc.tone === 'ok' ? 'var(--ok)' : 'var(--info)',
+          border: '3px solid var(--paper)',
+          boxShadow: '0 0 0 1px var(--hair)',
+          zIndex: 2,
+          position:'relative',
+        }} />
+      </div>
+
+      {/* RIGHT: handled by cendra (small/quiet) */}
+      <div className="spine-right" style={{padding:'18px 20px', borderBottom: idx === D.exceptions.length-1 ? 'none' : '1px solid var(--hair-soft)', textAlign:'right'}}>
+        <div className="mono dim" style={{fontSize:10.5, letterSpacing:'.04em', marginBottom: 6}}>{handledOnRight.time} · {handledOnRight.workflow}</div>
+        <div style={{fontSize:13, color:'var(--ink-mid)', lineHeight:1.45, marginBottom: 4}}>{handledOnRight.title}</div>
+        <div className="mono dim" style={{fontSize:10.5}}>{handledOnRight.who}</div>
+        <div style={{display:'inline-flex',marginTop:8}}>
+          <AutonomyPill state={handledOnRight.autonomy} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+// Variant: stack (more conventional inbox-card list)
+function ExceptionStack({ onOpen }) {
+  return (
+    <div className="col gap-3">
+      {D.exceptions.map(e => (
+        <button key={e.id} onClick={() => onOpen('work_detail', e.id)} className="dcard" style={{all:'unset', cursor:'pointer', display:'block'}}>
+          <div className="dcard-head">
+            <div className="dcard-from">FROM CENDRA · {e.waiting} WAITING</div>
+            <div style={{display:'flex',gap:6}}>
+              <ReasonPill kind={e.kind} />
+            </div>
+          </div>
+          <div className="dcard-body">
+            <h3 className="dcard-title">{e.title}</h3>
+            <p style={{margin:0, color:'var(--ink-mid)'}}>{e.summary}</p>
+          </div>
+          <div className="dcard-foot">
+            <div className="dcard-trust">{e.property} · {e.channel}</div>
+            
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Variant: ledger (tabular, ops-heavy)
+function LedgerView({ onOpen }) {
+  return (
+    <div className="dcard" style={{padding:0}}>
+      <table className="table">
+        <thead>
+          <tr>
+            <th style={{width:90}}>Waited</th>
+            <th>Subject</th>
+            <th style={{width:160}}>Property</th>
+            <th style={{width:160}}>Reason</th>
+            <th style={{width:120}}>Risk</th>
+            <th style={{width:100}}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {D.exceptions.map(e => (
+            <tr key={e.id} onClick={() => onOpen('work_detail', e.id)} style={{cursor:'pointer'}}>
+              <td className="mono dim">{e.waiting}</td>
+              <td>
+                <div style={{fontWeight:500}}>{e.title}</div>
+                <div className="dim" style={{fontSize:12}}>{e.guest !== "—" ? e.guest : ""} · {e.channel}</div>
+              </td>
+              <td className="mono dim">{e.property}</td>
+              <td><ReasonPill kind={e.kind} /></td>
+              <td><Pill tone={e.tone}>{e.risk?.toUpperCase()}</Pill></td>
+              <td><Btn size="sm">Open →</Btn></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────
+// GUESTS — journey-centric view (replaces the old work queue)
+// Past stays are excluded by design. This is who's in your home + who's arriving.
+// ───────────────────────────────────────────────────────────────────
+function WorkScreen({ onOpen }) {
+  const J = DP.guests_journey;
+  const needsYouCount =
+    [...J.checking_in_today, ...J.in_house, ...J.checking_out_today].filter(g => g.status === "needs_you").length;
+  const waitingCount =
+    [...J.checking_in_today, ...J.in_house, ...J.checking_out_today].filter(g => g.status === "waiting").length;
+  const inHouseCount = J.in_house.length;
+  const arrivingTodayCount = J.checking_in_today.length;
+  const departingTodayCount = J.checking_out_today.length;
+
+  return (
+    <div className="stage">
+      <PageHeader
+        eyebrow="GUESTS · LIVE JOURNEY"
+        title="Who is in your home, and who is coming."
+        lead={<><b style={{color:'var(--ink)'}}>{inHouseCount} staying</b> · {arrivingTodayCount} arriving today · {departingTodayCount} departing today. Cendra holds the routine; this page surfaces what shifts day by day.</>}
+        right={
+          <div className="col gap-2" style={{textAlign:'right', alignItems:'flex-end'}}>
+            {needsYouCount > 0 && <Pill tone="warn">{needsYouCount} need you</Pill>}
+            {waitingCount > 0 && <Pill tone="info">{waitingCount} waiting</Pill>}
+            <span className="mono dim" style={{fontSize:10.5}}>
+              {inHouseCount + arrivingTodayCount + departingTodayCount} ACTIVE · {J.arriving_week.length} THIS WEEK · {J.arriving_later_count} LATER
+            </span>
+          </div>
+        }
+      />
+
+      <JourneyGroup
+        eyebrow="CHECKING IN TODAY"
+        count={J.checking_in_today.length}
+        sub="Prep, approvals, and arrivals on the way in."
+        guests={J.checking_in_today}
+        onOpen={onOpen}
+        variant="arrival"
+      />
+
+      <JourneyGroup
+        eyebrow="IN-STAY"
+        count={J.in_house.length}
+        sub="Mid-stay. Quiet ones at the bottom, attention up top."
+        guests={J.in_house}
+        onOpen={onOpen}
+        variant="stay"
+      />
+
+      <JourneyGroup
+        eyebrow="CHECKING OUT TODAY"
+        count={J.checking_out_today.length}
+        sub="Departure prep, refund/comp asks, late-checkout calls."
+        guests={J.checking_out_today}
+        onOpen={onOpen}
+        variant="departure"
+      />
+
+      <JourneyGroup
+        eyebrow="ARRIVING THIS WEEK"
+        count={J.arriving_week.length}
+        sub="Cendra is preparing these — flagged only if something blocks."
+        upcoming={J.arriving_week}
+        onOpen={onOpen}
+        variant="upcoming"
+      />
+
+      <div className="mt-6">
+        <div style={{
+          display:'flex', alignItems:'center', justifyContent:'space-between', gap:12,
+          padding:'14px 18px',
+          border:'1px dashed var(--hair)', borderRadius:6,
+          background:'color-mix(in oklab, var(--paper), white 30%)',
+        }}>
+          <div>
+            <div className="eyebrow" style={{marginBottom:4}}>LATER</div>
+            <div style={{fontSize:13.5, color:'var(--ink-mid)'}}>
+              <b style={{color:'var(--ink)'}}>{J.arriving_later_count} reservations</b> beyond next 7 days. No prep required yet — Cendra will surface them as their windows open.
+            </div>
+          </div>
+          <Btn kind="ghost" size="sm">Expand</Btn>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <QuietState
+          title="Past stays live elsewhere."
+          body="This page shows live journey only — currently in-house and what's coming. Open post-stay cases (damage claims, reviews, OTA windows) appear in Today and Insights."
+          mono="JOURNEY VIEW · LIVE ONLY"
+        />
+      </div>
+    </div>
+  );
+}
+
+// Status chip — single canonical signal per guest
+function GuestStatusChip({ status, reason, slaMin }) {
+  const map = {
+    needs_you: { tone: "warn", label: "Needs you" },
+    waiting:   { tone: "info", label: "Waiting" },
+    all_good:  { tone: "ok",   label: "All good" },
+  };
+  const m = map[status] || map.all_good;
+  return (
+    <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
+      <Pill tone={m.tone}>{m.label}</Pill>
+      {reason && <span className="dim" style={{fontSize:12}}>· {reason}</span>}
+      {slaMin != null && slaMin >= 0 && slaMin < 60 && (
+        <span className="mono" style={{fontSize:10.5, color:'var(--warn)'}}>{slaMin}m SLA</span>
+      )}
+      {slaMin != null && slaMin < 0 && (
+        <span className="mono" style={{fontSize:10.5, color:'var(--risk)'}}>+{Math.abs(slaMin)}m breached</span>
+      )}
+    </div>
+  );
+}
+
+// Stay progress — slim horizontal bar with night X / Y
+function StayProgress({ done, total, checkout }) {
+  if (!total) return null;
+  const pct = Math.max(0, Math.min(100, (done / total) * 100));
+  return (
+    <div style={{minWidth: 180}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:4}}>
+        <span className="mono dim" style={{fontSize:10}}>NIGHT {done}/{total}</span>
+        <span className="mono dim" style={{fontSize:10}}>CO · {checkout}</span>
+      </div>
+      <div style={{height: 3, background:'var(--hair-soft)', borderRadius: 2, overflow:'hidden'}}>
+        <div style={{width: `${pct}%`, height:'100%', background:'var(--ink)'}} />
+      </div>
+    </div>
+  );
+}
+
+// Journey group — section of guest cards, sorted by status urgency
+function JourneyGroup({ eyebrow, count, sub, guests, upcoming, onOpen, variant }) {
+  // Sort: needs_you → waiting → all_good (stable within)
+  const ordered = useMemo(() => {
+    if (!guests) return [];
+    const rank = { needs_you: 0, waiting: 1, all_good: 2 };
+    return [...guests].sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9));
+  }, [guests]);
+
+  return (
+    <section style={{marginBottom: 32}}>
+      <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom: 12, gap:12}}>
+        <div>
+          <div className="mono dim" style={{fontSize:10, letterSpacing:'.18em', marginBottom:4}}>
+            {eyebrow} · {count}
+          </div>
+          {sub && <div className="dim" style={{fontSize:12.5}}>{sub}</div>}
+        </div>
+      </div>
+
+      {variant === "upcoming" ? (
+        <UpcomingTable upcoming={upcoming} onOpen={onOpen} />
+      ) : ordered.length === 0 ? (
+        <div className="dim" style={{padding:'14px 18px', border:'1px solid var(--hair-soft)', borderRadius:4, fontSize:13}}>None.</div>
+      ) : (
+        <div style={{display:'grid', gap: 10}}>
+          {ordered.map(g => <GuestJourneyCard key={g.id} g={g} onOpen={onOpen} variant={variant} />)}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Individual guest card — Cendra's micro-take + status + stay
+function GuestJourneyCard({ g, onOpen, variant }) {
+  const accent = g.status === "needs_you" ? 'var(--warn)' : g.status === "waiting" ? 'var(--info)' : 'var(--ok)';
+  return (
+    <button
+      onClick={() => onOpen('work_detail', g.id)}
+      style={{
+        all: 'unset',
+        cursor: 'pointer',
+        display: 'grid',
+        gridTemplateColumns: '40px 1fr 220px',
+        gap: 16,
+        padding: '16px 20px 16px 18px',
+        background: 'var(--card)',
+        border: '1px solid var(--hair)',
+        borderLeft: `3px solid ${accent}`,
+        borderRadius: 4,
+        transition: 'background .15s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--card-raised)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'var(--card)'}
+    >
+      {/* Avatar */}
+      <div style={{
+        width: 36, height: 36, borderRadius:'50%',
+        background: 'var(--ink)', color: 'var(--paper)',
+        display:'grid', placeItems:'center',
+        fontFamily:'var(--serif)', fontStyle:'italic', fontSize: 16,
+        marginTop: 2,
+      }}>{g.initial}</div>
+
+      {/* Identity + Cendra take */}
+      <div style={{minWidth: 0}}>
+        <div style={{display:'flex', alignItems:'baseline', gap:8, marginBottom:4, flexWrap:'wrap'}}>
+          <div style={{fontFamily:'var(--serif)', fontSize:18, lineHeight:1.2, letterSpacing:'-.005em'}}>
+            {g.name}
+          </div>
+          <span className="mono dim" style={{fontSize:10}}>{g.language}</span>
+          {g.trips > 0 && <span className="mono dim" style={{fontSize:10}}>· {g.trips} prior</span>}
+          <span className="mono dim" style={{fontSize:10}}>· {g.sentiment}</span>
+        </div>
+        <div className="mono dim" style={{fontSize:10.5, letterSpacing:'.05em', marginBottom:8}}>
+          {g.property} · {g.owner} · {g.channel}
+          {variant === "arrival" && g.eta_label && <> · ETA {g.eta_label}</>}
+        </div>
+        <div className="dim" style={{fontSize:13, lineHeight:1.5, fontStyle:'italic', fontFamily:'var(--serif)', maxWidth:680, marginBottom: 10, color:'var(--ink-mid)'}}>
+          "{g.cendra_take.length > 180 ? g.cendra_take.slice(0, 180).trim() + '…' : g.cendra_take}"
+        </div>
+        <GuestStatusChip status={g.status} reason={g.status_reason} slaMin={g.sla_min} />
+      </div>
+
+      {/* Stay progress or arrival ETA */}
+      <div style={{display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'space-between', gap: 8}}>
+        {variant === "stay" || variant === "departure" ? (
+          <StayProgress done={g.nights_done} total={g.nights_total} checkout={g.checkout_at} />
+        ) : (
+          <div style={{textAlign:'right'}}>
+            <div className="mono dim" style={{fontSize:10}}>ARRIVES</div>
+            <div style={{fontFamily:'var(--serif)', fontSize:16, marginTop:2}}>{g.eta_label}</div>
+            <div className="mono dim" style={{fontSize:10, marginTop:4}}>OFFICIAL · {g.checkin_official}</div>
+          </div>
+        )}
+        <span className="mono dim" style={{fontSize:10.5, alignSelf:'flex-end'}}>Open journey →</span>
+      </div>
+    </button>
+  );
+}
+
+// Compact arriving-this-week table — these don't need cards, just a glance
+function UpcomingTable({ upcoming, onOpen }) {
+  if (!upcoming?.length) return null;
+  return (
+    <div className="dcard" style={{padding:0, overflow:'hidden'}}>
+      <table className="table" style={{minWidth: 0}}>
+        <thead>
+          <tr>
+            <th style={{width:90}}>When</th>
+            <th>Guest</th>
+            <th>Property · Channel</th>
+            <th style={{width:80, textAlign:'center'}}>Nights</th>
+            <th style={{width:200}}>Prep</th>
+          </tr>
+        </thead>
+        <tbody>
+          {upcoming.map(u => (
+            <tr key={u.id} style={{cursor:'default'}}>
+              <td>
+                <div style={{fontFamily:'var(--serif)', fontSize:14}}>{u.eta_day}</div>
+                <div className="mono dim" style={{fontSize:10.5}}>{u.eta_time}</div>
+              </td>
+              <td>
+                <div style={{fontSize:13.5, fontWeight:500}}>{u.name}</div>
+              </td>
+              <td>
+                <div style={{fontSize:12.5}}>{u.property}</div>
+                <div className="mono dim" style={{fontSize:10.5}}>{u.channel}</div>
+              </td>
+              <td className="mono" style={{fontSize:11.5, textAlign:'center'}}>{u.nights}</td>
+              <td>
+                {u.prep_state === "all_set" ? (
+                  <Pill tone="ok">All set</Pill>
+                ) : u.prep_state === "needs_id" ? (
+                  <Pill tone="warn">{u.flag || "Needs attention"}</Pill>
+                ) : (
+                  <Pill tone="info">{u.flag || u.prep_state}</Pill>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────
+// GUEST JOURNEY — conversational briefing per guest
+// Brain-first: Cendra speaks, generative components inline, you direct.
+// ───────────────────────────────────────────────────────────────────
+function WorkDetailScreen({ onOpen, tweaks }) {
+  const J = DP.guests_journey;
+
+  // Flat sweep list: in_house first (most live), then arriving today, then departing today.
+  const sweep = useMemo(
+    () => [...J.in_house, ...J.checking_in_today, ...J.checking_out_today],
+    []
+  );
+
+  // Resolve current guest from hash arg. Accept legacy "ex_01" → ji_lukas.
+  const argFromHash = (location.hash.split(":")[1] || "").trim();
+  const legacyMap = { ex_01: "ji_lukas", ex_03: "ji_nora", ex_05: "jh_selin" };
+  const wantId = legacyMap[argFromHash] || argFromHash || sweep[0]?.id;
+  const initialIdx = Math.max(0, sweep.findIndex(g => g.id === wantId));
+
+  const [idx, setIdx] = useState(initialIdx);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [composer, setComposer] = useState("");
+  const composerRef = useRef(null);
+
+  const g = sweep[idx] || sweep[0];
+  if (!g) return null;
+
+  // Keyboard sweep · J/K
+  useEffect(() => {
+    const onKey = (e) => {
+      const inField = document.activeElement && ["INPUT","TEXTAREA"].includes(document.activeElement.tagName);
+      if (inField) return;
+      if (e.key === "j" || e.key === "J" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setIdx(i => Math.min(sweep.length - 1, i + 1));
+      } else if (e.key === "k" || e.key === "K" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setIdx(i => Math.max(0, i - 1));
+      } else if (e.key === "/") {
+        e.preventDefault();
+        composerRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sweep.length]);
+
+  const stageLabel = J.in_house.includes(g) ? "IN-STAY"
+    : J.checking_in_today.includes(g) ? "CHECKING IN TODAY"
+    : J.checking_out_today.includes(g) ? "CHECKING OUT TODAY"
+    : "GUEST";
+
+  return (
+    <div className="stage" style={{paddingLeft: 0, paddingRight: 0}}>
+      {/* Top bar — back, identity strip, J/K sweep, close */}
+      <div style={{
+        display:'grid', gridTemplateColumns: '1fr auto 1fr', alignItems:'center', gap:16,
+        padding:'14px 28px', borderBottom:'1px solid var(--hair-soft)',
+        marginBottom: 26,
+      }}>
+        <button onClick={() => onOpen('work')} className="mono dim" style={{all:'unset', cursor:'pointer', fontSize:11, letterSpacing:'.14em'}}>← All guests</button>
+
+        <div className="mono dim" style={{fontSize:10.5, letterSpacing:'.16em', textAlign:'center'}}>
+          {stageLabel} · <span style={{color:'var(--ink)'}}>{idx + 1} / {sweep.length}</span>
+          <span className="kbd" style={{marginLeft:10, border:'1px solid var(--hair)', padding:'1px 6px', borderRadius:3, fontFamily:'var(--mono)', fontSize:10}}>J</span>
+          <span style={{margin:'0 6px'}}>next</span>
+          <span className="kbd" style={{border:'1px solid var(--hair)', padding:'1px 6px', borderRadius:3, fontFamily:'var(--mono)', fontSize:10}}>K</span>
+          <span style={{marginLeft:6}}>prev</span>
+        </div>
+
+        <div style={{display:'flex', alignItems:'center', justifyContent:'flex-end', gap:14}}>
+          <span className="mono dim" style={{fontSize:10.5}}>CONF · <span style={{color:'var(--ink)'}}>{g.confidence != null ? g.confidence.toFixed(2) : '—'}</span></span>
+          <Btn size="sm" kind="ghost" onClick={() => setPanelOpen(p => !p)}>
+            {panelOpen ? "Hide facts →" : "← Show facts"}
+          </Btn>
+        </div>
+      </div>
+
+      <div style={{
+        display:'grid',
+        gridTemplateColumns: panelOpen ? 'minmax(0, 1fr) 280px' : '1fr',
+        gap: 28,
+        padding: '0 28px',
+        alignItems:'start',
+      }}>
+        {/* MAIN — Cendra briefing + cards + follow-ups + composer */}
+        <div style={{minWidth: 0}}>
+          <GuestJourneyHeader g={g} />
+          <CendraBriefing g={g} />
+          <div style={{display:'grid', gap: 14, marginTop: 24}}>
+            {g.cards.map((c, i) => <GenerativeCard key={i} card={c} guest={g} />)}
+          </div>
+
+          {g.follow_ups && g.follow_ups.length > 0 && (
+            <div style={{marginTop: 28}}>
+              <div className="mono dim" style={{fontSize:10, letterSpacing:'.18em', marginBottom:10}}>ASK CENDRA</div>
+              <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
+                {g.follow_ups.map((q, i) => (
+                  <button key={i} onClick={() => setComposer(q)} style={{
+                    all:'unset', cursor:'pointer',
+                    padding:'7px 14px',
+                    border:'1px solid var(--hair)',
+                    borderRadius: 999,
+                    background:'#ffffff',
+                    fontSize: 13,
+                    color: 'var(--ink-mid)',
+                    fontFamily: 'var(--sans)',
+                    fontWeight: 500,
+                    transition: 'background .12s, border-color .12s, color .12s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f5f5f4'; e.currentTarget.style.color = 'var(--ink)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = 'var(--ink-mid)'; }}>
+                    {q}
+                  </button>
+                ))}
+                <button onClick={() => composerRef.current?.focus()} style={{
+                  all:'unset', cursor:'pointer',
+                  padding:'7px 14px',
+                  borderRadius: 999,
+                  background:'transparent',
+                  fontSize: 13,
+                  color: 'var(--muted)',
+                  fontFamily: 'var(--sans)',
+                  fontWeight: 500,
+                }}>
+                  ▸ ask anything
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Sticky composer */}
+          <div style={{
+            position:'sticky', bottom: 0,
+            marginTop: 32, marginBottom: 24,
+            paddingTop: 10,
+            background: 'linear-gradient(to bottom, transparent 0, var(--paper) 14px)',
+          }}>
+            <div style={{
+              display:'flex', alignItems:'center', gap: 10,
+              border:'1px solid var(--hair)', background:'var(--card)',
+              borderRadius: 4, padding:'10px 14px',
+            }}>
+              <span className="mono dim" style={{fontSize:11, letterSpacing:'.14em', whiteSpace:'nowrap'}}>▸ ASK CENDRA</span>
+              <input
+                ref={composerRef}
+                value={composer}
+                onChange={e => setComposer(e.target.value)}
+                placeholder={`Ask about ${g.name.split(' ')[0]}, or just talk…`}
+                style={{
+                  flex:1, border:0, outline:0, background:'transparent',
+                  fontSize:14, fontFamily:'var(--sans)',
+                  color:'var(--ink)',
+                }}
+              />
+              <button title="Voice mode" style={{
+                all:'unset', cursor:'pointer',
+                width: 22, height: 22, borderRadius:'50%',
+                border:'1.5px solid var(--ink)',
+                display:'grid', placeItems:'center',
+              }}>
+                <span style={{width:6, height:6, borderRadius:'50%', background:'var(--ink)'}} />
+              </button>
+              <span className="kbd" style={{border:'1px solid var(--hair)', padding:'1px 7px', borderRadius:3, fontFamily:'var(--mono)', fontSize:10}}>↵</span>
+            </div>
+            <div className="mono dim mt-1" style={{fontSize:9.5, letterSpacing:'.14em'}}>
+              EVERYTHING HERE IS A CONVERSATION WITH CENDRA · GUEST-FACING SENDS HAPPEN ONLY FROM ACTION CARDS
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT — slim static facts panel */}
+        {panelOpen && <StaticFactsPanel g={g} stageLabel={stageLabel} />}
+      </div>
+    </div>
+  );
+}
+
+// Guest journey — page header strip
+function GuestJourneyHeader({ g }) {
+  const inStay = g.nights_done != null && g.nights_total != null && g.nights_total > 0;
+  return (
+    <div style={{display:'flex', alignItems:'flex-start', gap: 18, marginBottom: 26}}>
+      <div style={{
+        width: 56, height: 56, borderRadius:'50%',
+        background: 'var(--ink)', color: 'var(--paper)',
+        display:'grid', placeItems:'center',
+        fontFamily:'var(--serif)', fontStyle:'italic', fontSize: 26,
+        flexShrink: 0,
+      }}>{g.initial}</div>
+      <div style={{minWidth: 0, flex:1}}>
+        <div className="mono dim" style={{fontSize:10, letterSpacing:'.18em', marginBottom:4}}>
+          {g.property} · {g.channel} · {g.language}
+          {g.trips > 0 && <> · {g.trips} PRIOR TRIPS</>}
+        </div>
+        <h1 style={{fontFamily:'var(--serif)', fontSize: 32, lineHeight:1.05, margin:0, fontWeight:400, letterSpacing:'-.015em'}}>
+          {g.name}
+        </h1>
+        <div className="dim mt-2" style={{fontSize: 13.5, fontStyle:'italic'}}>{g.sentiment}</div>
+        <div style={{display:'flex', alignItems:'center', gap: 14, marginTop: 10, flexWrap:'wrap'}}>
+          <GuestStatusChip status={g.status} reason={g.status_reason} slaMin={g.sla_min} />
+          {inStay && (
+            <span className="mono dim" style={{fontSize:11}}>
+              NIGHT <b style={{color:'var(--ink)'}}>{g.nights_done}/{g.nights_total}</b> · CO {g.checkout_at}
+            </span>
+          )}
+          {g.eta_label && !inStay && (
+            <span className="mono dim" style={{fontSize:11}}>ETA · <b style={{color:'var(--ink)'}}>{g.eta_label}</b></span>
+          )}
+          <span className="mono dim" style={{fontSize:11}}>LAST CONTACT · {g.last_contact}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Cendra's serif briefing — the "voice" of the brain on this guest
+function CendraBriefing({ g }) {
+  return (
+    <div>
+      <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 14}}>
+        <span style={{
+          width: 22, height: 22, borderRadius: 6,
+          background: 'var(--ink)', color: '#ffffff',
+          display:'grid', placeItems:'center',
+          fontFamily:'var(--mono)', fontSize: 11, fontWeight: 600,
+        }}>C</span>
+        <span className="mono" style={{fontSize:10.5, letterSpacing:'.14em', color:'var(--ink)'}}>CENDRA</span>
+        <span className="mono dim" style={{fontSize:10}}>·</span>
+        <span className="mono dim" style={{fontSize:10}}>BRIEFING</span>
+        <span className="mono dim" style={{fontSize:10}}>·</span>
+        <span className="mono dim" style={{fontSize:10}}>CONF {g.confidence != null ? g.confidence.toFixed(2) : '—'}</span>
+      </div>
+      <p style={{
+        fontFamily: 'var(--serif)', fontSize: 24, lineHeight: 1.4,
+        margin: 0, color: 'var(--ink)',
+        letterSpacing: '-.01em', maxWidth: 740,
+        fontWeight: 400,
+      }}>
+        {g.cendra_take}
+      </p>
+      {g.status === "needs_you" && (
+        <div style={{fontSize: 14, color: 'var(--muted)', marginTop: 12}}>
+          That's why I'm bringing it to you.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Generative card — render type-specific inline component
+function GenerativeCard({ card, guest }) {
+  switch (card.type) {
+    case "draft_reply":     return <DraftReplyCard card={card} guest={guest} />;
+    case "approval":        return <ApprovalGenerativeCard card={card} guest={guest} />;
+    case "vendor_dispatch": return <VendorDispatchCard card={card} />;
+    case "fact_suggestion": return <FactSuggestionCard card={card} />;
+    case "upsell":          return <UpsellCard card={card} />;
+    case "policy_hold":     return <PolicyHoldCard card={card} />;
+    default:                return null;
+  }
+}
+
+function DraftReplyCard({ card, guest }) {
+  const [editing, setEditing] = useState(false);
+  const [body, setBody] = useState(card.preview);
+  return (
+    <div className="dcard" style={{padding: '18px 20px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom: 10}}>
+        <div className="mono dim" style={{fontSize:10, letterSpacing:'.16em'}}>
+          DRAFT REPLY · {card.channel.toUpperCase()} · TO {guest.name.toUpperCase().split(' ')[0]}
+        </div>
+        <Btn size="sm" kind="ghost" onClick={() => setEditing(e => !e)}>{editing ? "Done editing" : "Edit"}</Btn>
+      </div>
+      {editing ? (
+        <textarea
+          value={body}
+          onChange={e => setBody(e.target.value)}
+          style={{
+            width:'100%', minHeight: 110, padding: 14,
+            fontFamily:'var(--serif)', fontStyle:'italic',
+            fontSize: 16, lineHeight: 1.55,
+            color:'var(--ink)', background:'var(--paper)',
+            border:'1px solid var(--hair)', borderRadius: 4,
+            resize:'vertical',
+          }}
+        />
+      ) : (
+        <p style={{
+          fontFamily:'var(--serif)', fontStyle:'italic',
+          fontSize: 16, lineHeight: 1.55, margin: 0,
+          color: 'var(--ink)', maxWidth: 660,
+        }}>
+          "{body}"
+        </p>
+      )}
+      <div className="mono dim" style={{fontSize:10.5, marginTop: 12, lineHeight:1.5}}>WHY · {card.why}</div>
+      {card.tone_chips && (
+        <div style={{display:'flex', gap:6, marginTop: 10, flexWrap:'wrap'}}>
+          {card.tone_chips.map(t => (
+            <button key={t} style={{
+              all:'unset', cursor:'pointer',
+              padding:'4px 10px', fontSize: 11,
+              border:'1px solid var(--hair)', borderRadius: 999,
+              fontFamily:'var(--mono)', color:'var(--ink-mid)',
+              background:'var(--paper)',
+            }}>{t}</button>
+          ))}
+        </div>
+      )}
+      <div style={{display:'flex', gap: 10, marginTop: 16, alignItems:'center'}}>
+        <Btn kind="primary">{card.primary || "Approve & send"}</Btn>
+        <Btn kind="ghost">Reject</Btn>
+        {card.secondary && <Btn kind="ghost">{card.secondary}</Btn>}
+        <span className="grow" style={{flex:1}} />
+        <span className="mono dim" style={{fontSize:10}}>REVERSIBLE · GREEN</span>
+      </div>
+    </div>
+  );
+}
+
+function ApprovalGenerativeCard({ card, guest }) {
+  const toneMap = { high: 'risk', medium: 'warn', low: 'ok' };
+  return (
+    <div className="dcard" style={{padding: '18px 20px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom: 6}}>
+        <div className="mono dim" style={{fontSize:10, letterSpacing:'.16em'}}>APPROVAL · {card.value}</div>
+        <div style={{display:'flex', gap: 6}}>
+          <Pill tone={toneMap[card.risk] || 'warn'}>Risk · {card.risk}</Pill>
+          <Pill tone={card.reversibility === 'red' ? 'risk' : card.reversibility === 'amber' ? 'warn' : 'ok'}>
+            {card.reversibility === 'red' ? 'Final' : card.reversibility === 'amber' ? 'Recoverable' : 'Reversible'}
+          </Pill>
+        </div>
+      </div>
+      <h3 style={{fontFamily:'var(--serif)', fontSize: 22, lineHeight:1.25, margin:'8px 0 8px', fontWeight: 400, letterSpacing:'-.005em'}}>
+        {card.title}
+      </h3>
+      <div className="mono dim" style={{fontSize:11, marginBottom: 4}}>RANGE · {card.range}</div>
+      <div className="dim mt-2" style={{fontSize: 13.5, lineHeight: 1.5, maxWidth: 660}}>
+        <span className="mono" style={{fontSize:10, letterSpacing:'.16em', color:'var(--ink)'}}>WHY · </span>{card.why}
+      </div>
+      <div style={{display:'flex', gap: 8, marginTop: 16, flexWrap:'wrap'}}>
+        {card.options.map((o, i) => (
+          <Btn key={o} kind={i === 0 ? 'primary' : 'default'} size="sm">{o}</Btn>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function VendorDispatchCard({ card }) {
+  return (
+    <div className="dcard" style={{padding: '16px 20px', background:'var(--paper-2)'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 6}}>
+        <div className="mono dim" style={{fontSize:10, letterSpacing:'.16em'}}>VENDOR · DISPATCHED</div>
+        <Pill tone="info">Waiting</Pill>
+      </div>
+      <div style={{fontSize: 14, fontWeight: 500, marginBottom: 4}}>{card.vendor}</div>
+      <div className="mono dim" style={{fontSize:11, marginBottom: 8}}>VIA · {card.via}</div>
+      <div className="dim" style={{fontSize: 13, lineHeight: 1.45}}>{card.status}</div>
+      {card.note && <div className="dim mt-2" style={{fontSize:12.5, fontStyle:'italic', maxWidth: 600}}>{card.note}</div>}
+      <div style={{display:'flex', gap: 8, marginTop: 12}}>
+        <Btn size="sm" kind="ghost">Ping again</Btn>
+        <Btn size="sm" kind="ghost">Switch vendor</Btn>
+      </div>
+    </div>
+  );
+}
+
+function FactSuggestionCard({ card }) {
+  return (
+    <div className="dcard" style={{padding: '18px 20px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 10}}>
+        <div className="mono dim" style={{fontSize:10, letterSpacing:'.16em'}}>
+          KNOWLEDGE GAP · {card.scope.toUpperCase()} · {card.fact.toUpperCase()}
+        </div>
+        <Pill tone="info">{card.asks} asks · 30d</Pill>
+      </div>
+      <p style={{fontFamily:'var(--serif)', fontSize:18, lineHeight:1.35, margin:'6px 0 12px', maxWidth: 600}}>
+        What's the truth about <b>{card.fact}</b> at {card.scope}?
+      </p>
+      <div className="mono dim" style={{fontSize:10.5, marginBottom: 10}}>WHY · {card.why}</div>
+      <div style={{display:'grid', gap: 6}}>
+        {card.options.map((o, i) => (
+          <button key={o} style={{
+            all:'unset', cursor:'pointer',
+            padding:'10px 14px',
+            border:'1px solid var(--hair)', borderRadius: 4,
+            background:'var(--paper)',
+            fontSize: 13.5, color:'var(--ink)',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--card-raised)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'var(--paper)'}>
+            <span className="mono dim" style={{fontSize:10, marginRight: 10, letterSpacing:'.14em'}}>{String.fromCharCode(65 + i)}</span>
+            {o}
+          </button>
+        ))}
+        <button style={{
+          all:'unset', cursor:'pointer',
+          padding:'10px 14px',
+          fontSize: 13.5, color:'var(--muted)', fontStyle:'italic',
+          fontFamily:'var(--serif)',
+        }}>
+          ▸ enter custom answer…
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function UpsellCard({ card }) {
+  return (
+    <div className="dcard" style={{padding: '18px 20px'}}>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 6}}>
+        <div className="mono dim" style={{fontSize:10, letterSpacing:'.16em'}}>REVENUE OPPORTUNITY · {card.est_value}</div>
+        <Pill tone="ok">Likely fit</Pill>
+      </div>
+      <h3 style={{fontFamily:'var(--serif)', fontSize: 20, lineHeight:1.25, margin:'8px 0 6px', fontWeight: 400}}>
+        {card.offer}
+      </h3>
+      <div className="dim" style={{fontSize: 12.5, marginBottom: 12}}>
+        <span className="mono" style={{fontSize:10, letterSpacing:'.16em', color:'var(--ink)', marginRight:6}}>HISTORIC</span>
+        {card.historic}
+      </div>
+      <div className="mono dim" style={{fontSize:10.5, marginBottom: 12}}>WHY · {card.why}</div>
+      <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
+        {card.options.map((o, i) => (
+          <Btn key={o} size="sm" kind={i === 0 ? 'primary' : 'default'}>{o}</Btn>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PolicyHoldCard({ card }) {
+  return (
+    <div className="dcard" style={{padding: 0, overflow:'hidden'}}>
+      <div style={{display:'grid', gridTemplateColumns:'4px 1fr'}}>
+        <div style={{background:'#b45309'}} />
+        <div style={{padding: '18px 20px'}}>
+          <div style={{display:'flex', alignItems:'center', gap:8, marginBottom: 10}}>
+            <span style={{
+              fontSize: 10, letterSpacing:'.14em', color:'#b45309',
+              fontFamily: 'var(--mono)', fontWeight: 600, textTransform:'uppercase',
+            }}>Hard rule · holding</span>
+          </div>
+          <p style={{fontFamily:'var(--serif)', fontSize: 18, lineHeight:1.4, margin:'0 0 12px', maxWidth: 600, color:'var(--ink)'}}>
+            "{card.rule}"
+          </p>
+          <div style={{fontSize:12.5, color:'var(--ink-mid)', marginBottom: 10, lineHeight: 1.5}}>
+            <span className="mono" style={{fontSize:10, letterSpacing:'.14em', color:'var(--ink)', marginRight: 6}}>WHY</span>
+            {card.why}
+          </div>
+          <div className="mono" style={{fontSize: 11, color:'var(--ink)', marginBottom: 14}}>RELEASES · {card.releases_at}</div>
+          <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
+            {card.override_options.map((o, i) => (
+              <Btn key={o} size="sm" kind={i === 0 ? 'danger' : 'default'}>{o}</Btn>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Right rail — collapsible static facts (booking, property, journey timeline)
+function StaticFactsPanel({ g, stageLabel }) {
+  const inStay = g.nights_done != null && g.nights_total != null && g.nights_total > 0;
+
+  // 5-point journey timeline: Booked → Pre-arrival → Check-in → In-stay → Checkout
+  const stages = [
+    { key: 'booked',    label: 'Booked' },
+    { key: 'prearr',    label: 'Pre-arrival' },
+    { key: 'checkin',   label: 'Check-in' },
+    { key: 'instay',    label: 'In-stay' },
+    { key: 'checkout',  label: 'Checkout' },
+  ];
+  const activeKey = stageLabel === "CHECKING IN TODAY" ? 'checkin'
+                  : stageLabel === "IN-STAY" ? 'instay'
+                  : stageLabel === "CHECKING OUT TODAY" ? 'checkout'
+                  : 'instay';
+  const activeIdx = stages.findIndex(s => s.key === activeKey);
+
+  return (
+    <aside style={{
+      position:'sticky', top: 14,
+      maxHeight: 'calc(100vh - 80px)', overflowY:'auto',
+      paddingRight: 4,
+    }}>
+      <Section title="JOURNEY">
+        <div style={{position:'relative', paddingLeft: 16, marginTop: 6}}>
+          <div style={{position:'absolute', left: 5, top: 4, bottom: 4, width: 1, background:'var(--hair)'}} />
+          {stages.map((s, i) => {
+            const done = i < activeIdx;
+            const active = i === activeIdx;
+            return (
+              <div key={s.key} style={{position:'relative', padding:'3px 0 9px'}}>
+                <div style={{
+                  position:'absolute', left:-16, top: 5,
+                  width: 11, height: 11, borderRadius:'50%',
+                  background: active ? 'var(--ink)' : done ? 'var(--ok)' : 'var(--paper)',
+                  border: `1px solid ${active || done ? 'var(--ink)' : 'var(--hair)'}`,
+                }} />
+                <div style={{
+                  fontSize: 12.5,
+                  fontWeight: active ? 600 : 400,
+                  color: active ? 'var(--ink)' : done ? 'var(--ink-mid)' : 'var(--muted)',
+                }}>{s.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
+      <Section title="BOOKING">
+        <div className="kv">
+          <span>Property</span><span>{g.property}</span>
+          <span>Owner</span><span>{g.owner}</span>
+          <span>Channel</span><span>{g.channel}</span>
+          {inStay && <><span>Nights</span><span>{g.nights_done}/{g.nights_total}</span></>}
+          {inStay && <><span>Checkout</span><span>{g.checkout_at}</span></>}
+          {!inStay && g.eta_label && <><span>Arriving</span><span>{g.eta_label}</span></>}
+          {g.checkin_official && <><span>Official CI</span><span>{g.checkin_official}</span></>}
+        </div>
+      </Section>
+
+      {g.prep && g.prep.length > 0 && (
+        <Section title="PREP · LIVE">
+          <div style={{display:'grid', gap: 8}}>
+            {g.prep.map((p, i) => (
+              <div key={i} style={{display:'flex', justifyContent:'space-between', gap: 10, alignItems:'baseline'}}>
+                <span className="mono dim" style={{fontSize:10, letterSpacing:'.12em'}}>{p.label.toUpperCase()}</span>
+                <span style={{
+                  fontSize: 11.5, textAlign:'right',
+                  color: p.tone === 'warn' ? 'var(--warn)' : p.tone === 'risk' ? 'var(--risk)' : 'var(--ink)',
+                }}>{p.value}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      <Section title="GUEST">
+        <div className="kv">
+          <span>Language</span><span>{g.language}</span>
+          <span>Trips</span><span>{g.trips} prior</span>
+          <span>Sentiment</span><span>{g.sentiment}</span>
+          <span>Last contact</span><span>{g.last_contact}</span>
+        </div>
+      </Section>
+    </aside>
+  );
+}
+
+function Section({ title, children }) {
+  return (
+    <div style={{marginBottom: 22}}>
+      <div className="mono dim" style={{fontSize:9.5, letterSpacing:'.18em', marginBottom: 8}}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────
+// APPROVAL — high-stakes, evidence-pack-first
+// ───────────────────────────────────────────────────────────────────
+function ApprovalScreen({ onOpen }) {
+  const a = D.approval;
+  const v2 = D.approval_v2;
+  const [draftIdx, setDraftIdx] = useState(0);
+  const [confirmText, setConfirmText] = useState("");
+  const [escalateOpen, setEscalateOpen] = useState(false);
+  const phrase = "Authorize claim";
+  const ok = confirmText.trim().toLowerCase() === phrase.toLowerCase();
+
+  return (
+    <div className="stage approval-stage">
+      <button onClick={() => onOpen('today')} className="mono dim back-link">← Today</button>
+
+      <PageHeader
+        eyebrow="APPROVAL NEEDED · DAMAGE CLAIM · BKG-44188"
+        title={a.title}
+        lead="High-stakes, never-auto. Cendra prepared evidence and a safer alternative. The decision is yours."
+        right={
+          <div className="col gap-2" style={{textAlign:'right', alignItems:'flex-end'}}>
+            <AutonomyPill state="never" />
+            <Pill tone="risk">Risk · {a.risk}</Pill>
+            
+          </div>
+        }
+      />
+
+      {/* Consequence strip */}
+      <div className="consequence-strip mt-4">
+        {v2.consequences.map((c, i) => (
+          <div key={i} className={`consequence-cell tone-${c.tone}`}>
+            <div className="mono dim" style={{fontSize:10, letterSpacing:'.16em'}}>{c.label.toUpperCase()}</div>
+            <div className="consequence-val">{c.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* SLA bar */}
+      <div className="sla-bar mt-3">
+        <div className="row" style={{justifyContent:'space-between', alignItems:'baseline'}}>
+          <span className="mono dim" style={{fontSize:10, letterSpacing:'.16em'}}>OTA CLAIM WINDOW</span>
+          <span className="mono" style={{fontSize:11, color:'var(--warn)'}}>{v2.sla.remaining_h}h LEFT · {v2.sla.total_h}h TOTAL</span>
+        </div>
+        <div style={{height:3, background:'var(--hair)', borderRadius:2, marginTop:6, overflow:'hidden'}}>
+          <div style={{height:'100%', width:`${(v2.sla.remaining_h/v2.sla.total_h)*100}%`, background:'var(--warn)'}} />
+        </div>
+      </div>
+
+      <div className="approval-grid mt-6">
+        {/* LEFT: evidence pack + drafts + safer alternative */}
+        <div>
+          <div className="eyebrow mb-3">EVIDENCE PACK</div>
+          <div className="dcard">
+            {a.evidence.map((e, i) => (
+              <div key={i} className="ev-row" style={{
+                borderBottom: i < a.evidence.length-1 ? '1px solid var(--hair-soft)' : 'none',
+              }}>
+                <div className="mono ev-kind">{e.kind.toUpperCase()}</div>
+                <div>
+                  <div className="ev-label">{e.label}</div>
+                  <div className="mono dim mt-1" style={{fontSize:10.5}}>{e.source}</div>
+                </div>
+                <div className="mono dim" style={{fontSize:10}}>{e.fresh}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Safer alternative */}
+          <div className="mt-5 safer-alt">
+            <div className="row" style={{justifyContent:'space-between', alignItems:'baseline'}}>
+              <div className="eyebrow">{v2.safer_alternative.title.toUpperCase()}</div>
+              <Pill tone="ok">Reversible · green</Pill>
+            </div>
+            <p className="safer-body">{v2.safer_alternative.body}</p>
+            <Btn size="sm">{v2.safer_alternative.action}</Btn>
+          </div>
+
+          <div className="mt-5">
+            <div className="eyebrow mb-3">IF YOU DECLINE</div>
+            <div className="dcard" style={{padding:'14px 18px'}}>
+              <p className="counterfactual">{v2.decline_consequence}</p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <div className="eyebrow mb-3">PROPOSED MESSAGE TO GUEST · {a.drafts[draftIdx].tone.toUpperCase()}</div>
+            <div className="dcard" style={{padding:'14px 18px'}}>
+              <p className="draft-body">{a.drafts[draftIdx].body}</p>
+            </div>
+            <div className="row gap-1 mt-2">
+              {a.drafts.map((d, i) => (
+                <button
+                  key={i}
+                  onClick={() => setDraftIdx(i)}
+                  className={CendraAtoms.cls("btn", "btn-sm", draftIdx === i && "btn-primary")}
+                >Tone · {d.tone}</button>
+              ))}
+              <span className="grow" />
+              <Btn size="sm" kind="ghost">Edit draft</Btn>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: decision summary + confirmation + escalate */}
+        <div>
+          <div className="eyebrow mb-3">CENDRA'S READING</div>
+          <DecisionCard
+            variant="stamp"
+            decision={{
+              title: "Cendra recommends: send neutral message first; file claim only if guest goes silent.",
+              reasoning: [
+                { body: "Photo evidence is fresh and sourced from a verified vendor.", source: "vendor:Marta C." },
+                { body: "OTA window has 38h — enough buffer for a softer first contact.", source: "channel-policy" },
+                { body: "Guest has no prior incidents. Hostile open could trigger negative review.", source: "guest-memory" },
+                { body: "Damage claim is locked Never Auto on this account.", source: "autonomy:owner" },
+              ],
+              autonomy: "never",
+              risk: "high",
+              reversibility: "red",
+            }}
+          />
+
+          {/* Approvers */}
+          <div className="mt-4">
+            <div className="eyebrow mb-2">APPROVERS</div>
+            <div className="dcard approvers">
+              {v2.approvers.map((p, i) => (
+                <div key={i} className={`approver-row ${p.state}`}>
+                  <div>
+                    <div className="mono dim" style={{fontSize:10, letterSpacing:'.18em'}}>{p.role.toUpperCase()}</div>
+                    <div style={{fontSize:13.5}}>{p.name}</div>
+                  </div>
+                  {p.state === 'current' ? <Pill tone="warn">You · pending</Pill> : <Btn size="sm" kind="ghost" onClick={() => setEscalateOpen(true)}>Escalate</Btn>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Confirmation */}
+          <div className="dcard mt-4 confirm-card">
+            <div style={{padding:'14px 18px'}}>
+              <div className="eyebrow mb-2">CONFIRMATION REQUIRED</div>
+              <ul className="confirm-list">
+                <li>Charge €640 via Booking.com Resolution Center</li>
+                <li>Send neutral message (tone: {a.drafts[draftIdx].tone})</li>
+                <li>Log incident in audit trail · immutable</li>
+                <li>Notify Bosphorus Holdings via email</li>
+              </ul>
+              <hr className="hairline mt-3 mb-3" />
+              <div className="mono dim mb-2" style={{fontSize:10.5, letterSpacing:'.14em'}}>TYPE "{phrase}" TO PROCEED · CASE NOT REVERSIBLE</div>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={e => setConfirmText(e.target.value)}
+                placeholder={phrase}
+                className="confirm-input"
+              />
+            </div>
+            <div className="actionbar approval-actions">
+              <Btn kind="primary" disabled={!ok} onClick={() => alert('Claim authorized')}>
+                <span className="mono" style={{fontSize:10, opacity:.7}}>↵</span>
+                Authorize claim
+              </Btn>
+              <Btn>Edit draft</Btn>
+              <Btn kind="ghost">Safer alternative</Btn>
+              <span className="grow" />
+              <Btn kind="danger" size="sm">Reject</Btn>
+            </div>
+            <div className="approval-secondary">
+              <button className="link-btn">Take over thread</button>
+              <span className="dot-sep">·</span>
+              <button className="link-btn">Pause Cendra for this guest</button>
+              <span className="dot-sep">·</span>
+              <button className="link-btn" onClick={() => onOpen('audit')}>Open audit →</button>
+            </div>
+          </div>
+
+          <div className="mt-3 mono dim" style={{fontSize:10.5, lineHeight:1.7}}>
+            CARD · ax-9942 · GENERATED 09:01:14 · EVIDENCE × 5 · ALL FRESH<br />
+            ACTION CLASS · NEVER_AUTO · CONFIRMATION_REQUIRED · SLA 38h
+          </div>
+        </div>
+      </div>
+
+      {/* Escalate drawer */}
+      {escalateOpen && (
+        <div className="escalate-overlay" onClick={() => setEscalateOpen(false)}>
+          <div className="escalate-drawer" onClick={e => e.stopPropagation()}>
+            <div className="row" style={{justifyContent:'space-between', alignItems:'baseline'}}>
+              <div className="eyebrow">ESCALATE APPROVAL</div>
+              <button className="link-btn" onClick={() => setEscalateOpen(false)}>Close</button>
+            </div>
+            <h3 className="h3 mt-2">Send this approval up.</h3>
+            <p className="dim" style={{fontSize:13.5, lineHeight:1.5, marginTop:4}}>Cendra will hold the thread, attach the evidence pack, and notify the recipient. The OTA window keeps ticking.</p>
+            <div className="col gap-2 mt-4">
+              {v2.approvers.filter(p => p.state === 'escalate').map((p, i) => (
+                <button key={i} className="esc-target">
+                  <div>
+                    <div className="mono dim" style={{fontSize:10, letterSpacing:'.18em'}}>{p.role.toUpperCase()}</div>
+                    <div style={{fontSize:14}}>{p.name}</div>
+                  </div>
+                  <span className="mono" style={{fontSize:11}}>SEND →</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+window.CendraScreens1 = { TodayScreen, WorkScreen, WorkDetailScreen, ApprovalScreen };
