@@ -387,6 +387,10 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
 
   // Hold facts in local state so edits persist within the session
   const [factGroups, setFactGroups] = useState(p.fact_groups);
+
+  // Conflict resolver state
+  const [resolving, setResolving] = useState(null); // { groupIdx, factIdx, fact }
+  const openResolver = (groupIdx, factIdx, fact) => setResolving({ groupIdx, factIdx, fact });
   const [rules, setRules] = useState(p.rules || [
     { id: "r1", text: "Never offer late checkout if same-day turnover", source: "OWNER · 32d" },
     { id: "r2", text: "Hot water heater: flush every 30 days",          source: "CLEANER · 8d" },
@@ -482,22 +486,39 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
             Cendra is waiting on you for {attention.length === 1 ? "one fact" : `${attention.length} facts`}.
           </h2>
           <div style={{display:'grid', gap: 8}}>
-            {attention.map((f, i) => (
-              <div key={i} style={{
-                display:'grid', gridTemplateColumns:'140px 1fr auto', gap: 14, alignItems:'center',
-                padding:'10px 14px', borderRadius: 8,
-                background: 'var(--paper-2)', border:'1px solid var(--hair)',
-              }}>
-                <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color: f.state === "conflict" ? 'var(--warn)' : f.state === "stale" ? 'var(--info)' : 'var(--muted)', fontWeight: 600, textTransform:'uppercase'}}>
-                  {f.state} · {f.fact}
-                </span>
-                <span style={{fontSize: 13, color:'var(--ink-mid)'}}>
-                  {f.state === "missing" ? "No value yet" : f.value}
-                  {f.state === "conflict" && <> · source mismatch</>}
-                </span>
-                <Btn size="sm">{f.state === "missing" ? "Add value" : f.state === "stale" ? "Confirm" : "Resolve"} →</Btn>
-              </div>
-            ))}
+            {attention.map((f, i) => {
+              // Find the indices so we can patch the right fact
+              let gi = -1, fi = -1;
+              factGroups.forEach((g, _gi) => g.facts.forEach((ff, _fi) => { if (ff === f || (ff.fact === f.fact && ff.value === f.value && ff.state === f.state)) { gi = _gi; fi = _fi; } }));
+              return (
+                <div key={i} style={{
+                  display:'grid', gridTemplateColumns:'140px 1fr auto', gap: 14, alignItems:'center',
+                  padding:'10px 14px', borderRadius: 8,
+                  background: 'var(--paper-2)', border:'1px solid var(--hair)',
+                }}>
+                  <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color: f.state === "conflict" ? 'var(--warn)' : f.state === "stale" ? 'var(--info)' : 'var(--muted)', fontWeight: 600, textTransform:'uppercase'}}>
+                    {f.state} · {f.fact}
+                  </span>
+                  <span style={{fontSize: 13, color:'var(--ink-mid)'}}>
+                    {f.state === "missing" ? "No value yet" : f.value}
+                    {f.state === "conflict" && <> · source mismatch</>}
+                  </span>
+                  <Btn size="sm" onClick={() => {
+                    if (f.state === "conflict" && f.conflict_sources) {
+                      openResolver(gi, fi, f);
+                    } else if (f.state === "missing") {
+                      // For missing facts, scroll to the row and let inline edit handle it
+                      openResolver(gi, fi, f);
+                    } else if (f.state === "stale") {
+                      // Quick confirm — just refresh the source date
+                      if (gi >= 0 && fi >= 0) updateFact(gi, fi, { fresh: "just now", state: "verified", source: "Confirmed by you" });
+                    }
+                  }}>
+                    {f.state === "missing" ? "Add value" : f.state === "stale" ? "Confirm" : "Resolve"} →
+                  </Btn>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -535,6 +556,7 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
                     key={fi}
                     fact={f}
                     onUpdate={patch => updateFact(gi, fi, patch)}
+                    onResolve={() => openResolver(gi, fi, f)}
                     isLast={fi === g.facts.length - 1}
                   />
                 ))}
@@ -737,6 +759,128 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
       </CollapsibleStep>
 
       {importOpen && <ImportModal scope="property" propertyName={p.name} onClose={() => setImportOpen(false)} />}
+
+      {resolving && resolving.fact.state === "conflict" && resolving.fact.conflict_sources && (
+        <ResolveConflictModal
+          fact={resolving.fact}
+          propertyName={p.name}
+          onClose={() => setResolving(null)}
+          onResolve={(newValue, opts) => {
+            if (opts?.needsReview) {
+              // Flagged for review — no value change, stays in attention
+              return;
+            }
+            const cs = opts?.chosenSource;
+            updateFact(resolving.groupIdx, resolving.factIdx, {
+              value: newValue,
+              state: "verified",
+              source: cs?.label || "Resolved by you",
+              source_file: cs?.source_file || "PM override",
+              fresh: "just now",
+            });
+            if (opts?.autoTask && opts?.losingSource) {
+              alert(`Task created: ${opts.losingSource.fix_if_loses}`);
+            }
+          }}
+        />
+      )}
+
+      {resolving && resolving.fact.state === "missing" && (
+        <ResolveMissingModal
+          fact={resolving.fact}
+          propertyName={p.name}
+          onClose={() => setResolving(null)}
+          onResolve={(value) => {
+            updateFact(resolving.groupIdx, resolving.factIdx, {
+              value,
+              state: "verified",
+              source: "You · just now",
+              source_file: "PM input",
+              fresh: "just now",
+            });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Lightweight resolver for "missing" state — single input, no comparison
+function ResolveMissingModal({ fact, propertyName, onClose, onResolve }) {
+  const [value, setValue] = useState("");
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 50,
+      background: "rgba(0,0,0,0.40)",
+      display: "grid", placeItems: "center", padding: 32,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: "min(560px, 100%)", background: "#ffffff",
+        borderRadius: 16, boxShadow: "0 24px 64px rgba(0,0,0,0.20)",
+        overflow: "hidden",
+      }}>
+        <div style={{
+          padding: "20px 28px", borderBottom: "1px solid var(--hair-soft)",
+          display: "flex", alignItems: "center", gap: 16,
+        }}>
+          <div className="mono" style={{
+            fontSize: 10.5, letterSpacing: ".18em", color: "var(--muted)",
+            display: "flex", gap: 12, alignItems: "center", flex: 1,
+          }}>
+            <span>ADD MISSING FACT</span>
+            <span style={{width: 3, height: 3, borderRadius: "50%", background: "var(--muted-2)"}} />
+            <span>{(propertyName || "PROPERTY").toUpperCase()}</span>
+          </div>
+          <button onClick={onClose} style={{
+            all: "unset", cursor: "pointer", width: 28, height: 28, borderRadius: "50%",
+            display: "grid", placeItems: "center", color: "var(--muted)", fontSize: 16,
+          }}>×</button>
+        </div>
+        <div style={{padding: "24px 28px"}}>
+          <h2 className="serif-display" style={{
+            fontSize: 24, lineHeight: 1.25, margin: 0, color: "var(--ink)",
+            marginBottom: 14, fontVariationSettings: '"opsz" 48, "SOFT" 30',
+          }}>What's the {fact.fact.toLowerCase()} here?</h2>
+          <input
+            autoFocus
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && value.trim()) { onResolve(value.trim()); onClose(); } }}
+            placeholder={`Enter the ${fact.fact.toLowerCase()}…`}
+            style={{
+              width: "100%", padding: "12px 16px",
+              border: "1px solid var(--ink)", borderRadius: 10,
+              fontSize: 15, fontFamily: "var(--sans)", color: "var(--ink)",
+              outline: 0, boxSizing: "border-box",
+            }}
+          />
+          <div className="mono" style={{fontSize: 10, color: "var(--muted)", letterSpacing: ".10em", marginTop: 10, textTransform: "uppercase"}}>
+            Cendra will start using this on the next matching guest. Provenance: YOU · just now.
+          </div>
+        </div>
+        <div style={{
+          padding: "16px 28px", borderTop: "1px solid var(--hair-soft)",
+          display: "flex", alignItems: "center", gap: 10, background: "var(--paper)",
+        }}>
+          <span style={{flex: 1}} />
+          <Btn kind="ghost" onClick={onClose}>Cancel</Btn>
+          <button
+            onClick={() => { if (value.trim()) { onResolve(value.trim()); onClose(); } }}
+            disabled={!value.trim()}
+            style={{
+              all: "unset",
+              cursor: value.trim() ? "pointer" : "not-allowed",
+              background: value.trim() ? "var(--ink)" : "var(--hair)",
+              color: value.trim() ? "#ffffff" : "var(--muted)",
+              padding: "10px 20px", borderRadius: 10,
+              fontSize: 13.5, fontWeight: 600,
+              display: "inline-flex", alignItems: "center", gap: 8,
+            }}>
+            Save fact
+            <span style={{fontFamily: "var(--mono)", fontSize: 12, opacity: .8}}>↵</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -784,7 +928,7 @@ function synthProperty(summary, richBase) {
 }
 
 // Editable fact row — view mode + inline edit mode
-function EditableFactRow({ fact, onUpdate, isLast }) {
+function EditableFactRow({ fact, onUpdate, onResolve, isLast }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(fact.value);
   const [hover, setHover] = useState(false);
@@ -866,15 +1010,21 @@ function EditableFactRow({ fact, onUpdate, isLast }) {
         <span style={{opacity:.6}}>{fact.fresh}</span>
       </div>
       <Pill tone={sm.tone}>{sm.label}</Pill>
-      <button onClick={() => setEditing(true)} style={{
+      <button onClick={() => {
+        const isConflict = fact.state === "conflict";
+        if (isConflict && onResolve) onResolve();
+        else if (isMissing && onResolve) onResolve();
+        else setEditing(true);
+      }} style={{
         all:'unset', cursor:'pointer',
         padding:'5px 11px', borderRadius: 7,
         fontSize: 12, fontWeight: 500,
-        color: hover ? 'var(--ink)' : 'var(--muted)',
-        border:'1px solid ' + (hover ? 'var(--hair)' : 'transparent'),
-        background: hover ? '#ffffff' : 'transparent',
-        opacity: hover ? 1 : .6,
-      }}>{isMissing ? "Add value" : "Edit"}</button>
+        color: fact.state === "conflict" ? 'var(--warn)' : (hover ? 'var(--ink)' : 'var(--muted)'),
+        border:'1px solid ' + (fact.state === "conflict" ? 'var(--warn)' : (hover ? 'var(--hair)' : 'transparent')),
+        background: fact.state === "conflict" ? 'var(--warn-soft)' : (hover ? '#ffffff' : 'transparent'),
+        opacity: fact.state === "conflict" ? 1 : (hover ? 1 : .6),
+        fontWeight: fact.state === "conflict" ? 600 : 500,
+      }}>{fact.state === "conflict" ? "Resolve →" : isMissing ? "Add value" : "Edit"}</button>
     </div>
   );
 }
@@ -2165,6 +2315,279 @@ function getTypeFromExt(name) {
   if (["html", "htm"].includes(ext)) return "web";
   if (["json", "xml"].includes(ext)) return "json";
   return "txt";
+}
+
+// ───────────────────────────────────────────────────────────────────
+// RESOLVE CONFLICT MODAL — evidence-first conflict resolution
+// Two (or more) sources disagree on the value of a fact. Cendra
+// surfaces both side-by-side with confidence + freshness, PM picks
+// the winner (or enters a new value), and Cendra offers to auto-task
+// the losing source for update (e.g. push corrective edit to Airbnb
+// listing). Reusable for any fact with conflict_sources.
+// ───────────────────────────────────────────────────────────────────
+function ResolveConflictModal({ fact, propertyName, onClose, onResolve }) {
+  const sources = fact.conflict_sources || [];
+  const [pick, setPick] = useState(sources[0]?.id || null);
+  const [customValue, setCustomValue] = useState("");
+  const [mode, setMode] = useState("source"); // "source" | "custom" | "review"
+  const [autoTask, setAutoTask] = useState(true);
+
+  const chosenSource = sources.find(s => s.id === pick);
+  const losingSource = sources.find(s => s.id !== pick);
+
+  const handleResolve = () => {
+    let newValue, newSource;
+    if (mode === "source" && chosenSource) {
+      newValue = chosenSource.value;
+      newSource = chosenSource;
+    } else if (mode === "custom") {
+      newValue = customValue.trim();
+      newSource = { label: "PM override · just now", confidence: 1.0 };
+    } else {
+      // review — flag for further investigation
+      onResolve && onResolve(null, { needsReview: true });
+      onClose();
+      return;
+    }
+    onResolve && onResolve(newValue, { chosenSource: newSource, autoTask, losingSource });
+    onClose();
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 50,
+      background: "rgba(0,0,0,0.40)",
+      display: "grid", placeItems: "center",
+      padding: 32,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: "min(900px, 100%)", maxHeight: "calc(100vh - 64px)",
+        background: "var(--paper)", borderRadius: 16,
+        boxShadow: "0 24px 64px rgba(0,0,0,0.20)",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: "20px 28px", borderBottom: "1px solid var(--hair-soft)",
+          display: "flex", alignItems: "center", gap: 16, background: "#ffffff",
+        }}>
+          <div className="mono" style={{
+            fontSize: 10.5, letterSpacing: ".18em", color: "var(--muted)",
+            display: "flex", gap: 12, alignItems: "center", flex: 1,
+          }}>
+            <span>RESOLVE CONFLICT</span>
+            <span style={{width: 3, height: 3, borderRadius: "50%", background: "var(--muted-2)"}} />
+            <span>{(propertyName || "PROPERTY").toUpperCase()}</span>
+            <span style={{width: 3, height: 3, borderRadius: "50%", background: "var(--muted-2)"}} />
+            <span style={{color: "var(--warn)"}}>{fact.fact.toUpperCase()}</span>
+          </div>
+          <button onClick={onClose} style={{
+            all: "unset", cursor: "pointer",
+            width: 28, height: 28, borderRadius: "50%",
+            display: "grid", placeItems: "center",
+            color: "var(--muted)", fontSize: 16,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--muted)"; }}>×</button>
+        </div>
+
+        <div style={{flex: 1, overflowY: "auto", padding: "24px 28px"}}>
+
+          {/* Cendra speaks */}
+          <div style={{display: "flex", alignItems: "center", gap: 10, marginBottom: 14}}>
+            <span style={{
+              width: 22, height: 22, borderRadius: 6,
+              background: "var(--ink)", color: "#ffffff",
+              display: "grid", placeItems: "center",
+              fontFamily: "var(--mono)", fontSize: 11, fontWeight: 600,
+            }}>C</span>
+            <span className="mono" style={{fontSize: 10.5, letterSpacing: ".14em", color: "var(--ink)", fontWeight: 600}}>CENDRA</span>
+            <span className="mono" style={{fontSize: 10, color: "var(--muted)"}}>·</span>
+            <span className="mono" style={{fontSize: 10, color: "var(--muted)", letterSpacing: ".12em"}}>CONFLICT DETECTED · CONF {Math.max(...sources.map(s => s.confidence)).toFixed(2)}</span>
+          </div>
+
+          <h2 className="serif-display" style={{
+            fontSize: 26, lineHeight: 1.25, margin: 0, color: "var(--ink)",
+            letterSpacing: "-.008em", marginBottom: 12, maxWidth: 720,
+            fontVariationSettings: '"opsz" 72, "SOFT" 50',
+          }}>
+            {sources.length === 2 ? "Two sources" : `${sources.length} sources`} disagree on <b>{fact.fact.toLowerCase()}</b>. Until you resolve this, I won't promise a value to guests.
+          </h2>
+          <p style={{margin: 0, fontSize: 14, color: "var(--ink-mid)", lineHeight: 1.55, maxWidth: 720}}>
+            Pick the winning source — I'll write the value to the property brain and offer to update the losing source. Or override with a new value.
+          </p>
+
+          {/* Source comparison */}
+          <div style={{
+            display: "grid", gridTemplateColumns: `repeat(${sources.length}, 1fr)`,
+            gap: 14, marginTop: 24, marginBottom: 20,
+          }}>
+            {sources.map(s => {
+              const selected = mode === "source" && pick === s.id;
+              return (
+                <button key={s.id} onClick={() => { setPick(s.id); setMode("source"); }} style={{
+                  all: "unset", cursor: "pointer",
+                  padding: "20px 22px", borderRadius: 14,
+                  background: selected ? "#ffffff" : "#ffffff",
+                  border: "1px solid " + (selected ? "var(--ink)" : "var(--hair)"),
+                  boxShadow: selected ? "0 0 0 2px var(--ink), 0 8px 24px rgba(0,0,0,0.08)" : "0 1px 2px rgba(0,0,0,0.03)",
+                  transition: "box-shadow .12s, border-color .12s",
+                  position: "relative", display: "block",
+                }}>
+                  {/* Radio mark */}
+                  <span style={{
+                    position: "absolute", top: 18, right: 18,
+                    width: 18, height: 18, borderRadius: "50%",
+                    border: "1.5px solid " + (selected ? "var(--ink)" : "var(--hair)"),
+                    background: selected ? "var(--ink)" : "#ffffff",
+                    display: "grid", placeItems: "center",
+                  }}>
+                    {selected && <span style={{width: 7, height: 7, borderRadius: "50%", background: "#ffffff"}} />}
+                  </span>
+
+                  <div style={{display: "flex", alignItems: "center", gap: 10, marginBottom: 12}}>
+                    <SourceTypeBadge type={s.source_type} size="sm" />
+                    <div className="mono" style={{fontSize: 10, letterSpacing: ".12em", color: "var(--muted)", textTransform: "uppercase", fontWeight: 500}}>
+                      {s.label}
+                    </div>
+                  </div>
+
+                  <div className="serif-display" style={{
+                    fontSize: 22, lineHeight: 1.2, color: "var(--ink)",
+                    letterSpacing: "-.005em", marginBottom: 14,
+                    fontVariationSettings: '"opsz" 48, "SOFT" 30',
+                  }}>"{s.value}"</div>
+
+                  <p style={{margin: 0, fontSize: 13, color: "var(--ink-mid)", lineHeight: 1.5}}>{s.evidence}</p>
+
+                  <div className="mono" style={{fontSize: 10, letterSpacing: ".08em", color: "var(--muted)", marginTop: 14, lineHeight: 1.7, textTransform: "uppercase"}}>
+                    {s.source_file}<br />
+                    {s.captured} · {s.captured_by} · conf {Math.round(s.confidence * 100)}%
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Custom override */}
+          <button onClick={() => setMode("custom")} style={{
+            all: "unset", cursor: "pointer", display: "block", width: "calc(100% - 36px)",
+            padding: "14px 18px", borderRadius: 12,
+            border: "1px " + (mode === "custom" ? "solid var(--ink)" : "dashed var(--hair)"),
+            background: mode === "custom" ? "#ffffff" : "transparent",
+            boxShadow: mode === "custom" ? "0 0 0 2px var(--ink)" : "none",
+            marginBottom: 12,
+            transition: "all .12s",
+          }}>
+            <div style={{display: "flex", alignItems: "center", gap: 12}}>
+              <span style={{
+                width: 18, height: 18, borderRadius: "50%",
+                border: "1.5px solid " + (mode === "custom" ? "var(--ink)" : "var(--hair)"),
+                background: mode === "custom" ? "var(--ink)" : "#ffffff",
+                display: "grid", placeItems: "center", flexShrink: 0,
+              }}>
+                {mode === "custom" && <span style={{width: 7, height: 7, borderRadius: "50%", background: "#ffffff"}} />}
+              </span>
+              <span style={{fontSize: 13.5, fontWeight: 500, color: "var(--ink)"}}>Neither — enter a different value</span>
+            </div>
+            {mode === "custom" && (
+              <input
+                autoFocus
+                value={customValue}
+                onChange={e => setCustomValue(e.target.value)}
+                onClick={e => e.stopPropagation()}
+                placeholder={`What's the actual ${fact.fact.toLowerCase()}?`}
+                style={{
+                  width: "100%", padding: "10px 14px", marginTop: 12,
+                  border: "1px solid var(--hair)", borderRadius: 8,
+                  background: "#ffffff", fontSize: 14, fontFamily: "var(--sans)",
+                  color: "var(--ink)", outline: 0, boxSizing: "border-box",
+                }}
+              />
+            )}
+          </button>
+
+          {/* Investigate */}
+          <button onClick={() => setMode("review")} style={{
+            all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 12,
+            width: "calc(100% - 36px)",
+            padding: "14px 18px", borderRadius: 12,
+            border: "1px " + (mode === "review" ? "solid var(--warn)" : "dashed var(--hair)"),
+            background: mode === "review" ? "var(--warn-soft)" : "transparent",
+            transition: "all .12s",
+          }}>
+            <span style={{
+              width: 18, height: 18, borderRadius: "50%",
+              border: "1.5px solid " + (mode === "review" ? "var(--warn)" : "var(--hair)"),
+              background: mode === "review" ? "var(--warn)" : "#ffffff",
+              display: "grid", placeItems: "center", flexShrink: 0,
+            }}>
+              {mode === "review" && <span style={{width: 7, height: 7, borderRadius: "50%", background: "#ffffff"}} />}
+            </span>
+            <span style={{fontSize: 13.5, fontWeight: 500, color: "var(--ink)"}}>I need to investigate first — keep flagged</span>
+            <span style={{flex: 1}} />
+            <span className="mono" style={{fontSize: 10, color: "var(--muted)", letterSpacing: ".08em"}}>STAYS IN ATTENTION QUEUE</span>
+          </button>
+
+          {/* Auto-task hint (when a source is chosen and another loses) */}
+          {mode === "source" && losingSource && (
+            <div style={{
+              marginTop: 22, padding: "16px 20px", borderRadius: 12,
+              background: "#ffffff", border: "1px solid var(--hair)",
+              borderLeft: "4px solid var(--info)",
+            }}>
+              <div style={{display: "flex", alignItems: "center", gap: 10, marginBottom: 8}}>
+                <input
+                  type="checkbox"
+                  checked={autoTask}
+                  onChange={e => setAutoTask(e.target.checked)}
+                  style={{margin: 0, width: 16, height: 16, accentColor: "var(--ink)"}}
+                />
+                <span className="mono" style={{fontSize: 10, letterSpacing: ".14em", color: "var(--info)", textTransform: "uppercase", fontWeight: 600}}>
+                  AUTO-TASK · UPDATE LOSING SOURCE
+                </span>
+              </div>
+              <div style={{fontSize: 13.5, color: "var(--ink)", lineHeight: 1.5}}>
+                {losingSource.fix_if_loses}
+              </div>
+              <div className="mono" style={{fontSize: 10.5, letterSpacing: ".04em", color: "var(--muted)", marginTop: 6}}>
+                TARGET · {losingSource.source_file}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: "16px 28px", borderTop: "1px solid var(--hair-soft)",
+          display: "flex", alignItems: "center", gap: 12, background: "#ffffff",
+        }}>
+          <span className="mono" style={{fontSize: 10.5, letterSpacing: ".06em", color: "var(--muted)"}}>
+            {mode === "source" && chosenSource && <>State: <span style={{color: "var(--ink)"}}>conflict → verified</span> · provenance: <span style={{color: "var(--ink)"}}>{chosenSource.source_file}</span></>}
+            {mode === "custom" && customValue.trim() && <>State: <span style={{color: "var(--ink)"}}>conflict → verified</span> · provenance: <span style={{color: "var(--ink)"}}>YOU · just now</span></>}
+            {mode === "review" && <>Will stay flagged in the attention queue.</>}
+          </span>
+          <span style={{flex: 1}} />
+          <Btn kind="ghost" onClick={onClose}>Cancel</Btn>
+          <button
+            onClick={handleResolve}
+            disabled={mode === "custom" && !customValue.trim()}
+            style={{
+              all: "unset",
+              cursor: (mode === "custom" && !customValue.trim()) ? "not-allowed" : "pointer",
+              background: (mode === "custom" && !customValue.trim()) ? "var(--hair)" : "var(--ink)",
+              color: (mode === "custom" && !customValue.trim()) ? "var(--muted)" : "#ffffff",
+              padding: "10px 20px", borderRadius: 10,
+              fontSize: 13.5, fontWeight: 600,
+              display: "inline-flex", alignItems: "center", gap: 8,
+            }}>
+            {mode === "review" ? "Flag for review" : "Resolve & apply"}
+            <span style={{fontFamily: "var(--mono)", fontSize: 12, opacity: .8}}>↵</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 window.CendraScreens3 = {
