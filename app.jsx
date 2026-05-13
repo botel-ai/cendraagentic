@@ -426,7 +426,14 @@ function CommandBar({ onPalette }) {
   return (
     <header className="cmdbar">
       <div className="brand">
-        <span className="logo">Cendra<span className="dot" /></span>
+        <img
+          src="assets/cendra-logo.webp"
+          alt="Cendra"
+          style={{
+            height: 26, width: 'auto', display: 'block',
+            objectFit: 'contain',
+          }}
+        />
         <span className="tag">Agent OS</span>
       </div>
       <button onClick={onPalette} style={{
