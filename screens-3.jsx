@@ -232,123 +232,140 @@ function MicroStatBlock2({ value, label, sub, tone }) {
 // ───────────────────────────────────────────────────────────────────
 function PropertyDetailScreen({ onOpen }) {
   const p = D3.property_detail;
-  const [tab, setTab] = useState("facts");
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [guestsOpen, setGuestsOpen] = useState(false);
 
   return (
-    <div className="stage">
-      <button onClick={() => onOpen('properties')} className="mono dim" style={{all:'unset', cursor:'pointer', fontSize:11, marginBottom:18, display:'inline-block'}}>← All properties</button>
+    <div className="stage" style={{maxWidth: 1020, paddingTop: 56, paddingBottom: 120}}>
+      <button onClick={() => onOpen('properties')} className="mono" style={{
+        all:'unset', cursor:'pointer', fontSize: 11, letterSpacing:'.14em',
+        color:'var(--muted)', marginBottom: 24, display:'inline-block',
+      }}>← ALL PROPERTIES</button>
 
-      <div style={{display:'grid', gridTemplateColumns:'1fr 320px', gap:32, marginBottom:24}}>
-        <div>
-          <div className="eyebrow">PROPERTY · {p.region.toUpperCase()} · {p.group.toUpperCase()}</div>
-          <h1 style={{fontFamily:'var(--serif)', fontSize:48, fontWeight:400, lineHeight:1.05, letterSpacing:'-.015em', margin:'8px 0 8px'}}>
-            {p.name}
-          </h1>
-          <p className="lead" style={{margin:0}}>
-            {p.owner} · {p.primary_contact} · {p.access} · Wi-Fi {p.wifi.split(' / ')[0]}
-          </p>
-        </div>
-        <div className="dcard" style={{padding:'14px 16px'}}>
-          <div className="mono dim" style={{fontSize:9.5, letterSpacing:'.18em', marginBottom:8}}>BRAIN</div>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, fontSize:12}}>
-            <span className="dim">Verified facts</span><b style={{textAlign:'right', fontFamily:'var(--mono)'}}>{p.facts_summary.verified}</b>
-            <span className="dim">Missing</span><b style={{textAlign:'right', fontFamily:'var(--mono)', color: p.facts_summary.missing > 0 ? 'var(--warn)' : 'inherit'}}>{p.facts_summary.missing}</b>
-            <span className="dim">Conflicts</span><b style={{textAlign:'right', fontFamily:'var(--mono)', color: p.facts_summary.conflicts > 0 ? 'var(--warn)' : 'inherit'}}>{p.facts_summary.conflicts}</b>
-            <span className="dim">Internal-only</span><b style={{textAlign:'right', fontFamily:'var(--mono)'}}>{p.facts_summary.internal}</b>
-          </div>
-        </div>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>PROPERTY · {p.region.toUpperCase()} · {p.group.toUpperCase()}</span>
+        <span style={{flex:1}} />
+        <span>{p.owner.toUpperCase()} · {p.primary_contact.toUpperCase()}</span>
       </div>
 
-      {/* Integration strip */}
-      <div className="dcard" style={{padding:'12px 18px', marginBottom: 18}}>
-        <div className="mono dim" style={{fontSize:9.5, letterSpacing:'.18em', marginBottom:8}}>INTEGRATIONS · LIVE</div>
-        <div style={{display:'flex', gap:14, flexWrap:'wrap', fontSize:12}}>
-          <span><b>{p.integrations.pms}</b></span>
-          <span className="dim">·</span>
-          {p.integrations.channels.map((c,i) => <React.Fragment key={i}><span><b>{c}</b></span><span className="dim">·</span></React.Fragment>)}
-          <span><b>{p.integrations.lock}</b></span>
-          <span className="dim">·</span>
-          <span><b>{p.integrations.clean}</b></span>
-        </div>
+      {/* HERO — property identity */}
+      <div style={{marginBottom: 32}}>
+        <h1 className="serif-display" style={{
+          fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)',
+        }}>
+          {p.name}
+        </h1>
+        <p style={{
+          fontSize: 15.5, lineHeight: 1.55, margin: '14px 0 0',
+          color:'var(--ink-mid)', maxWidth: 720,
+        }}>
+          {p.access} · Wi-Fi <b style={{color:'var(--ink)'}}>{p.wifi.split(' / ')[0]}</b> · {p.floor}
+        </p>
       </div>
 
-      {/* Risks band */}
+      {/* MICRO STAT BAND */}
+      <div style={{
+        display:'flex', gap: 36, flexWrap:'wrap',
+        paddingBottom: 24, marginBottom: 24, borderBottom:'1px solid var(--hair-soft)',
+      }}>
+        <MicroStatBlock2 value={p.facts_summary.verified} label="verified facts" />
+        <MicroStatBlock2 value={p.facts_summary.missing} label="missing" tone={p.facts_summary.missing > 0 ? "warn" : "ok"} />
+        <MicroStatBlock2 value={p.facts_summary.conflicts} label="conflicts" tone={p.facts_summary.conflicts > 0 ? "warn" : "ok"} />
+        <MicroStatBlock2 value={p.facts_summary.internal} label="internal-only" />
+        <span style={{flex:1}} />
+        <MicroStatBlock2 value="all OK" label="integrations" tone="ok" />
+      </div>
+
+      {/* RISKS BAND — Von Restorff: only flagged when present */}
       {p.risks.length > 0 && (
         <div style={{
-          display:'flex', gap:12, padding:'12px 16px',
-          background:'var(--warn-soft)', border:'1px solid color-mix(in oklab, var(--warn), white 75%)',
-          borderRadius:4, marginBottom:24, fontSize:12.5,
+          display:'flex', gap: 14, padding:'14px 18px',
+          background:'#ffffff', border:'1px solid var(--hair)', borderLeft:'4px solid var(--warn)',
+          borderRadius: 10, marginBottom: 32, fontSize: 13,
         }}>
-          <span className="mono" style={{fontSize:9.5, letterSpacing:'.18em', color:'var(--warn)', whiteSpace:'nowrap'}}>RISKS ·</span>
-          <span>{p.risks.join(' · ')}</span>
+          <span className="mono" style={{fontSize: 10, letterSpacing:'.18em', color:'var(--warn)', fontWeight: 600, whiteSpace:'nowrap', paddingTop: 2}}>RISKS</span>
+          <span style={{color:'var(--ink)'}}>{p.risks.join(' · ')}</span>
         </div>
       )}
 
-      <div style={{display:'flex', gap:6, marginBottom:14}}>
-        {[
-          { id:'facts', label:'Facts ('+p.facts_summary.verified+')' },
-          { id:'rules', label:'Owner rules' },
-          { id:'history', label:'Decision history' },
-          { id:'guests', label:'Guest memory' },
-        ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={cls("btn","btn-sm", tab===t.id && "btn-primary")}>{t.label}</button>
-        ))}
-      </div>
-
-      {tab === 'facts' && (
-        <div className="col gap-6">
+      {/* FACTS — always open, narrative anchor */}
+      <div style={{marginBottom: 32}}>
+        <div className="mono" style={{
+          fontSize: 11, letterSpacing:'.14em', color:'var(--ink)',
+          fontWeight: 600, textTransform:'uppercase', marginBottom: 6,
+        }}>What Cendra knows · {p.facts_summary.verified} facts</div>
+        <div style={{fontSize: 13, color:'var(--muted)', marginBottom: 16}}>Grouped by visibility. Click to drill in.</div>
+        <div style={{display:'grid', gap: 28}}>
           {p.fact_groups.map((g, gi) => (
             <div key={gi}>
-              <div className="eyebrow mb-2">{g.label.toUpperCase()}</div>
-              <div className="dcard" style={{padding:0}}>
-                <div style={{
-                  display:'grid', gridTemplateColumns: '170px 1fr 140px 90px 100px',
-                  gap:14, padding:'10px 18px', background:'var(--paper-2)', borderBottom:'1px solid var(--hair)',
-                  fontFamily:'var(--mono)', fontSize:9.5, letterSpacing:'.16em', color:'var(--muted)',
-                }}>
-                  <div>FACT</div><div>VALUE</div><div>SOURCE · FRESH</div><div>STATE</div><div>VISIBILITY</div>
-                </div>
+              <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>{g.label}</div>
+              <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
                 {g.facts.map((f, i) => <PropertyFactRow key={i} f={f} />)}
               </div>
             </div>
           ))}
         </div>
-      )}
+      </div>
 
-      {tab === 'rules' && (
-        <div className="dcard" style={{padding:'18px 22px'}}>
-          <div className="col gap-3">
-            <div style={{display:'flex',justifyContent:'space-between', padding:'10px 0', borderBottom:'1px dashed var(--hair-soft)'}}>
-              <span style={{fontSize:13}}>Never offer late checkout if same-day turnover</span>
-              <span className="mono dim" style={{fontSize:11}}>OWNER · 32d</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between', padding:'10px 0', borderBottom:'1px dashed var(--hair-soft)'}}>
-              <span style={{fontSize:13}}>Hot water heater: flush every 30 days</span>
-              <span className="mono dim" style={{fontSize:11}}>CLEANER · 8d</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between', padding:'10px 0'}}>
-              <span style={{fontSize:13}}>Quiet hours: 23:00 → 08:00 (building rule)</span>
-              <span className="mono dim" style={{fontSize:11}}>BUILDING · 60d</span>
-            </div>
+      {/* OWNER RULES — collapsible */}
+      <CollapsibleStep
+        eyebrow="OWNER RULES · 3"
+        sub="Property-specific rules Cendra honors before any decision."
+        open={rulesOpen}
+        onToggle={() => setRulesOpen(o => !o)}
+      >
+        <div className="dcard" style={{padding:'18px 22px', marginTop: 14}}>
+          <div style={{display:'grid', gap: 0}}>
+            {[
+              { text: "Never offer late checkout if same-day turnover", source: "OWNER · 32d" },
+              { text: "Hot water heater: flush every 30 days", source: "CLEANER · 8d" },
+              { text: "Quiet hours: 23:00 → 08:00 (building rule)", source: "BUILDING · 60d" },
+            ].map((r, i, arr) => (
+              <div key={i} style={{
+                display:'flex', justifyContent:'space-between', alignItems:'center', gap: 14,
+                padding:'12px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+              }}>
+                <span style={{fontSize: 13.5, color:'var(--ink)'}}>{r.text}</span>
+                <span className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', whiteSpace:'nowrap'}}>{r.source}</span>
+              </div>
+            ))}
           </div>
         </div>
-      )}
+      </CollapsibleStep>
 
-      {tab === 'history' && (
-        <div className="dcard" style={{padding:'14px 18px'}}>
+      {/* DECISION HISTORY — collapsible */}
+      <CollapsibleStep
+        eyebrow="DECISION HISTORY · LAST 9 DAYS"
+        sub="Every decision Cendra made on this property."
+        open={historyOpen}
+        onToggle={() => setHistoryOpen(o => !o)}
+      >
+        <div className="dcard" style={{padding:'14px 18px', marginTop: 14}}>
           <LiveActivityMilestone label="Cendra answered Wi-Fi for Lukas Berger" tone="ok" time="11 min ago" mono="autopilot" />
           <LiveActivityMilestone label="Cendra paused early-check-in promise · cleaning unconfirmed" tone="warn" time="14 min ago" mono="approval" />
           <LiveActivityMilestone label="Marta C. confirmed cleaning ETA 14:30" tone="info" time="22 min ago" mono="cleaner" />
           <LiveActivityMilestone label="Cendra flagged bedroom config conflict (cleaner photo vs listing)" tone="warn" time="2d ago" mono="conflict" />
           <LiveActivityMilestone label="Owner rule applied · no early check-in promise" tone="ok" time="9d ago" mono="rule" />
         </div>
-      )}
+      </CollapsibleStep>
 
-      {tab === 'guests' && (
-        <div className="dcard" style={{padding:'18px 22px'}}>
-          <p className="dim" style={{fontSize:13, margin:0}}>3 guests in last 30 days. Sentiment trending positive. No repeat issues.</p>
+      {/* GUEST MEMORY — collapsible */}
+      <CollapsibleStep
+        eyebrow="GUEST MEMORY · 3 RECENT"
+        sub="Sentiment, recurring issues, prior stays."
+        open={guestsOpen}
+        onToggle={() => setGuestsOpen(o => !o)}
+      >
+        <div className="dcard" style={{padding:'18px 22px', marginTop: 14}}>
+          <p style={{fontSize: 14, color:'var(--ink-mid)', margin: 0, lineHeight: 1.55}}>
+            3 guests in the last 30 days. Sentiment trending positive. No repeat issues. Average stay rating: <b style={{color:'var(--ink)'}}>4.7</b>.
+          </p>
         </div>
-      )}
+      </CollapsibleStep>
     </div>
   );
 }
@@ -359,62 +376,109 @@ function PropertyDetailScreen({ onOpen }) {
 function PlaybookLibraryScreen({ onOpen }) {
   const [filter, setFilter] = useState("all");
   const cats = D3.playbook_categories;
+  const allPbs = cats.flatMap(c => c.playbooks);
+  const needsReviewCount = allPbs.filter(p => p.state === "needs_review").length;
+
+  const filterDefs = [
+    { id: "all",          label: "All",          test: () => true },
+    { id: "live",         label: "Live",         test: p => p.state === "live" },
+    { id: "needs_review", label: "Needs review", test: p => p.state === "needs_review" },
+    { id: "draft",        label: "Drafts",       test: p => p.state === "draft" },
+    { id: "staging",      label: "Staging",      test: p => p.state === "staging" },
+  ];
+  const def = filterDefs.find(f => f.id === filter);
 
   return (
-    <div className="stage">
-      <PageHeader
-        eyebrow="PLAYBOOKS · LIBRARY"
-        title="Hospitality playbooks Cendra runs."
-        lead="Each playbook has its own autonomy, scope, simulation coverage, and history. Edit, simulate, then publish. Nothing goes live without a passing simulation."
-        right={<Btn kind="primary" onClick={() => onOpen('playbook')}>+ New playbook</Btn>}
-      />
+    <div className="stage" style={{maxWidth: 1080, paddingTop: 56, paddingBottom: 120}}>
 
-      <div style={{display:'flex', gap:6, flexWrap:'wrap', marginBottom:18}}>
-        {[
-          { id: "all", label: "All" },
-          { id: "live", label: "Live" },
-          { id: "draft", label: "Drafts" },
-          { id: "needs_review", label: "Needs review" },
-          { id: "staging", label: "Staging" },
-        ].map(f => (
-          <button key={f.id} onClick={() => setFilter(f.id)} className={cls("btn","btn-sm", filter===f.id && "btn-primary")}>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>PLAYBOOKS · LIBRARY</span>
+        <span style={{flex:1}} />
+        <span>{allPbs.length} PLAYBOOKS · {cats.length} CATEGORIES</span>
+      </div>
+
+      <div style={{display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom: 32, gap: 18, flexWrap:'wrap'}}>
+        <div>
+          <h1 className="serif-display" style={{fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)'}}>
+            {needsReviewCount > 0
+              ? <>{needsReviewCount} playbook{needsReviewCount > 1 ? 's' : ''} need{needsReviewCount === 1 ? 's' : ''} your eyes.</>
+              : <>Every playbook is healthy.</>
+            }
+          </h1>
+          <p style={{fontSize: 16, lineHeight: 1.55, margin:'14px 0 0', color:'var(--ink-mid)', maxWidth: 700}}>
+            Each playbook has its own autonomy, scope, simulation coverage, and history. Nothing goes live without a passing simulation.
+          </p>
+        </div>
+        <button onClick={() => onOpen('playbook')} style={{
+          all:'unset', cursor:'pointer',
+          background:'var(--ink)', color:'#ffffff',
+          padding:'12px 22px', borderRadius: 10,
+          fontSize: 14, fontWeight: 600,
+          display:'inline-flex', alignItems:'center', gap: 8,
+        }}>+ New playbook</button>
+      </div>
+
+      <div style={{display:'flex', gap: 8, flexWrap:'wrap', marginBottom: 28}}>
+        {filterDefs.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            all:'unset', cursor:'pointer',
+            padding:'7px 14px', borderRadius: 999,
+            border:'1px solid ' + (filter === f.id ? 'var(--ink)' : 'var(--hair)'),
+            background: filter === f.id ? 'var(--ink)' : '#ffffff',
+            color: filter === f.id ? '#ffffff' : 'var(--ink-mid)',
+            fontSize: 12.5, fontWeight: 500, fontFamily:'var(--sans)',
+            display:'inline-flex', alignItems:'center', gap: 6,
+          }}>
             {f.label}
+            <span style={{marginLeft: 4, opacity: filter === f.id ? .7 : .5, fontFamily:'var(--mono)', fontSize: 11}}>
+              {allPbs.filter(f.test).length}
+            </span>
+            {f.id === "needs_review" && needsReviewCount > 0 && filter !== f.id && (
+              <span style={{width:6, height:6, borderRadius:'50%', background:'var(--rausch)', marginLeft: 4}} />
+            )}
           </button>
         ))}
       </div>
 
-      <div className="col gap-6">
+      <div style={{display:'grid', gap: 32}}>
         {cats.map(cat => {
-          const pbs = filter === 'all' ? cat.playbooks : cat.playbooks.filter(pb => pb.state === filter);
+          const pbs = cat.playbooks.filter(def.test);
           if (pbs.length === 0) return null;
           return (
             <section key={cat.id}>
-              <div className="eyebrow mb-2">{cat.name.toUpperCase()} · {pbs.length}</div>
-              <div className="dcard" style={{padding:0}}>
+              <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>
+                {cat.name} · {pbs.length}
+              </div>
+              <div className="dcard" style={{padding: 0, overflow:'hidden'}}>
                 {pbs.map((pb, i) => (
                   <button key={pb.id} onClick={() => onOpen('playbook')} style={{
-                    all:'unset', cursor:'pointer',
-                    display:'grid',
-                    gridTemplateColumns:'1.4fr 130px 130px 1fr 130px 80px',
-                    gap:14, padding:'14px 18px', alignItems:'center',
-                    borderBottom: i < pbs.length-1 ? '1px solid var(--hair-soft)' : 'none',
-                    width:'100%', boxSizing:'border-box',
+                    all:'unset', cursor:'pointer', display:'grid',
+                    gridTemplateColumns:'1.6fr 110px 110px 140px 80px',
+                    gap:14, padding:'14px 22px', alignItems:'center',
+                    borderBottom: i < pbs.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+                    width:'calc(100% - 44px)', background:'#ffffff',
                   }}>
-                    <div>
-                      <div style={{fontSize:13.5, fontWeight:500, letterSpacing:'-.005em'}}>{pb.name}</div>
-                      <div className="mono dim" style={{fontSize:10.5, marginTop:2}}>{pb.scope}</div>
+                    <div style={{display:'flex', alignItems:'center', gap: 10}}>
+                      {pb.state === "needs_review" && (
+                        <span style={{width:6, height:6, borderRadius:'50%', background:'var(--rausch)'}} />
+                      )}
+                      <div>
+                        <div style={{fontSize: 13.5, fontWeight: 500, color:'var(--ink)'}}>{pb.name}</div>
+                        <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', marginTop: 2}}>{pb.scope}</div>
+                      </div>
                     </div>
                     <StatusPill status={pb.state} />
                     <AutonomyPill state={pb.autonomy === 'draft' ? 'observe' : pb.autonomy} />
-                    <div className="mono" style={{fontSize:11, color: pb.coverage.includes('pass') ? 'var(--ok)' : 'var(--ink-mid)'}}>
-                      {pb.coverage}
-                    </div>
-                    <div className="mono dim" style={{fontSize:10.5}}>
-                      {pb.changed}<br />{pb.examples} examples
-                    </div>
-                    <div style={{textAlign:'right'}}>
-                      <span className="mono" style={{fontSize:11, color:'var(--ink)'}}>OPEN →</span>
-                    </div>
+                    <span className="mono" style={{
+                      fontSize: 11, letterSpacing:'.04em',
+                      color: pb.coverage.includes('pass') ? 'var(--ok)' : 'var(--muted)',
+                    }}>{pb.coverage}</span>
+                    <span className="mono" style={{fontSize: 10.5, color:'var(--ink-mid)', letterSpacing:'.04em', textAlign:'right'}}>
+                      OPEN →
+                    </span>
                   </button>
                 ))}
               </div>
@@ -435,69 +499,105 @@ function InsightsScreen({ onOpen }) {
   const [answered, setAnswered] = useState(true);
 
   return (
-    <div className="stage">
-      <PageHeader
-        eyebrow="INSIGHTS · ASK CENDRA"
-        title="Ask anything about your portfolio."
-        lead="Cendra answers in plain English with evidence and suggested next steps. Click an evidence row to drill into the underlying decisions."
-      />
+    <div className="stage" style={{maxWidth: 1020, paddingTop: 56, paddingBottom: 120}}>
 
-      {/* Ask Cendra */}
-      <div className="dcard" style={{padding: 0, marginBottom: 28}}>
-        <div style={{padding:'18px 22px', borderBottom:'1px solid var(--hair-soft)', display:'flex', gap:12, alignItems:'center'}}>
-          <span className="mono dim" style={{fontSize:10, letterSpacing:'.18em'}}>ASK</span>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>INSIGHTS · ASK CENDRA</span>
+        <span style={{flex:1}} />
+        <span>NATURAL LANGUAGE · EVIDENCE-BACKED</span>
+      </div>
+
+      <div style={{marginBottom: 36}}>
+        <h1 className="serif-display" style={{fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)'}}>
+          Ask anything about your portfolio.
+        </h1>
+        <p style={{fontSize: 16.5, lineHeight: 1.55, margin:'18px 0 0', color:'var(--ink-mid)', maxWidth: 720}}>
+          Cendra answers in plain English with evidence and suggested next steps. Click an evidence row to drill into the underlying decisions.
+        </p>
+      </div>
+
+      {/* Ask Cendra — composer + suggested */}
+      <div style={{
+        background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 14,
+        padding: '4px 4px 18px', marginBottom: 32,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+      }}>
+        <div style={{display:'flex', gap: 12, alignItems:'center', padding:'14px 18px'}}>
+          <span className="mono" style={{fontSize: 10, letterSpacing:'.18em', color:'var(--muted)', fontWeight: 500}}>ASK</span>
           <input
             value={q}
             onChange={e => { setQ(e.target.value); setAnswered(false); }}
             onKeyDown={e => { if (e.key === 'Enter') setAnswered(true); }}
             placeholder="e.g. Why did automation drop this week?"
             style={{
-              flex:1, border:0, outline:0, background:'transparent',
-              fontFamily:'var(--serif)', fontSize:22, lineHeight:1.3,
+              flex: 1, border: 0, outline: 0, background:'transparent',
+              fontFamily:'var(--serif)', fontSize: 20, lineHeight: 1.3,
               color:'var(--ink)',
+              fontVariationSettings: '"opsz" 48, "SOFT" 30',
             }}
           />
-          <Btn kind="primary" onClick={() => setAnswered(true)}>Ask Cendra</Btn>
+          <button onClick={() => setAnswered(true)} style={{
+            all:'unset', cursor:'pointer',
+            background:'var(--ink)', color:'#ffffff',
+            padding:'10px 18px', borderRadius: 10,
+            fontSize: 13.5, fontWeight: 600,
+            display:'inline-flex', alignItems:'center', gap: 6,
+          }}>
+            Ask Cendra
+            <span style={{fontFamily:'var(--mono)', fontSize:12, opacity:.8}}>↵</span>
+          </button>
         </div>
 
-        <div style={{padding:'12px 22px', display:'flex', gap:6, flexWrap:'wrap'}}>
-          <span className="mono dim" style={{fontSize:10, letterSpacing:'.18em', alignSelf:'center'}}>SUGGESTED ·</span>
+        <div style={{padding:'4px 18px 0', display:'flex', gap: 6, flexWrap:'wrap', alignItems:'center'}}>
+          <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', fontWeight: 500, marginRight: 6}}>SUGGESTED</span>
           {I.suggested.map(s => (
-            <button key={s} onClick={() => { setQ(s); setAnswered(true); }} className="btn btn-sm" style={{fontSize:11.5}}>
-              {s}
-            </button>
+            <button key={s} onClick={() => { setQ(s); setAnswered(true); }} style={{
+              all:'unset', cursor:'pointer',
+              padding:'5px 12px', borderRadius: 999,
+              border:'1px solid var(--hair)',
+              background:'#ffffff', color:'var(--ink-mid)',
+              fontSize: 11.5, fontWeight: 500,
+            }}>{s}</button>
           ))}
         </div>
       </div>
 
       {answered && q === I.answer_demo.question && (
-        <section style={{marginBottom: 36}}>
-          <div className="eyebrow mb-2">CENDRA'S ANSWER · 0.94 CONFIDENCE</div>
-          <div className="dcard" style={{padding:'24px 28px'}}>
-            <h2 style={{fontFamily:'var(--serif)', fontSize:30, lineHeight:1.2, fontWeight:400, letterSpacing:'-.01em', margin:'0 0 12px'}}>
+        <section style={{marginBottom: 48}}>
+          <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>
+            CENDRA'S ANSWER · 0.94 CONFIDENCE
+          </div>
+          <div className="dcard" style={{padding: '26px 30px'}}>
+            <h2 className="serif-display" style={{fontSize: 28, lineHeight: 1.22, fontWeight: 400, margin:'0 0 14px', color:'var(--ink)'}}>
               {I.answer_demo.headline}
             </h2>
-            <p className="lead" style={{margin:'0 0 18px'}}>{I.answer_demo.detail}</p>
+            <p style={{margin:'0 0 22px', fontSize: 15, lineHeight: 1.6, color:'var(--ink-mid)', maxWidth: 720}}>
+              {I.answer_demo.detail}
+            </p>
 
-            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, border:'1px solid var(--hair)', borderRadius:4, overflow:'hidden'}}>
+            {/* Single-line evidence rows */}
+            <div style={{display:'grid', gap: 1, background:'var(--hair)', border:'1px solid var(--hair)', borderRadius: 10, overflow:'hidden'}}>
               {I.answer_demo.evidence.map((e, i) => (
                 <div key={i} style={{
-                  padding:'12px 16px', borderRight: i % 2 === 0 ? '1px solid var(--hair-soft)' : 'none',
-                  borderBottom: i < 2 ? '1px solid var(--hair-soft)' : 'none',
-                  background: 'var(--paper)',
+                  display:'grid', gridTemplateColumns:'160px 1fr 110px',
+                  gap: 14, padding:'12px 18px', alignItems:'center',
+                  background:'#ffffff', fontSize: 13,
                 }}>
-                  <div className="mono dim" style={{fontSize:9.5, letterSpacing:'.16em', marginBottom:4}}>{e.kind.toUpperCase()}</div>
-                  <div style={{fontSize:14, fontWeight:500, letterSpacing:'-.005em'}}>{e.value}</div>
-                  {e.delta && <div className="mono dim" style={{fontSize:11, marginTop:2}}>{e.delta}</div>}
+                  <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 500}}>{e.kind}</span>
+                  <span style={{color:'var(--ink)'}}>{e.value}</span>
+                  <span className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'.04em', textAlign:'right'}}>{e.delta || ''}</span>
                 </div>
               ))}
             </div>
 
-            <div style={{display:'flex', gap:8, marginTop: 18, flexWrap:'wrap'}}>
+            <div style={{display:'flex', gap: 10, marginTop: 22, flexWrap:'wrap', alignItems:'center'}}>
               {I.answer_demo.next.map((n, i) => (
                 <Btn key={i} size="sm" kind={i === 0 ? "primary" : "default"}>{n}</Btn>
               ))}
-              <span className="grow" style={{flex:1}} />
+              <span style={{flex:1}} />
               <Btn size="sm" kind="ghost" onClick={() => onOpen('audit')}>Open underlying decisions →</Btn>
             </div>
           </div>

@@ -830,48 +830,58 @@ function PropertyBrainScreen() {
 }
 
 function FactCard({ f }) {
-  const tone = f.state === "missing" ? "info" : f.state === "conflict" ? "warn" : "info";
   const isMissing = f.state === "missing";
   const [answered, setAnswered] = useState(false);
+  const stateColor = f.state === "conflict" ? "warn" : f.state === "stale" ? "info" : "info";
 
   return (
     <div className="dcard" style={{padding:'18px 22px'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start', marginBottom: 8}}>
-        <div>
-          <div className="mono dim" style={{fontSize:10.5, letterSpacing:'.16em', marginBottom:4}}>
-            {f.scope.toUpperCase()} · {f.fact.toUpperCase()}
-          </div>
-          <h3 style={{fontFamily:'var(--serif)', fontSize:22, lineHeight:1.2, fontWeight:400, margin:0, letterSpacing:'-.005em'}}>
-            {isMissing ? `Does ${f.scope} have ${f.fact.toLowerCase()}?` :
-             f.state === "conflict" ? `Conflict: ${f.fact} on ${f.scope}` :
-             `${f.fact} hasn't been verified recently`}
-          </h3>
-          <p className="dim" style={{margin: '6px 0 0', fontSize:13}}>{f.hint}</p>
-        </div>
-        <Pill tone={f.state === "conflict" ? "warn" : f.state === "stale" ? "info" : "info"}>{f.state}</Pill>
+      {/* Single-line header: scope · fact · state pill */}
+      <div style={{display:'flex', alignItems:'center', gap: 12, marginBottom: 10, flexWrap:'wrap'}}>
+        <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--ink)', fontWeight: 600, textTransform:'uppercase'}}>
+          {f.scope}
+        </span>
+        <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+        <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 500}}>
+          {f.fact}
+        </span>
+        <span style={{flex:1}} />
+        <Pill tone={stateColor}>{f.state}</Pill>
       </div>
 
+      <h3 className="serif-display" style={{fontSize: 20, lineHeight: 1.25, fontWeight: 400, margin: 0, letterSpacing:'-.005em', color:'var(--ink)'}}>
+        {isMissing ? `Does ${f.scope} have ${f.fact.toLowerCase()}?` :
+         f.state === "conflict" ? `Conflict: ${f.fact} on ${f.scope}` :
+         `${f.fact} hasn't been verified recently`}
+      </h3>
+      <p style={{margin:'8px 0 0', fontSize: 13, color:'var(--muted)', lineHeight: 1.5}}>{f.hint}</p>
+
       {answered ? (
-        <div className="dcard mt-3" style={{padding:'10px 14px', background:'var(--ok-soft)', borderColor:'color-mix(in oklab, var(--ok), white 70%)'}}>
-          <div className="mono" style={{fontSize:10.5, color:'var(--ok)', letterSpacing:'.16em'}}>SAVED · SOURCE = PM CONFIRMED</div>
-          <div style={{fontSize:13, marginTop:3}}>Cendra will use this for all future guests.</div>
+        <div style={{
+          marginTop: 14, padding:'10px 14px', borderRadius: 8,
+          background:'var(--ok-soft)', border:'1px solid color-mix(in oklab, var(--ok), white 75%)',
+        }}>
+          <div className="mono" style={{fontSize: 10, color:'var(--ok)', letterSpacing:'.14em', fontWeight: 600}}>SAVED · SOURCE = PM CONFIRMED</div>
+          <div style={{fontSize: 13, marginTop: 4, color:'var(--ink)'}}>Cendra will use this for all future guests.</div>
         </div>
       ) : isMissing ? (
-        <div style={{display:'flex',gap:8, marginTop:12, flexWrap:'wrap'}}>
+        <div style={{display:'flex', gap: 8, marginTop: 16, flexWrap:'wrap'}}>
           <Btn kind="primary" size="sm" onClick={() => setAnswered(true)}>Yes, available</Btn>
           <Btn size="sm" onClick={() => setAnswered(true)}>No, not available</Btn>
           <Btn size="sm">Conditional…</Btn>
-          <span className="grow" />
+          <span style={{flex:1}} />
           <Btn kind="ghost" size="sm">Internal only</Btn>
-          <Btn kind="ghost" size="sm">Ask owner</Btn>
         </div>
       ) : (
-        <div style={{marginTop:12}}>
-          <div className="dcard" style={{padding:'10px 14px', background:'var(--paper)'}}>
-            <div className="mono dim" style={{fontSize:10.5, letterSpacing:'.16em'}}>CURRENT VALUE</div>
-            <div style={{fontSize:13.5, marginTop:3}}>{f.value}</div>
+        <div style={{marginTop: 14}}>
+          <div style={{
+            padding:'10px 14px', borderRadius: 8,
+            background:'var(--paper-2)', border:'1px solid var(--hair)',
+          }}>
+            <div className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.14em', fontWeight: 500}}>CURRENT VALUE</div>
+            <div style={{fontSize: 13.5, marginTop: 3, color:'var(--ink)'}}>{f.value}</div>
           </div>
-          <div style={{display:'flex',gap:8, marginTop:10}}>
+          <div style={{display:'flex', gap: 8, marginTop: 12}}>
             <Btn size="sm" kind="primary" onClick={() => setAnswered(true)}>Confirm still correct</Btn>
             <Btn size="sm">Update value</Btn>
             <Btn size="sm" kind="ghost">View source</Btn>
@@ -911,57 +921,84 @@ function LearningScreen() {
 
 function LearningCard({ l }) {
   const [decided, setDecided] = useState(null);
+  const [examplesOpen, setExamplesOpen] = useState(false);
+  const confidence = Math.round(l.confidence * 100);
+  const confColor = confidence >= 85 ? 'var(--ok)' : confidence >= 70 ? 'var(--warn)' : 'var(--muted)';
+
   return (
-    <div className="dcard" style={{padding: 0, opacity: decided ? 0.55 : 1, transition: 'opacity .3s'}}>
-      <div style={{padding:'20px 24px', display:'grid', gridTemplateColumns:'1fr 280px', gap: 32}}>
-        <div>
-          <div className="mono dim" style={{fontSize:10.5, letterSpacing:'.16em', marginBottom:6}}>
-            CENDRA NOTICED · {l.examples} EXAMPLES · CONFIDENCE {Math.round(l.confidence*100)}%
-          </div>
-          <h3 style={{fontFamily:'var(--serif)', fontSize:24, lineHeight:1.18, fontWeight:400, letterSpacing:'-.005em', margin:'0 0 8px'}}>
-            {l.title}
-          </h3>
-          <p style={{margin:'0 0 14px', color:'var(--ink-mid)', fontSize:13.5, lineHeight:1.55}}>
-            {l.observed}
-          </p>
+    <div className="dcard" style={{
+      padding: '24px 28px', opacity: decided ? 0.55 : 1, transition: 'opacity .3s',
+      position:'relative', overflow:'hidden',
+    }}>
+      <div style={{position:'absolute', top:0, left:0, width:4, height:'100%', background: confColor}} />
 
-          <div className="dcard" style={{padding:'10px 14px', background:'var(--paper)'}}>
-            <div className="mono dim" style={{fontSize:10, letterSpacing:'.18em', marginBottom: 4}}>PROPOSED RULE</div>
-            <div style={{fontSize:13, lineHeight:1.5}}>{l.proposed}</div>
-          </div>
-
-          <div className="mono dim mt-3" style={{fontSize:11}}>
-            SIMULATION · {l.simulation.passed} passed · {l.simulation.failed} failed · {l.simulation.would_change}
-          </div>
-
-          {l.id === "l1" && window.CendraVision && (
-            <div style={{marginTop: 16}}>
-              <window.CendraVision.TeachScope />
-            </div>
-          )}
+      <div style={{display:'flex', alignItems:'flex-start', gap: 24, marginBottom: 18}}>
+        <div style={{flexShrink: 0}}>
+          <div style={{
+            fontFamily:'var(--sans)', fontSize: 44, fontWeight: 500, color: confColor,
+            lineHeight: 1, letterSpacing:'-.02em', fontVariantNumeric:'tabular-nums',
+          }}>{confidence}<span style={{fontSize: 22, fontWeight: 400, opacity: .6}}>%</span></div>
+          <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginTop: 4, fontWeight: 500}}>confidence</div>
         </div>
-
-        <div className="col gap-2">
-          <Pill tone={l.risk === "low" ? "ok" : l.risk === "medium" ? "warn" : "risk"}>Risk · {l.risk}</Pill>
-          <Pill tone="info">{l.examples} examples</Pill>
-          <Pill>{l.overrides} overrides · {l.incidents} incidents</Pill>
+        <div style={{flex: 1, minWidth: 0}}>
+          <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 6, fontWeight: 500}}>
+            CENDRA NOTICED · {l.examples} EXAMPLES · {l.overrides} OVERRIDES · {l.incidents} INCIDENTS
+          </div>
+          <h3 className="serif-display" style={{
+            fontSize: 24, lineHeight: 1.2, margin: 0, color:'var(--ink)',
+          }}>{l.title}</h3>
         </div>
+        <Pill tone={l.risk === "low" ? "ok" : l.risk === "medium" ? "warn" : "risk"}>Risk · {l.risk}</Pill>
       </div>
 
+      <p style={{margin: 0, color:'var(--ink-mid)', fontSize: 14, lineHeight: 1.6, maxWidth: 720}}>
+        {l.observed}
+      </p>
+
+      <div style={{
+        marginTop: 18, padding:'14px 18px', borderRadius: 10,
+        background:'var(--paper-2)', border:'1px solid var(--hair)',
+      }}>
+        <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 6, fontWeight: 500}}>PROPOSED RULE</div>
+        <div style={{fontSize: 13.5, lineHeight: 1.5, color:'var(--ink)'}}>{l.proposed}</div>
+      </div>
+
+      <button onClick={() => setExamplesOpen(o => !o)} style={{
+        all:'unset', cursor:'pointer',
+        marginTop: 14, fontSize: 12, color:'var(--ink-mid)',
+        display:'flex', alignItems:'center', gap: 8,
+      }}>
+        <span style={{
+          fontFamily:'var(--mono)', fontSize: 14,
+          transform: examplesOpen ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform .15s',
+        }}>›</span>
+        <span className="mono" style={{fontSize: 10.5, letterSpacing:'.08em', textTransform:'uppercase', fontWeight: 500}}>
+          SIMULATION · {l.simulation.passed} passed · {l.simulation.failed} failed
+        </span>
+      </button>
+      {examplesOpen && (
+        <div style={{
+          marginTop: 10, padding:'12px 16px',
+          background:'var(--paper-2)', borderRadius: 8,
+          fontSize: 12.5, color:'var(--ink-mid)', lineHeight: 1.55,
+        }}>
+          {l.simulation.would_change}
+        </div>
+      )}
+
       {decided ? (
-        <div className="actionbar" style={{justifyContent:'center'}}>
-          <span className="mono" style={{fontSize:11, letterSpacing:'.16em', color: decided === 'approve' ? 'var(--ok)' : 'var(--muted)'}}>
+        <div style={{marginTop: 20, paddingTop: 16, borderTop:'1px solid var(--hair-soft)'}}>
+          <span className="mono" style={{fontSize: 11, letterSpacing:'.16em', color: decided === 'approve' ? 'var(--ok)' : 'var(--muted)', fontWeight: 600, textTransform:'uppercase'}}>
             {decided === 'approve' ? '✓ ADDED · CENDRA WILL USE THIS ON NEXT MATCH' : '✕ REJECTED · CENDRA WILL NOT SUGGEST AGAIN'}
           </span>
         </div>
       ) : (
-        <div className="actionbar">
+        <div style={{display:'flex', gap: 10, marginTop: 22, alignItems:'center', flexWrap:'wrap'}}>
           <Btn kind="primary" onClick={() => setDecided('approve')}>Approve as rule</Btn>
           <Btn>Edit scope</Btn>
           <Btn kind="ghost" onClick={() => setDecided('reject')}>Not now</Btn>
-          <span className="grow" />
+          <span style={{flex:1}} />
           <Btn kind="ghost" size="sm">Mark never auto</Btn>
-          <Btn kind="ghost" size="sm">Run more simulations</Btn>
         </div>
       )}
     </div>
@@ -972,60 +1009,141 @@ function LearningCard({ l }) {
 // AUDIT TRAIL
 // ───────────────────────────────────────────────────────────────────
 function AuditScreen() {
-  return (
-    <div className="stage">
-      <PageHeader
-        eyebrow="TRUST · AUDIT TRAIL"
-        title="Every decision. Immutable."
-        lead="Filter by actor, workflow, incident, or reversibility. Export for compliance. Roll back any reversible action."
-        right={
-          <div style={{display:'flex',gap:8}}>
-            <Btn size="sm">Filter</Btn>
-            <Btn size="sm">Export · CSV</Btn>
-          </div>
-        }
-      />
+  const [filter, setFilter] = useState("all");
+  const [expandedId, setExpandedId] = useState(null);
 
-      <div className="dcard" style={{padding:0}}>
-        <table className="table">
-          <thead><tr>
-            <th style={{width:170}}>When</th>
-            <th style={{width:140}}>Actor</th>
-            <th>Action</th>
-            <th>Target</th>
-            <th style={{width:170}}>Source</th>
-            <th style={{width:90}}>Reversible</th>
-            <th style={{width:90}}></th>
-          </tr></thead>
-          <tbody>
-            {D2.audit.map(a => (
-              <tr key={a.id}>
-                <td className="mono" style={{fontSize:11}}>{a.time}</td>
-                <td>
-                  <div style={{fontWeight: a.actor === 'Cendra' ? 400 : 500, fontStyle: a.actor === 'Cendra' ? 'italic' : 'normal', fontFamily: a.actor === 'Cendra' ? 'var(--serif)' : 'var(--sans)', fontSize: a.actor === 'Cendra' ? 16 : 13.5}}>
-                    {a.actor}
-                  </div>
-                </td>
-                <td>
-                  {a.action}
-                  {a.incident && <Pill tone="risk" style={{marginLeft:8}}>incident</Pill>}
-                </td>
-                <td className="dim" style={{fontSize:12.5}}>{a.target}</td>
-                <td className="mono dim" style={{fontSize:11}}>{a.source}</td>
-                <td>
-                  <span className="mono dim" style={{fontSize:11}}>{a.reversible}</span>
-                </td>
-                <td><Btn size="sm" kind="ghost">Open →</Btn></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  const filterDefs = [
+    { id: "all",       label: "All",        test: () => true },
+    { id: "incidents", label: "Incidents",  test: a => a.incident },
+    { id: "cendra",    label: "By Cendra",  test: a => a.actor === "Cendra" },
+    { id: "people",    label: "By people",  test: a => a.actor !== "Cendra" },
+    { id: "reversible",label: "Reversible", test: a => a.reversible === "green" || a.reversible === "amber" },
+  ];
+  const shown = D2.audit.filter(filterDefs.find(f => f.id === filter).test);
+
+  const incidentCount = D2.audit.filter(a => a.incident).length;
+
+  return (
+    <div className="stage" style={{maxWidth: 1080, paddingTop: 56, paddingBottom: 120}}>
+
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>TRUST · AUDIT TRAIL · IMMUTABLE</span>
+        <span style={{flex:1}} />
+        <span style={{display:'inline-flex', alignItems:'center', gap:6, color: incidentCount > 0 ? 'var(--warn)' : 'var(--ok)'}}>
+          <span style={{width:6, height:6, borderRadius:'50%', background: incidentCount > 0 ? 'var(--warn)' : 'var(--ok)'}} />
+          {incidentCount} INCIDENT{incidentCount === 1 ? '' : 'S'} · 7D
+        </span>
       </div>
 
-      <div className="mt-6" style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap: 16}}>
-        <StatCard label="Decisions · 30d" value="2,418" sub="0.4% override rate" />
-        <StatCard label="Incidents · 30d" value="0" sub="Last incident: 23d ago" tone="ok" />
-        <StatCard label="Rollbacks · 30d" value="3" sub="All within 5 minutes" tone="warn" />
+      {/* HERO */}
+      <div style={{marginBottom: 40}}>
+        <h1 className="serif-display" style={{
+          fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)',
+        }}>
+          Every decision. Recorded.
+        </h1>
+        <p style={{
+          fontSize: 16.5, lineHeight: 1.55, margin: '18px 0 0',
+          color:'var(--ink-mid)', maxWidth: 720, fontFamily:'var(--sans)',
+        }}>
+          <b style={{color:'var(--ink)'}}>{D2.audit.length} entries</b> in the last 7 days. Filter by actor, incident, or reversibility. Roll back any reversible action.
+        </p>
+      </div>
+
+      {/* MICRO STAT BAND */}
+      <div style={{
+        display:'flex', gap: 36, flexWrap:'wrap',
+        paddingBottom: 24, marginBottom: 24, borderBottom:'1px solid var(--hair-soft)',
+      }}>
+        <MicroStatBlock value="2,418" label="decisions · 30d" />
+        <MicroStatBlock value="0.4%" label="override rate" />
+        <MicroStatBlock value="0" label="incidents · 30d" tone="ok" />
+        <MicroStatBlock value="3" label="rollbacks · 30d" tone="warn" />
+        <span style={{flex:1}} />
+        <Btn kind="ghost" size="sm">Export · CSV</Btn>
+      </div>
+
+      {/* STICKY FILTER BAR */}
+      <div style={{
+        position:'sticky', top: 0, background:'var(--paper)', zIndex: 4,
+        paddingTop: 8, paddingBottom: 16, marginBottom: 4,
+      }}>
+        <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
+          {filterDefs.map(f => (
+            <button key={f.id} onClick={() => setFilter(f.id)} style={{
+              all:'unset', cursor:'pointer',
+              padding:'7px 14px', borderRadius: 999,
+              border:'1px solid ' + (filter === f.id ? 'var(--ink)' : 'var(--hair)'),
+              background: filter === f.id ? 'var(--ink)' : '#ffffff',
+              color: filter === f.id ? '#ffffff' : 'var(--ink-mid)',
+              fontSize: 12.5, fontWeight: 500, fontFamily:'var(--sans)',
+            }}>
+              {f.label}
+              <span style={{marginLeft: 8, opacity: filter === f.id ? .7 : .5, fontFamily:'var(--mono)', fontSize: 11}}>
+                {D2.audit.filter(f.test).length}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* SINGLE-LINE ROWS · click to expand */}
+      <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
+        {shown.map((a, i) => {
+          const isExpanded = expandedId === a.id;
+          const revColor = a.reversible === "green" ? 'var(--ok)' : a.reversible === "amber" ? 'var(--warn)' : a.reversible === "red" ? 'var(--rausch)' : 'var(--muted-2)';
+          return (
+            <div key={a.id} style={{
+              borderBottom: i < shown.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+              background: isExpanded ? 'var(--paper)' : '#ffffff',
+            }}>
+              <button onClick={() => setExpandedId(isExpanded ? null : a.id)} style={{
+                all:'unset', cursor:'pointer', display:'grid',
+                gridTemplateColumns: '8px 150px 140px 1fr 90px 14px',
+                gap: 14, padding:'14px 22px', alignItems:'center',
+                width:'calc(100% - 44px)',
+              }}>
+                <span style={{width: 8, height: 8, borderRadius:'50%', background: revColor}} />
+                <span className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'.04em'}}>{a.time}</span>
+                <span style={{
+                  fontSize: 13, fontWeight: a.actor === 'Cendra' ? 500 : 500,
+                  color: a.actor === 'Cendra' ? 'var(--info)' : 'var(--ink)',
+                }}>{a.actor}</span>
+                <div style={{display:'flex', alignItems:'center', gap: 10, minWidth: 0}}>
+                  <span style={{fontSize: 13.5, color:'var(--ink)', whiteSpace:'nowrap'}}>{a.action}</span>
+                  <span style={{fontSize: 13, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>· {a.target}</span>
+                  {a.incident && <Pill tone="risk">incident</Pill>}
+                </div>
+                <span className="mono" style={{fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase'}}>{a.reversible}</span>
+                <span style={{
+                  fontFamily:'var(--mono)', fontSize: 14, color:'var(--ink-mid)',
+                  transform: isExpanded ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform .15s',
+                }}>›</span>
+              </button>
+              {isExpanded && (
+                <div style={{padding:'0 22px 18px 56px'}}>
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 24, fontSize: 12.5, color:'var(--ink-mid)'}}>
+                    <div>
+                      <div className="mono" style={{fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', marginBottom: 4, fontWeight: 500}}>SOURCE</div>
+                      <div className="mono" style={{fontSize: 11.5, color:'var(--ink)'}}>{a.source}</div>
+                    </div>
+                    <div>
+                      <div className="mono" style={{fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', marginBottom: 4, fontWeight: 500}}>WORKFLOW</div>
+                      <div className="mono" style={{fontSize: 11.5, color:'var(--ink)'}}>{a.workflow}</div>
+                    </div>
+                  </div>
+                  <div style={{display:'flex', gap: 8, marginTop: 14}}>
+                    <Btn size="sm">Open full record</Btn>
+                    {(a.reversible === "green" || a.reversible === "amber") && <Btn size="sm" kind="ghost">Roll back</Btn>}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
