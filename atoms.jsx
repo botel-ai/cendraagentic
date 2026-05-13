@@ -280,16 +280,30 @@ function EvidenceBeam({ idx, kind, label, source, fresh }) {
   );
 }
 
-// --- Page header pattern ---
+// --- Page header pattern (Morning Brief–style: quiet eyebrow, Fraunces display) ---
 function PageHeader({ eyebrow, title, lead, right }) {
   return (
-    <header className="page-header" style={{display:'grid', gridTemplateColumns: right ? '1fr auto' : '1fr', alignItems:'end', gap: 24, marginBottom: 28}}>
+    <header className="page-header" style={{
+      display:'grid',
+      gridTemplateColumns: right ? '1fr auto' : '1fr',
+      alignItems:'end', gap: 32, marginBottom: 48, paddingTop: 16,
+    }}>
       <div>
-        <div className="eyebrow">{eyebrow}</div>
-        <h1 className="h1">{title}</h1>
-        {lead && <p className="lead" style={{maxWidth: 640, marginTop: 6}}>{lead}</p>}
+        <div className="mono" style={{
+          fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+          textTransform: 'uppercase', marginBottom: 18, fontWeight: 500,
+        }}>{eyebrow}</div>
+        <h1 className="serif-display" style={{
+          fontSize: 46, lineHeight: 1.05, margin: 0,
+          color: 'var(--ink)', maxWidth: 820,
+          fontVariationSettings: '"opsz" 96, "SOFT" 30, "WONK" 0',
+        }}>{title}</h1>
+        {lead && <p style={{
+          maxWidth: 680, marginTop: 18, fontSize: 16, lineHeight: 1.55,
+          color: 'var(--ink-mid)', fontFamily: 'var(--sans)', fontWeight: 400,
+        }}>{lead}</p>}
       </div>
-      {right && <div className="page-meta">{right}</div>}
+      {right && <div className="page-meta" style={{paddingTop: 8}}>{right}</div>}
     </header>
   );
 }

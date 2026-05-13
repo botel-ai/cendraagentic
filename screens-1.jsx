@@ -4,114 +4,335 @@ const D = window.CENDRA_DATA;
 const DP = window.CENDRA_DATA2;
 
 // ───────────────────────────────────────────────────────────────────
-// TODAY / Command Center — Day Spine
+// TODAY · Morning Brief — Cendra speaks, you direct
+// One hero priority, deferred queue, compressed system row.
+// Hick's Law + Cognitive Load + Von Restorff applied throughout.
 // ───────────────────────────────────────────────────────────────────
 function TodayScreen({ onOpen, tweaks }) {
-  const greeting = useMemo(() => {
-    const h = new Date().getHours();
-    return h < 5 ? "Late again" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  }, []);
+  const now = new Date();
+  const hr = now.getHours();
+  const greeting = hr < 5 ? "Late again" : hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
+  const timeStr = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const dateStr = now.toLocaleDateString([], {weekday:'long', day:'numeric', month:'long'}).toUpperCase();
 
-  const heroVariant = tweaks?.todayHero || "spine";
   const s = DP.signals;
   const sections = DP.today_sections;
-  const [filter, setFilter] = useState("all");
+  const composerRef = useRef(null);
+  const [expanded, setExpanded] = useState(null); // null | 'decisions' | 'risk' | 'revenue' | 'missing'
+
+  // Pull the top priority from needs_decision — ordered by urgency.
+  const hero = sections.needs_decision[0];
+  const restDecisions = sections.needs_decision.slice(1);
+
+  const openHero = () => {
+    const r = hero.route || "work";
+    if (r.includes(":")) { const [n,a] = r.split(":"); onOpen(n,a); } else onOpen(r);
+  };
 
   return (
-    <div className="stage">
-      <PageHeader
-        eyebrow="TODAY · 09 MAY · 09:14 LOCAL"
-        title={<><span style={{fontStyle:'italic'}}>{greeting},</span> Maya.<br />Cendra has the watch.</>}
-        lead={<><b style={{color:'var(--ink)'}}>{s.needs_you} need you.</b>  Cendra handled {s.actions_total.toLocaleString()} actions overnight across {DP.portfolio.properties_count} properties — {s.incidents} incidents.</>}
-        right={
-          <div className="col gap-2" style={{textAlign:'right'}}>
-            <div className="mono dim" style={{fontSize:11, letterSpacing:'.1em'}}>SYSTEM</div>
-            <div style={{display:'flex', alignItems:'center', gap:8, justifyContent:'flex-end'}}>
-              <span style={{width:8, height:8, borderRadius:'50%', background:'var(--ok)'}} />
-              <span style={{fontFamily:'var(--mono)', fontSize:12}}>{s.incidents} incidents · 30d</span>
-            </div>
-            <div className="mono dim" style={{fontSize:10.5}}>OPS · {DP.portfolio.properties_count} props · {D.bookings_today} bookings</div>
-          </div>
-        }
-      />
+    <div className="stage" style={{maxWidth: 900, paddingTop: 64, paddingBottom: 120}}>
 
-      {/* Signal strip — high-signal top bar */}
-      <TodaySignalStrip signals={s} onOpen={onOpen} />
+      {/* DATE / TIME — quiet anchor */}
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 28, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>{dateStr}</span>
+        <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+        <span>{timeStr} · LOCAL</span>
+        <span style={{flex:1}} />
+        <span style={{display:'inline-flex', alignItems:'center', gap:6, color:'var(--ok)'}}>
+          <span style={{width:6, height:6, borderRadius:'50%', background:'var(--ok)'}} />
+          ALL SYSTEMS · {s.incidents} INCIDENTS · 30D
+        </span>
+      </div>
 
-      {/* Portfolio filter bar */}
-      <PortfolioFilterBar filter={filter} onChange={setFilter} />
+      {/* HERO — Cendra speaks (display Fraunces) */}
+      <div style={{marginBottom: 56}}>
+        <h1 className="serif-display" style={{
+          fontSize: 56, lineHeight: 1.02, margin: 0,
+          color: 'var(--ink)',
+        }}>
+          {greeting}, <span style={{fontVariationSettings: '"opsz" 144, "SOFT" 100, "WONK" 1', fontStyle:'normal'}}>Maya</span>.
+        </h1>
+        <p className="serif-display" style={{
+          fontSize: 28, lineHeight: 1.32, margin: '20px 0 0',
+          color: 'var(--ink-mid)', maxWidth: 760, fontWeight: 400,
+          fontVariationSettings: '"opsz" 72, "SOFT" 50, "WONK" 0',
+        }}>
+          {s.needs_you === 0
+            ? <>Hiçbir şey seni beklemiyor. Cendra <b style={{color:'var(--ink)'}}>{s.actions_total.toLocaleString()}</b> aksiyon halletti, sıfır olay. Gönlün rahat olsun.</>
+            : <><b style={{color:'var(--ink)'}}>{s.needs_you} şey</b> seni bekliyor bugün. Önce şuna bakalım —</>
+          }
+        </p>
+      </div>
 
-      {/* Five Today sections */}
-      <TodaySection
-        title="Needs your decision"
-        eyebrow={`${sections.needs_decision.length} ITEMS · ORDERED BY URGENCY`}
-        accent="ink"
-      >
-        {sections.needs_decision.map(it => <NeedsDecisionRow key={it.id} item={it} onOpen={onOpen} />)}
-      </TodaySection>
+      {/* HERO PRIORITY — the single most important card, Fitts-friendly */}
+      {hero && <HeroPriorityCard hero={hero} onOpen={openHero} />}
 
-      <TodaySection
-        title="Risk & SLA"
-        eyebrow={`${sections.risk_sla.length} SIGNALS · SAFETY FIRST`}
-        accent="risk"
-      >
-        {sections.risk_sla.map(it => <RiskRow key={it.id} item={it} onOpen={onOpen} />)}
-      </TodaySection>
+      {/* WHAT ELSE — collapsed digests, expandable on click */}
+      <div style={{marginTop: 64}}>
+        <div className="mono" style={{
+          fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+          marginBottom: 16,
+        }}>WHAT ELSE</div>
 
-      <TodaySection
-        title="Revenue opportunities"
-        eyebrow={`${sections.revenue.length} OPPORTUNITIES · €${sections.revenue.reduce((a,b)=>a+b.est_eur,0)} EST.`}
-        accent="ok"
-      >
-        {sections.revenue.map(it => <RevenueRow key={it.id} item={it} onOpen={onOpen} />)}
-      </TodaySection>
+        <div style={{display:'grid', gap: 1, background:'var(--hair)', border:'1px solid var(--hair)', borderRadius: 12, overflow:'hidden'}}>
+          <DigestRow
+            label={`${restDecisions.length} more decisions`}
+            hint="Same urgency stack. Cendra will hold them."
+            count={restDecisions.length}
+            tone="ink"
+            expanded={expanded === 'decisions'}
+            onToggle={() => setExpanded(e => e === 'decisions' ? null : 'decisions')}
+          >
+            {restDecisions.map(it => (
+              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.reason} action={it.action} onClick={() => {
+                const r = it.route || "work";
+                if (r.includes(":")) { const [n,a] = r.split(":"); onOpen(n,a); } else onOpen(r);
+              }} />
+            ))}
+          </DigestRow>
 
-      <TodaySection
-        title="Missing knowledge"
-        eyebrow={`${sections.missing_knowledge.length} GAPS · BLOCKING AUTOMATION`}
-        accent="warn"
-      >
-        {sections.missing_knowledge.map(it => <MissingRow key={it.id} item={it} onOpen={onOpen} />)}
-      </TodaySection>
+          <DigestRow
+            label={`${sections.risk_sla.length} risk signals`}
+            hint="SLA breaches, sentiment shifts, integration health."
+            count={sections.risk_sla.length}
+            tone="risk"
+            expanded={expanded === 'risk'}
+            onToggle={() => setExpanded(e => e === 'risk' ? null : 'risk')}
+          >
+            {sections.risk_sla.map(it => (
+              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.reason} action={it.action} onClick={() => onOpen('work')} />
+            ))}
+          </DigestRow>
 
-      <window.CendraVision.BrainReport />
+          <DigestRow
+            label={`${sections.revenue.length} revenue opportunities`}
+            hint={`€${sections.revenue.reduce((a,b)=>a+b.est_eur,0)} estimated this week.`}
+            count={sections.revenue.length}
+            tone="ok"
+            expanded={expanded === 'revenue'}
+            onToggle={() => setExpanded(e => e === 'revenue' ? null : 'revenue')}
+          >
+            {sections.revenue.map(it => (
+              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.property} action={it.action} value={`+€${it.est_eur}`} onClick={() => onOpen('work')} />
+            ))}
+          </DigestRow>
 
-      {/* Done by Cendra digest */}
-      <section style={{marginTop: 48}}>
-        <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom: 14}}>
-          <div>
-            <div className="eyebrow">DONE BY CENDRA · LAST 12H</div>
-            <h2 className="h2 mt-1">{D.digest.handled} resolutions, no incidents.</h2>
-          </div>
-          <Btn kind="ghost" size="sm">View digest →</Btn>
+          <DigestRow
+            label={`${sections.missing_knowledge.length} knowledge gaps`}
+            hint="Facts Cendra is missing. Blocking automation."
+            count={sections.missing_knowledge.length}
+            tone="warn"
+            expanded={expanded === 'missing'}
+            onToggle={() => setExpanded(e => e === 'missing' ? null : 'missing')}
+          >
+            {sections.missing_knowledge.map(it => (
+              <DigestItem key={it.id} title={`${it.scope} · ${it.fact}`} sub={it.asks ? `Asked ${it.asks}× in 30d.` : 'Conflict detected.'} reason="—" action={it.action} onClick={() => onOpen('property_brain')} />
+            ))}
+          </DigestRow>
         </div>
+      </div>
 
-        <div className="dcard" style={{padding:'4px 0'}}>
-          {D.done.map((d, i) => (
-            <div key={d.id} style={{
-              display:'grid', gridTemplateColumns:'70px 1fr 130px 110px 38px',
-              alignItems:'center', gap:14, padding:'12px 18px',
-              borderBottom: i < D.done.length-1 ? '1px solid var(--hair-soft)' : 'none'
-            }}>
-              <div className="mono dim" style={{fontSize:11}}>{d.time}</div>
-              <div>
-                <div style={{fontSize:13.5}}>{d.title}</div>
-                <div className="mono dim" style={{fontSize:10.5, marginTop:2}}>{d.who}</div>
-              </div>
-              <div className="mono dim" style={{fontSize:10.5}}>{d.workflow}</div>
-              <AutonomyPill state={d.autonomy} />
-              
-            </div>
-          ))}
-        </div>
+      {/* BEHIND THE SCENES — micro stat row, no fanfare */}
+      <div style={{marginTop: 64, paddingTop: 28, borderTop:'1px solid var(--hair-soft)'}}>
+        <div className="mono" style={{
+          fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+          marginBottom: 14,
+        }}>BEHIND THE SCENES · LAST 12H</div>
 
-        <div style={{display:'flex', gap:10, justifyContent:'space-between', marginTop:18, alignItems:'center'}}>
-          <div className="mono dim" style={{fontSize:11}}>
-            {D.digest.drafts_sent} info replies · {D.digest.upsells_offered} upsells offered · {D.digest.facts_confirmed} property facts confirmed
-          </div>
-          <div className="mono dim" style={{fontSize:11}}>↵ press <span className="kbd" style={{border:'1px solid var(--hair)',padding:'1px 5px',borderRadius:3,background:'white'}}>?</span> to ask Cendra</div>
+        <div style={{display:'flex', gap: 40, flexWrap:'wrap'}}>
+          <MicroStat value={s.actions_total.toLocaleString()} label="actions" sub={s.actions_delta} />
+          <MicroStat value={D.digest.drafts_sent} label="drafts sent" />
+          <MicroStat value={D.digest.info_replies} label="info replies" />
+          <MicroStat value={D.digest.vendors_dispatched} label="vendors dispatched" />
+          <MicroStat value={D.digest.facts_confirmed} label="facts confirmed" />
+          <MicroStat value="0" label="incidents" accent="ok" />
         </div>
-      </section>
+      </div>
+
+      {/* COMPOSER — sticky entry to Cendra */}
+      <div style={{
+        position:'sticky', bottom: 20, marginTop: 80, zIndex: 5,
+        background: 'linear-gradient(to bottom, transparent 0%, var(--paper) 40px)',
+        paddingTop: 40, paddingBottom: 4,
+      }}>
+        <div style={{
+          display:'flex', alignItems:'center', gap: 12,
+          border: '1px solid var(--hair)', background: '#ffffff',
+          borderRadius: 14, padding: '12px 18px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04)',
+        }}>
+          <span className="mono" style={{fontSize:11, letterSpacing:'.14em', color: 'var(--muted)', whiteSpace:'nowrap'}}>▸ ASK CENDRA</span>
+          <input
+            ref={composerRef}
+            placeholder="What's the late checkout offer accepting at right now?"
+            style={{
+              flex:1, border:0, outline:0, background:'transparent',
+              fontSize: 14.5, fontFamily:'var(--sans)', color:'var(--ink)',
+            }}
+          />
+          <button title="Voice mode" style={{
+            all:'unset', cursor:'pointer',
+            width: 28, height: 28, borderRadius:'50%',
+            border:'1.5px solid var(--ink)',
+            display:'grid', placeItems:'center',
+          }}>
+            <span style={{width:6, height:6, borderRadius:'50%', background:'var(--ink)'}} />
+          </button>
+          <span className="kbd">↵</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// HERO priority card — single big Fitts-friendly action
+function HeroPriorityCard({ hero, onOpen }) {
+  const isHigh = hero.risk === "high";
+  const accentColor = isHigh ? 'var(--rausch)' : 'var(--ink)';
+  return (
+    <div style={{
+      background: '#ffffff',
+      border: '1px solid var(--hair)',
+      borderRadius: 16,
+      padding: '32px 36px 28px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Top-left accent bar */}
+      <div style={{
+        position:'absolute', top:0, left:0, width: 4, height: '100%',
+        background: accentColor,
+      }} />
+
+      <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 18}}>
+        <span style={{
+          fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.18em',
+          color: accentColor, fontWeight: 600,
+        }}>FIRST PRIORITY</span>
+        <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+        <span className="mono" style={{fontSize:10, letterSpacing:'.12em', color:'var(--muted)'}}>
+          WAITED {hero.waited} · {hero.reason.toUpperCase()}
+        </span>
+        <span style={{flex:1}} />
+        <Pill tone={isHigh ? 'risk' : 'warn'}>{hero.autonomy === "never" ? "Never auto" : "Approval"}</Pill>
+      </div>
+
+      <h2 className="serif-display" style={{
+        fontSize: 36, lineHeight: 1.1, margin: 0, color: 'var(--ink)',
+        maxWidth: 760, marginBottom: 14,
+      }}>
+        {hero.title}
+      </h2>
+      <p style={{
+        margin: 0, fontSize: 15, lineHeight: 1.55,
+        color: 'var(--ink-mid)', maxWidth: 720,
+      }}>{hero.sub}</p>
+
+      <div style={{display:'flex', alignItems:'center', gap: 14, marginTop: 28, flexWrap:'wrap'}}>
+        <button onClick={onOpen} style={{
+          all: 'unset', cursor: 'pointer',
+          background: 'var(--ink)', color: '#ffffff',
+          padding: '14px 24px', borderRadius: 10,
+          fontSize: 15, fontWeight: 600,
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          letterSpacing: '-.005em',
+          transition: 'background .12s, transform .06s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = '#000000'}
+        onMouseLeave={e => e.currentTarget.style.background = 'var(--ink)'}
+        onMouseDown={e => e.currentTarget.style.transform = 'translateY(1px)'}
+        onMouseUp={e => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          {hero.action}
+          <span style={{fontFamily:'var(--mono)', fontSize:13, opacity:.8}}>↵</span>
+        </button>
+        <Btn kind="ghost">Why this first?</Btn>
+        <span style={{flex:1}} />
+        <span className="mono" style={{fontSize:10.5, color:'var(--muted)', letterSpacing:'.06em'}}>
+          {hero.owner}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// DIGEST row — collapsed by default, click to expand
+function DigestRow({ label, hint, count, tone, expanded, onToggle, children }) {
+  const dotColor = tone === 'risk' ? 'var(--risk)' : tone === 'warn' ? 'var(--warn)' : tone === 'ok' ? 'var(--ok)' : 'var(--ink)';
+  return (
+    <div style={{background:'#ffffff'}}>
+      <button onClick={onToggle} style={{
+        all:'unset', cursor:'pointer', display:'grid',
+        gridTemplateColumns: '12px 1fr auto auto', gap: 14,
+        alignItems:'center', padding:'18px 24px', width:'calc(100% - 48px)',
+        transition: 'background .1s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--paper)'}
+      onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}>
+        <span style={{width:8, height:8, borderRadius:'50%', background: dotColor}} />
+        <div style={{minWidth:0}}>
+          <div style={{fontSize: 15, fontWeight: 500, color:'var(--ink)', marginBottom: 2}}>{label}</div>
+          <div style={{fontSize: 13, color:'var(--muted)'}}>{hint}</div>
+        </div>
+        <span className="mono" style={{fontSize:11, color:'var(--muted)', letterSpacing:'.08em'}}>
+          {expanded ? 'COLLAPSE' : 'EXPAND'}
+        </span>
+        <span style={{
+          fontFamily:'var(--mono)', fontSize: 14, color: 'var(--ink-mid)',
+          transform: expanded ? 'rotate(90deg)' : 'rotate(0)',
+          transition: 'transform .15s',
+        }}>›</span>
+      </button>
+      {expanded && (
+        <div style={{borderTop:'1px solid var(--hair-soft)', background:'var(--paper)'}}>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DigestItem({ title, sub, reason, action, value, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      all:'unset', cursor:'pointer', display:'grid',
+      gridTemplateColumns: '1fr 200px auto', gap: 18,
+      alignItems:'center', padding:'14px 24px 14px 46px', width:'calc(100% - 70px)',
+      borderBottom: '1px solid var(--hair-soft)',
+      transition: 'background .1s',
+    }}
+    onMouseEnter={e => e.currentTarget.style.background = '#ffffff'}
+    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      <div>
+        <div style={{fontSize: 13.5, fontWeight: 500, color:'var(--ink)', marginBottom: 2}}>{title}</div>
+        <div style={{fontSize: 12.5, color:'var(--muted)', lineHeight: 1.4}}>{sub}</div>
+      </div>
+      <div className="mono" style={{fontSize:11, color:'var(--muted)', letterSpacing:'.06em'}}>{reason}</div>
+      <div style={{display:'flex', alignItems:'center', gap: 12}}>
+        {value && <span className="mono" style={{fontSize:13, color:'var(--ok)', fontWeight:600}}>{value}</span>}
+        <span className="mono" style={{fontSize:11, color:'var(--ink)', letterSpacing:'.04em'}}>{action} →</span>
+      </div>
+    </button>
+  );
+}
+
+function MicroStat({ value, label, sub, accent }) {
+  const color = accent === 'ok' ? 'var(--ok)' : 'var(--ink)';
+  return (
+    <div>
+      <div style={{
+        fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 500,
+        color: color, lineHeight: 1.1, letterSpacing: '-.015em',
+        fontVariantNumeric: 'tabular-nums',
+      }}>{value}</div>
+      <div className="mono" style={{fontSize:10, letterSpacing:'.14em', color:'var(--muted)', marginTop: 4, textTransform:'uppercase'}}>
+        {label}
+      </div>
+      {sub && <div className="mono" style={{fontSize:10, color:'var(--muted-2)', marginTop:2}}>{sub}</div>}
     </div>
   );
 }
@@ -462,92 +683,194 @@ function LedgerView({ onOpen }) {
 // ───────────────────────────────────────────────────────────────────
 function WorkScreen({ onOpen }) {
   const J = DP.guests_journey;
-  const needsYouCount =
-    [...J.checking_in_today, ...J.in_house, ...J.checking_out_today].filter(g => g.status === "needs_you").length;
-  const waitingCount =
-    [...J.checking_in_today, ...J.in_house, ...J.checking_out_today].filter(g => g.status === "waiting").length;
-  const inHouseCount = J.in_house.length;
-  const arrivingTodayCount = J.checking_in_today.length;
-  const departingTodayCount = J.checking_out_today.length;
+
+  // Flatten all active guests, partition by status
+  const allActive = [...J.checking_in_today, ...J.in_house, ...J.checking_out_today];
+  const needsYou = allActive.filter(g => g.status === "needs_you");
+  const waiting = allActive.filter(g => g.status === "waiting");
+  const allGood = allActive.filter(g => g.status === "all_good");
+
+  // The narrative — who's first on Maya's plate
+  const firstPriority = needsYou[0] || waiting[0];
+  const stageOf = (g) => J.checking_in_today.includes(g) ? "checking in today"
+    : J.checking_out_today.includes(g) ? "checking out today"
+    : "in-stay";
 
   return (
-    <div className="stage">
-      <PageHeader
-        eyebrow="GUESTS · LIVE JOURNEY"
-        title="Who is in your home, and who is coming."
-        lead={<><b style={{color:'var(--ink)'}}>{inHouseCount} staying</b> · {arrivingTodayCount} arriving today · {departingTodayCount} departing today. Cendra holds the routine; this page surfaces what shifts day by day.</>}
-        right={
-          <div className="col gap-2" style={{textAlign:'right', alignItems:'flex-end'}}>
-            {needsYouCount > 0 && <Pill tone="warn">{needsYouCount} need you</Pill>}
-            {waitingCount > 0 && <Pill tone="info">{waitingCount} waiting</Pill>}
-            <span className="mono dim" style={{fontSize:10.5}}>
-              {inHouseCount + arrivingTodayCount + departingTodayCount} ACTIVE · {J.arriving_week.length} THIS WEEK · {J.arriving_later_count} LATER
-            </span>
-          </div>
-        }
-      />
+    <div className="stage" style={{maxWidth: 980, paddingTop: 56, paddingBottom: 120}}>
 
-      <JourneyGroup
-        eyebrow="CHECKING IN TODAY"
-        count={J.checking_in_today.length}
-        sub="Prep, approvals, and arrivals on the way in."
-        guests={J.checking_in_today}
-        onOpen={onOpen}
-        variant="arrival"
-      />
+      {/* QUIET HEADER */}
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 28, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>GUESTS · LIVE JOURNEY</span>
+        <span style={{flex:1}} />
+        <span>{J.in_house.length} STAYING · {J.checking_in_today.length} ARRIVING · {J.checking_out_today.length} DEPARTING</span>
+      </div>
 
-      <JourneyGroup
-        eyebrow="IN-STAY"
-        count={J.in_house.length}
-        sub="Mid-stay. Quiet ones at the bottom, attention up top."
-        guests={J.in_house}
-        onOpen={onOpen}
-        variant="stay"
-      />
-
-      <JourneyGroup
-        eyebrow="CHECKING OUT TODAY"
-        count={J.checking_out_today.length}
-        sub="Departure prep, refund/comp asks, late-checkout calls."
-        guests={J.checking_out_today}
-        onOpen={onOpen}
-        variant="departure"
-      />
-
-      <JourneyGroup
-        eyebrow="ARRIVING THIS WEEK"
-        count={J.arriving_week.length}
-        sub="Cendra is preparing these — flagged only if something blocks."
-        upcoming={J.arriving_week}
-        onOpen={onOpen}
-        variant="upcoming"
-      />
-
-      <div className="mt-6">
-        <div style={{
-          display:'flex', alignItems:'center', justifyContent:'space-between', gap:12,
-          padding:'14px 18px',
-          border:'1px dashed var(--hair)', borderRadius:6,
-          background:'color-mix(in oklab, var(--paper), white 30%)',
+      {/* HERO BRIEFING — Cendra speaks (Fraunces display) */}
+      <div style={{marginBottom: 56}}>
+        <h1 className="serif-display" style={{
+          fontSize: 48, lineHeight: 1.05, margin: 0, color: 'var(--ink)',
         }}>
-          <div>
-            <div className="eyebrow" style={{marginBottom:4}}>LATER</div>
-            <div style={{fontSize:13.5, color:'var(--ink-mid)'}}>
-              <b style={{color:'var(--ink)'}}>{J.arriving_later_count} reservations</b> beyond next 7 days. No prep required yet — Cendra will surface them as their windows open.
+          {needsYou.length === 0 && waiting.length === 0
+            ? <>Sessiz bir gün. Kimse seni beklemiyor.</>
+            : firstPriority
+              ? <>Önce <span style={{fontVariationSettings:'"opsz" 144, "SOFT" 70, "WONK" 1'}}>{firstPriority.name.split(' ')[0]}</span>'a bakalım.</>
+              : <>Bugünün konukları.</>
+          }
+        </h1>
+        {firstPriority && (
+          <p className="serif-display" style={{
+            fontSize: 22, lineHeight: 1.4, margin: '20px 0 0',
+            color: 'var(--ink-mid)', maxWidth: 760, fontWeight: 400,
+            fontVariationSettings: '"opsz" 48, "SOFT" 50, "WONK" 0',
+          }}>
+            {firstPriority.cendra_take.length > 200
+              ? firstPriority.cendra_take.slice(0, 200).trim() + '…'
+              : firstPriority.cendra_take}
+          </p>
+        )}
+      </div>
+
+      {/* NEEDS YOU — always open, full cards */}
+      {needsYou.length > 0 && (
+        <section style={{marginBottom: 56}}>
+          <SectionLabel eyebrow={`${needsYou.length} need you`} sub="Cendra is holding. You decide." tone="rausch" />
+          <div style={{display:'grid', gap: 12}}>
+            {needsYou.map(g => <GuestJourneyCard key={g.id} g={g} onOpen={onOpen} variant={stageOf(g) === "in-stay" ? "stay" : stageOf(g) === "checking in today" ? "arrival" : "departure"} />)}
+          </div>
+        </section>
+      )}
+
+      {/* WAITING — collapsed by default */}
+      {waiting.length > 0 && (
+        <CollapsibleGroup
+          eyebrow={`${waiting.length} waiting`}
+          sub="Vendor, guest, or policy. Cendra will resume when ready."
+          tone="info"
+        >
+          <div style={{display:'grid', gap: 12, marginTop: 16}}>
+            {waiting.map(g => <GuestJourneyCard key={g.id} g={g} onOpen={onOpen} variant={stageOf(g) === "in-stay" ? "stay" : stageOf(g) === "checking in today" ? "arrival" : "departure"} />)}
+          </div>
+        </CollapsibleGroup>
+      )}
+
+      {/* ALL GOOD — quietest, collapsed */}
+      {allGood.length > 0 && (
+        <CollapsibleGroup
+          eyebrow={`${allGood.length} quiet stays`}
+          sub="No contact needed. Routine running."
+          tone="ok"
+        >
+          <div style={{display:'grid', gap: 12, marginTop: 16}}>
+            {allGood.map(g => <GuestJourneyCard key={g.id} g={g} onOpen={onOpen} variant="stay" />)}
+          </div>
+        </CollapsibleGroup>
+      )}
+
+      {/* ARRIVING — peek of 3, expand for more */}
+      <UpcomingPeek upcoming={J.arriving_week} laterCount={J.arriving_later_count} />
+    </div>
+  );
+}
+
+// Single-section header — eyebrow + accent dot
+function SectionLabel({ eyebrow, sub, tone }) {
+  const color = tone === 'rausch' ? 'var(--rausch)' : tone === 'risk' ? 'var(--risk)' : tone === 'warn' ? 'var(--warn)' : tone === 'ok' ? 'var(--ok)' : tone === 'info' ? 'var(--info)' : 'var(--ink)';
+  return (
+    <div style={{display:'flex', alignItems:'baseline', gap: 12, marginBottom: 18}}>
+      <span style={{width: 8, height: 8, borderRadius:'50%', background: color, transform:'translateY(-1px)'}} />
+      <span className="mono" style={{fontSize: 11, letterSpacing:'.14em', color: 'var(--ink)', fontWeight: 600, textTransform:'uppercase'}}>
+        {eyebrow}
+      </span>
+      {sub && <span style={{fontSize: 13, color:'var(--muted)'}}>· {sub}</span>}
+    </div>
+  );
+}
+
+// Collapsible group — Hick's Law: hide what's not active
+function CollapsibleGroup({ eyebrow, sub, tone, children }) {
+  const [open, setOpen] = useState(false);
+  const color = tone === 'rausch' ? 'var(--rausch)' : tone === 'risk' ? 'var(--risk)' : tone === 'warn' ? 'var(--warn)' : tone === 'ok' ? 'var(--ok)' : tone === 'info' ? 'var(--info)' : 'var(--ink)';
+  return (
+    <section style={{marginBottom: open ? 56 : 24}}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        all:'unset', cursor:'pointer', display:'flex',
+        alignItems:'center', gap: 12, width: '100%',
+        padding: '14px 0', borderTop: '1px solid var(--hair-soft)',
+        transition: 'opacity .12s',
+      }}>
+        <span style={{width: 8, height: 8, borderRadius:'50%', background: color}} />
+        <span className="mono" style={{fontSize: 11, letterSpacing:'.14em', color: 'var(--ink)', fontWeight: 600, textTransform:'uppercase'}}>
+          {eyebrow}
+        </span>
+        <span style={{fontSize: 13, color:'var(--muted)'}}>· {sub}</span>
+        <span style={{flex:1}} />
+        <span className="mono" style={{fontSize: 10.5, letterSpacing:'.08em', color:'var(--muted)'}}>
+          {open ? 'COLLAPSE' : 'PEEK'}
+        </span>
+        <span style={{
+          fontFamily:'var(--mono)', fontSize: 16, color:'var(--ink-mid)', width: 14,
+          transform: open ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform .15s',
+        }}>›</span>
+      </button>
+      {open && children}
+    </section>
+  );
+}
+
+// Arriving peek — first 3 + see-all expand + later count
+function UpcomingPeek({ upcoming, laterCount }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? upcoming : upcoming.slice(0, 3);
+  return (
+    <section style={{marginTop: 64, paddingTop: 28, borderTop: '1px solid var(--hair-soft)'}}>
+      <SectionLabel eyebrow={`${upcoming.length} arriving this week`} sub="Cendra is preparing. Flagged only if something blocks." tone="ink" />
+      <div style={{display:'grid', gap: 1, background:'var(--hair)', border:'1px solid var(--hair)', borderRadius: 12, overflow:'hidden'}}>
+        {shown.map(u => (
+          <div key={u.id} style={{
+            display:'grid', gridTemplateColumns: '90px 1fr 200px 90px 140px',
+            gap: 16, alignItems:'center', padding:'14px 20px',
+            background: '#ffffff',
+          }}>
+            <div>
+              <div style={{fontFamily:'var(--serif)', fontSize: 15, color:'var(--ink)', fontVariationSettings:'"opsz" 48, "SOFT" 30'}}>{u.eta_day}</div>
+              <div className="mono" style={{fontSize:10.5, color:'var(--muted)', letterSpacing:'.06em'}}>{u.eta_time}</div>
+            </div>
+            <div style={{fontSize:14, color:'var(--ink)', fontWeight: 500}}>{u.name}</div>
+            <div>
+              <div style={{fontSize:12.5, color:'var(--ink-mid)'}}>{u.property}</div>
+              <div className="mono" style={{fontSize:10.5, color:'var(--muted)', letterSpacing:'.06em'}}>{u.channel}</div>
+            </div>
+            <div className="mono" style={{fontSize:12, color:'var(--muted)', letterSpacing:'.04em'}}>{u.nights}n</div>
+            <div>
+              {u.prep_state === "all_set" ? (
+                <span style={{fontSize:11.5, color:'var(--ok)', fontWeight: 500}}>● All set</span>
+              ) : (
+                <Pill tone="warn">{u.flag || u.prep_state}</Pill>
+              )}
             </div>
           </div>
-          <Btn kind="ghost" size="sm">Expand</Btn>
-        </div>
+        ))}
       </div>
-
-      <div className="mt-6">
-        <QuietState
-          title="Past stays live elsewhere."
-          body="This page shows live journey only — currently in-house and what's coming. Open post-stay cases (damage claims, reviews, OTA windows) appear in Today and Insights."
-          mono="JOURNEY VIEW · LIVE ONLY"
-        />
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginTop: 14}}>
+        {upcoming.length > 3 && (
+          <button onClick={() => setShowAll(s => !s)} style={{
+            all:'unset', cursor:'pointer',
+            fontFamily:'var(--mono)', fontSize: 11, letterSpacing:'.08em',
+            color:'var(--ink)', textTransform:'uppercase', fontWeight: 600,
+          }}>
+            {showAll ? '↑ Show first 3' : `↓ See all ${upcoming.length}`}
+          </button>
+        )}
+        <span style={{flex:1}} />
+        <span className="mono" style={{fontSize: 10.5, color:'var(--muted-2)', letterSpacing:'.06em'}}>
+          + {laterCount} BEYOND THIS WEEK
+        </span>
       </div>
-    </div>
+    </section>
   );
 }
 

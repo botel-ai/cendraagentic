@@ -209,15 +209,23 @@ function Nav({ route, goto }) {
 
       <div style={{
         marginTop: 24,
-        padding: '14px 12px',
+        padding: '14px 14px',
         background: 'var(--ink)',
-        color: 'var(--paper)',
-        borderRadius: 6,
+        color: '#ffffff',
+        borderRadius: 10,
         position: 'relative',
       }}>
-        <div className="mono" style={{fontSize:9.5, opacity:.6, letterSpacing:'.18em', marginBottom:6}}>HEARTBEAT</div>
-        <div style={{fontFamily:'var(--serif)', fontStyle:'italic', fontSize:14, lineHeight:1.4}}>
-          0 incidents in 30 days. 99.4% match rate.
+        <div style={{
+          fontFamily: 'var(--sans)', fontSize: 10,
+          letterSpacing: '.16em', textTransform: 'uppercase',
+          opacity: .5, fontWeight: 600, marginBottom: 8,
+        }}>Heartbeat</div>
+        <div style={{display:'flex', alignItems:'baseline', gap: 8, marginBottom: 4}}>
+          <span style={{fontFamily:'var(--sans)', fontSize: 26, fontWeight: 500, letterSpacing:'-.015em', fontVariantNumeric:'tabular-nums'}}>0</span>
+          <span style={{fontSize: 11, opacity: .6, letterSpacing:'.06em'}}>incidents · 30d</span>
+        </div>
+        <div style={{fontSize: 11.5, opacity: .75, letterSpacing:'-.005em'}}>
+          99.4% match rate
         </div>
       </div>
     </nav>

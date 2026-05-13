@@ -29,10 +29,21 @@
   --info: #0A6CD6;             /* Airbnb blue */
   --info-soft: #E6F1FC;
 
-  /* Type */
-  --serif: 'Newsreader', 'Source Serif 4', Georgia, serif;
+  /* Type — Fraunces display (Sectra/Tiempos spirit), Geist body */
+  --serif: 'Fraunces', 'Tiempos Headline', 'Source Serif 4', 'Newsreader', Georgia, serif;
   --sans: 'Geist', 'Inter', 'Söhne', system-ui, -apple-system, sans-serif;
   --mono: 'Geist Mono', ui-monospace, Menlo, monospace;
+
+  /* Vertical rhythm — generous breath between blocks */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 40px;
+  --space-7: 64px;
+  --space-8: 96px;
+  --space-9: 128px;
 
   /* Radii — Airbnb uses generous rounding */
   --rad: 6px;
@@ -247,20 +258,27 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 .h1 {
   font-family: var(--serif);
-  font-size: 40px;
+  font-size: 44px;
   font-weight: 400;
-  letter-spacing: -0.018em;
-  letter-spacing: -0.015em;
-  line-height: 1.05;
+  letter-spacing: -0.022em;
+  line-height: 1.02;
   margin: 8px 0 10px;
+  font-variation-settings: "opsz" 96, "SOFT" 30, "WONK" 0;
 }
 .h2 {
   font-family: var(--serif);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 400;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
+  line-height: 1.08;
+  letter-spacing: -0.012em;
   margin: 0 0 6px;
+  font-variation-settings: "opsz" 48, "SOFT" 30, "WONK" 0;
+}
+.serif-display {
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 0;
+  letter-spacing: -0.025em;
+  font-weight: 400;
 }
 .h3 {
   font-family: var(--sans);
