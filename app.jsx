@@ -411,10 +411,12 @@ function InsightStat({ value, label, tone }) {
 function CommandBar({ onPalette }) {
   const [hint, setHint] = useState(0);
   const hints = [
-    "Cendra, never promise early check-in unless cleaning is confirmed",
-    "Show me last week's damage claims",
-    "What's the late checkout offer accepting at right now?",
-    "Pause autopilot for Cihangir House until Friday",
+    "Search guests, properties, rules, reservations…",
+    "Lukas Berger",
+    "Karaköy · Apt 12",
+    "Never promise early check-in",
+    "BKG-44291",
+    "Late checkout playbook",
   ];
   useEffect(() => {
     const t = setInterval(() => setHint(h => (h + 1) % hints.length), 4500);
@@ -428,14 +430,24 @@ function CommandBar({ onPalette }) {
         <span className="tag">Agent OS</span>
       </div>
       <button onClick={onPalette} style={{
-        all:'unset', cursor:'text',
-        display:'flex', alignItems:'center', gap:10,
-        border:'1px solid var(--hair)', background:'var(--card)',
-        borderRadius:4, padding:'7px 12px',
-        maxWidth:720, width:'100%', justifySelf:'center',
-      }}>
-        <span className="prefix" style={{whiteSpace:'nowrap'}}>▸ Tell Cendra</span>
-        <span style={{flex:1, color:'var(--muted)', fontSize:13.5, fontStyle:'italic', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}} key={hint}>
+        all: 'unset', cursor: 'text',
+        display: 'flex', alignItems: 'center', gap: 10,
+        border: '1px solid var(--hair)', background: '#ffffff',
+        borderRadius: 8, padding: '8px 12px',
+        maxWidth: 720, width: '100%', justifySelf: 'center',
+        transition: 'border-color .12s, box-shadow .12s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--stone)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hair)'; }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}>
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-4-4" />
+        </svg>
+        <span style={{
+          flex: 1, color: 'var(--muted)', fontSize: 13.5,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          fontFamily: 'var(--sans)',
+        }} key={hint}>
           {hints[hint]}
         </span>
         <span className="kbd">⌘K</span>
@@ -540,67 +552,395 @@ function Routes({ route, goto, tweaks }) {
   }
 }
 
+// ───────────────────────────────────────────────────────────────────
+// COMMAND PALETTE — universal search (Cmd-K)
+// Searches across guests, properties, rules, reservations, audit,
+// knowledge facts, playbooks, workflows, screens. Each result
+// navigates to its native record. NOT for asking Cendra — that's
+// the bottom CendraBar.
+// ───────────────────────────────────────────────────────────────────
 function CommandPalette({ onClose, goto }) {
   const [q, setQ] = useState("");
-  const items = [
-    { label: "Today", route: "today", hint: "Mission Control" },
-    { label: "Open Lukas — early check-in", route: "work_detail", arg: "ex_01", hint: "Approval · low risk" },
-    { label: "Open damage claim — Bosphorus Loft", route: "approval", hint: "NEVER AUTO · evidence ready" },
-    { label: "Autopilot ladder", route: "autopilot", hint: "10 workflows" },
-    { label: "Property Brain", route: "property_brain", hint: "3 attention items" },
-    { label: "Build playbook", route: "playbook", hint: "Teach Cendra" },
-    { label: "Learning suggestions", route: "learning", hint: "3 waiting" },
-    { label: "Audit trail", route: "audit", hint: "All decisions, immutable" },
-    { label: "Make rule: Never promise early check-in unless cleaning is confirmed", route: "playbook", hint: "From edit · 4 examples" },
-    { label: "Pause workflow: Late checkout offer", route: "autopilot", hint: "Action" },
-  ];
-  const filtered = q ? items.filter(i => i.label.toLowerCase().includes(q.toLowerCase())) : items;
+  const [activeIdx, setActiveIdx] = useState(0);
+  const DP = window.CENDRA_DATA2;
+  const D  = window.CENDRA_DATA;
+
+  // Build the searchable index — one entry per record
+  const index = useMemo(() => buildSearchIndex(DP, D), []);
+
+  const results = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) {
+      // No query — show grouped "starter" set
+      return [
+        { type: "header", label: "Jump to" },
+        ...index.filter(i => i.cat === "screen").slice(0, 6),
+        { type: "header", label: "In-house guests" },
+        ...index.filter(i => i.cat === "guest" && i.stage === "in_house").slice(0, 4),
+        { type: "header", label: "Active rules" },
+        ...index.filter(i => i.cat === "rule").slice(0, 3),
+      ];
+    }
+    const matches = index
+      .map(i => ({ ...i, score: scoreMatch(i, term) }))
+      .filter(i => i.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 40);
+
+    // Group by category
+    const groups = {};
+    matches.forEach(m => { (groups[m.cat] = groups[m.cat] || []).push(m); });
+    const order = ["guest", "property", "reservation", "rule", "playbook", "workflow", "knowledge", "audit", "screen"];
+    const out = [];
+    order.forEach(c => {
+      if (groups[c]) {
+        out.push({ type: "header", label: CAT_LABELS[c] + " · " + groups[c].length });
+        out.push(...groups[c]);
+      }
+    });
+    return out;
+  }, [q, index]);
+
+  const flatResults = results.filter(r => r.type !== "header");
+
+  // Keyboard nav
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [q]);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIdx(i => Math.min(flatResults.length - 1, i + 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIdx(i => Math.max(0, i - 1));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const r = flatResults[activeIdx];
+        if (r) { goto(r.route, r.arg); onClose(); }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [flatResults, activeIdx, goto, onClose]);
+
+  let runningIdx = -1;
 
   return (
-    <div className="drawer-backdrop" onClick={onClose}>
+    <div className="drawer-backdrop" onClick={onClose} style={{zIndex: 50}}>
       <div onClick={e => e.stopPropagation()} style={{
         position: 'fixed',
-        top: '14vh', left: '50%', transform: 'translateX(-50%)',
-        width: 'min(640px, 92vw)',
-        background: 'var(--card)',
+        top: '12vh', left: '50%', transform: 'translateX(-50%)',
+        width: 'min(680px, 94vw)',
+        background: '#ffffff',
         border: '1px solid var(--hair)',
-        borderRadius: 8,
-        boxShadow: 'var(--shadow-raised)',
+        borderRadius: 14,
+        boxShadow: '0 24px 48px rgba(0,0,0,0.16), 0 8px 16px rgba(0,0,0,0.08)',
+        overflow: 'hidden',
       }}>
-        <div style={{padding:'14px 18px', borderBottom:'1px solid var(--hair)', display:'flex', alignItems:'center', gap:10}}>
-          <span className="prefix mono dim" style={{fontSize:11}}>▸ TELL CENDRA</span>
-          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Ask, command, navigate…" style={{
-            flex:1, border:0, outline:0, background:'transparent', fontSize:15,
-          }} />
-          <span className="kbd" style={{border:'1px solid var(--hair)', padding:'1px 6px', borderRadius:3, fontFamily:'var(--mono)', fontSize:10.5}}>esc</span>
+        {/* Input */}
+        <div style={{
+          padding: '14px 18px',
+          borderBottom: '1px solid var(--hair-soft)',
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}>
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-4-4" />
+          </svg>
+          <input
+            autoFocus
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Search guests, properties, rules, reservations, audit, knowledge…"
+            style={{
+              flex: 1, border: 0, outline: 0, background: 'transparent',
+              fontSize: 15.5, fontFamily: 'var(--sans)', color: 'var(--ink)',
+            }}
+          />
+          <span style={{
+            fontFamily:'var(--mono)', fontSize: 10, padding:'2px 7px',
+            border:'1px solid var(--hair)', borderBottomWidth: 2, borderRadius: 4,
+            background:'#ffffff', color:'var(--ink-mid)',
+          }}>esc</span>
         </div>
-        <div style={{maxHeight: 420, overflowY:'auto'}}>
-          {filtered.map((it, i) => (
-            <button key={i} onClick={() => { goto(it.route, it.arg); onClose(); }} style={{
-              all:'unset', cursor:'pointer',
-              display:'grid', gridTemplateColumns:'1fr auto', gap:12,
-              padding:'12px 18px', width:'calc(100% - 36px)',
-              borderBottom: i < filtered.length-1 ? '1px solid var(--hair-soft)' : 'none',
-            }}>
-              <div>
-                <div style={{fontSize:14, color:'var(--ink)'}}>{it.label}</div>
-                <div className="mono dim" style={{fontSize:10.5, marginTop:2}}>{it.hint}</div>
-              </div>
-              <span className="mono dim" style={{fontSize:11, alignSelf:'center'}}>↵</span>
-            </button>
-          ))}
-          {filtered.length === 0 && (
-            <div style={{padding:'18px', color:'var(--muted)', fontSize:13}}>No matches. Press <span className="kbd">↵</span> to ask Cendra anyway.</div>
+
+        {/* Results */}
+        <div style={{maxHeight: 460, overflowY: 'auto', padding: '6px 0'}}>
+          {results.length === 0 && (
+            <div style={{padding: '28px 20px', textAlign: 'center'}}>
+              <div className="mono" style={{fontSize: 11, letterSpacing: '.14em', color: 'var(--muted)', marginBottom: 8}}>NO MATCHES</div>
+              <div style={{fontSize: 13.5, color: 'var(--ink-mid)'}}>Try a different search term, or ask Cendra below.</div>
+            </div>
           )}
+          {results.map((r, i) => {
+            if (r.type === "header") {
+              return (
+                <div key={"h" + i} style={{
+                  padding: '14px 18px 6px',
+                  fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '.16em',
+                  color: 'var(--muted)', textTransform: 'uppercase', fontWeight: 500,
+                }}>{r.label}</div>
+              );
+            }
+            runningIdx += 1;
+            const active = runningIdx === activeIdx;
+            const myIdx = runningIdx;
+            return (
+              <button
+                key={r.id || i}
+                onMouseEnter={() => setActiveIdx(myIdx)}
+                onClick={() => { goto(r.route, r.arg); onClose(); }}
+                style={{
+                  all: 'unset', cursor: 'pointer',
+                  display: 'grid',
+                  gridTemplateColumns: '28px 1fr auto',
+                  gap: 12, alignItems: 'center',
+                  padding: '10px 18px', width: 'calc(100% - 36px)',
+                  background: active ? 'var(--paper)' : 'transparent',
+                }}>
+                <ResultIcon cat={r.cat} />
+                <div style={{minWidth: 0}}>
+                  <div style={{fontSize: 13.5, color: 'var(--ink)', fontWeight: 500, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{r.title}</div>
+                  <div style={{fontSize: 12, color: 'var(--muted)', marginTop: 1, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
+                    <span className="mono" style={{fontSize: 9.5, letterSpacing:'.12em', textTransform:'uppercase', marginRight: 6, color: 'var(--muted-2)'}}>{CAT_LABELS[r.cat]}</span>
+                    {r.sub}
+                  </div>
+                </div>
+                {active && (
+                  <span style={{
+                    fontFamily: 'var(--mono)', fontSize: 10, padding: '2px 7px',
+                    border: '1px solid var(--hair)', borderBottomWidth: 2, borderRadius: 4,
+                    background: '#ffffff', color: 'var(--ink-mid)',
+                  }}>↵</span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        <div style={{padding:'10px 18px', borderTop:'1px solid var(--hair-soft)', display:'flex', justifyContent:'space-between'}}>
-          <span className="mono dim" style={{fontSize:10.5}}>PREVIEW-FIRST · IRREVERSIBLE ACTIONS NEVER RUN FROM HERE</span>
-          <span className="mono dim" style={{fontSize:10.5}}>{filtered.length} matches</span>
+
+        {/* Footer */}
+        <div style={{
+          padding: '10px 18px', borderTop: '1px solid var(--hair-soft)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          background: 'var(--paper)',
+        }}>
+          <div className="mono" style={{fontSize: 10, letterSpacing: '.12em', color: 'var(--muted)', textTransform: 'uppercase'}}>
+            <span style={{
+              fontFamily: 'var(--mono)', fontSize: 10, padding: '1px 5px',
+              border: '1px solid var(--hair)', borderRadius: 3,
+              background: '#ffffff', color: 'var(--ink-mid)', marginRight: 6,
+            }}>↑↓</span>
+            navigate
+            <span style={{margin: '0 12px', color: 'var(--muted-2)'}}>·</span>
+            <span style={{
+              fontFamily: 'var(--mono)', fontSize: 10, padding: '1px 5px',
+              border: '1px solid var(--hair)', borderRadius: 3,
+              background: '#ffffff', color: 'var(--ink-mid)', marginRight: 6,
+            }}>↵</span>
+            open
+          </div>
+          <span style={{fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.10em', color: 'var(--muted)'}}>
+            {flatResults.length} RESULT{flatResults.length === 1 ? '' : 'S'} · ASK CENDRA BELOW FOR ANSWERS
+          </span>
         </div>
       </div>
     </div>
   );
 }
+
+const CAT_LABELS = {
+  guest:       "Guest",
+  property:    "Property",
+  reservation: "Reservation",
+  rule:        "Rule",
+  playbook:    "Playbook",
+  workflow:    "Workflow",
+  knowledge:   "Knowledge",
+  audit:       "Audit",
+  screen:      "Screen",
+};
+
+function ResultIcon({ cat }) {
+  const colors = {
+    guest:       'var(--ink)',
+    property:    '#5E6AD2',
+    reservation: '#0A6CD6',
+    rule:        '#B92929',
+    playbook:    '#4A154B',
+    workflow:    '#008A05',
+    knowledge:   '#FC642D',
+    audit:       'var(--muted)',
+    screen:      'var(--ink-mid)',
+  };
+  const labels = {
+    guest: 'G', property: 'P', reservation: 'R',
+    rule: '◆', playbook: '¶', workflow: 'W',
+    knowledge: 'K', audit: 'A', screen: '↳',
+  };
+  return (
+    <span style={{
+      width: 22, height: 22, borderRadius: 5,
+      background: colors[cat] || 'var(--ink)',
+      color: '#ffffff',
+      display: 'grid', placeItems: 'center',
+      fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600,
+    }}>{labels[cat] || '·'}</span>
+  );
+}
+
+// Build search index from data sources
+function buildSearchIndex(DP, D) {
+  const idx = [];
+
+  // Screens / nav shortcuts
+  [
+    { id: "scr_today",     title: "Today",        sub: "Morning brief · what needs you",       route: "today" },
+    { id: "scr_guests",    title: "Guests",       sub: "Live journey · in-house and arriving", route: "work" },
+    { id: "scr_props",     title: "Properties",   sub: "Portfolio brain · 47 units",            route: "properties" },
+    { id: "scr_playbooks", title: "Playbooks",    sub: "Library · 16 playbooks",                route: "playbook_library" },
+    { id: "scr_autopilot", title: "Autopilot",    sub: "Workflow trust · promotion ladder",     route: "autopilot" },
+    { id: "scr_learning",  title: "Learning",     sub: "Suggestions Cendra wants to learn",     route: "learning" },
+    { id: "scr_insights",  title: "Insights",     sub: "Ask Cendra · portfolio analytics",      route: "insights" },
+    { id: "scr_trust",     title: "Trust",        sub: "Safety surface · hard rules · audit",   route: "trust" },
+    { id: "scr_brain",     title: "Property Brain", sub: "Facts and gaps",                       route: "property_brain" },
+    { id: "scr_audit",     title: "Audit trail",  sub: "Every decision · immutable",            route: "audit" },
+    { id: "scr_intg",      title: "Integrations", sub: "Health · PMS · channels · ops",         route: "integrations" },
+  ].forEach(s => idx.push({ ...s, cat: "screen" }));
+
+  // Guests (active journey)
+  const J = DP.guests_journey || {};
+  [...(J.in_house || []), ...(J.checking_in_today || []), ...(J.checking_out_today || [])].forEach(g => {
+    const stage = (J.in_house || []).includes(g) ? "in_house"
+      : (J.checking_in_today || []).includes(g) ? "arriving"
+      : "departing";
+    idx.push({
+      id: g.id, cat: "guest", stage,
+      title: g.name,
+      sub: `${g.property} · ${g.channel} · ${stage.replace("_", "-")} · ${g.status_reason}`,
+      route: "work_detail", arg: g.id,
+      keywords: [g.name, g.property, g.owner, g.channel, g.status_reason, g.language].join(" ").toLowerCase(),
+    });
+  });
+  (J.arriving_week || []).forEach(u => {
+    idx.push({
+      id: u.id, cat: "guest", stage: "upcoming",
+      title: u.name,
+      sub: `${u.property} · ${u.channel} · arriving ${u.eta_day} ${u.eta_time} · ${u.nights}n`,
+      route: "work",
+      keywords: [u.name, u.property, u.channel, u.eta_day].join(" ").toLowerCase(),
+    });
+  });
+
+  // Properties
+  (DP.properties_brain || []).forEach(p => {
+    idx.push({
+      id: p.id, cat: "property",
+      title: p.name,
+      sub: `${p.owner} · ${p.region} · ${p.asks} asks · risk ${p.risk}`,
+      route: "property_detail", arg: p.id,
+      keywords: [p.name, p.owner, p.region].join(" ").toLowerCase(),
+    });
+  });
+
+  // Reservations (deterministic ID per guest)
+  const bkgMap = { ji_lukas: 44291, ji_nora: 44310, ji_hana: 44352, jh_selin: 44324, jh_rafael: 44267, jh_isabela: 44298, jh_marc: 44114, jh_yuki: 44388, jo_thomas: 44241 };
+  [...(J.in_house || []), ...(J.checking_in_today || []), ...(J.checking_out_today || [])].forEach(g => {
+    const bkg = bkgMap[g.id] || (44000 + Math.abs(hashStr(g.id)) % 999);
+    idx.push({
+      id: "res_" + g.id, cat: "reservation",
+      title: `BKG-${bkg}`,
+      sub: `${g.name} · ${g.property} · ${g.channel}`,
+      route: "work_detail", arg: g.id,
+      keywords: [g.name, g.property, "BKG", String(bkg)].join(" ").toLowerCase(),
+    });
+  });
+
+  // Hard rules
+  (DP.hard_rules || []).forEach(r => {
+    idx.push({
+      id: r.id, cat: "rule",
+      title: r.text,
+      sub: `${r.scope} · owner ${r.owner} · last triggered ${r.last_triggered}`,
+      route: "trust",
+      keywords: [r.text, r.scope, r.owner].join(" ").toLowerCase(),
+    });
+  });
+
+  // Playbooks
+  (DP.playbook_categories || []).forEach(cat => {
+    (cat.playbooks || []).forEach(pb => {
+      idx.push({
+        id: pb.id, cat: "playbook",
+        title: pb.name,
+        sub: `${cat.name} · ${pb.scope} · ${pb.state}`,
+        route: "playbook_library",
+        keywords: [pb.name, cat.name, pb.scope].join(" ").toLowerCase(),
+      });
+    });
+  });
+
+  // Workflows
+  (DP.workflow_groups || []).forEach(grp => {
+    (grp.workflows || []).forEach(wf => {
+      idx.push({
+        id: wf.id, cat: "workflow",
+        title: wf.name,
+        sub: `${grp.name} · ${wf.state} · ${wf.samples} cases · ${wf.incidents} incidents`,
+        route: "autopilot",
+        keywords: [wf.name, grp.name, wf.state, wf.scope].join(" ").toLowerCase(),
+      });
+    });
+  });
+
+  // Knowledge facts (Property Brain)
+  ((D && D.property_facts) || []).forEach(f => {
+    idx.push({
+      id: f.id, cat: "knowledge",
+      title: `${f.scope} · ${f.fact}`,
+      sub: `${f.value || '—'} · ${f.state} · ${f.hint}`,
+      route: "property_brain",
+      keywords: [f.scope, f.fact, f.value || '', f.state].join(" ").toLowerCase(),
+    });
+  });
+
+  // Audit
+  ((DP && DP.audit) || []).forEach(a => {
+    idx.push({
+      id: a.id, cat: "audit",
+      title: a.action + " · " + a.target,
+      sub: `${a.actor} · ${a.workflow} · ${a.time}`,
+      route: "audit",
+      keywords: [a.action, a.target, a.actor, a.workflow].join(" ").toLowerCase(),
+    });
+  });
+
+  return idx;
+}
+
+// Score how well a search term matches an index entry
+function scoreMatch(item, term) {
+  if (!term) return 0;
+  const title = (item.title || "").toLowerCase();
+  const sub   = (item.sub   || "").toLowerCase();
+  const kw    = (item.keywords || (title + " " + sub)).toLowerCase();
+
+  // Word-start match on title is best
+  if (title.startsWith(term)) return 100;
+  // Word-start match anywhere in title
+  if (title.match(new RegExp("\\b" + escRe(term)))) return 80;
+  // Substring in title
+  if (title.includes(term)) return 60;
+  // Word-start in keywords/sub
+  if (kw.match(new RegExp("\\b" + escRe(term)))) return 40;
+  // Substring in keywords/sub
+  if (kw.includes(term)) return 20;
+  return 0;
+}
+
+function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; } return h; }
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App />);
