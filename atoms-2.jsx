@@ -446,9 +446,46 @@ function SectionHead({ eyebrow, title, sub, count, action }) {
   );
 }
 
+// ─── Channel chip — color-coded per channel ─────────────────
+const CHANNEL_META = {
+  airbnb:    { label: "Airbnb",    color: "#FF385C", short: "AIRBNB"    },
+  booking:   { label: "Booking",   color: "#003580", short: "BOOKING"   },
+  expedia:   { label: "Expedia",   color: "#FDB827", short: "EXPEDIA"   },
+  vrbo:      { label: "VRBO",      color: "#3D67B1", short: "VRBO"      },
+  direct:    { label: "Direct",    color: "#222222", short: "DIRECT"    },
+  whatsapp:  { label: "WhatsApp",  color: "#25D366", short: "WHATSAPP"  },
+  instagram: { label: "Instagram", color: "#E1306C", short: "INSTAGRAM" },
+  messenger: { label: "Messenger", color: "#0084FF", short: "MESSENGER" },
+  sms:       { label: "SMS",       color: "#717171", short: "SMS"       },
+  phone:     { label: "Phone",     color: "#B92929", short: "PHONE"     },
+  voice:     { label: "Voice",     color: "#B92929", short: "VOICE"     },
+  email:     { label: "Email",     color: "#5E6AD2", short: "EMAIL"     },
+  slack:     { label: "Slack",     color: "#4A154B", short: "SLACK"     },
+  system:    { label: "System",    color: "#717171", short: "SYSTEM"    },
+};
+
+function MsgChannelChip({ channel, sub, time }) {
+  const m = CHANNEL_META[channel] || CHANNEL_META.direct;
+  return (
+    <div style={{
+      display:'inline-flex', alignItems:'center', gap: 6,
+      fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.14em',
+      color:'var(--muted)', textTransform:'uppercase', fontWeight: 500,
+    }}>
+      <span style={{
+        width: 6, height: 6, borderRadius: 2, background: m.color,
+      }} />
+      <span style={{color:'var(--ink)', fontWeight: 600}}>{m.short}</span>
+      {time && <><span style={{color:'var(--muted-2)'}}>·</span><span>{time}</span></>}
+      {sub && <><span style={{color:'var(--muted-2)'}}>·</span><span>{sub}</span></>}
+    </div>
+  );
+}
+
 window.CendraAtoms2 = {
   StatusPill, StateBadge, SLATimer, SignalStat, PortfolioFilterBar,
   WorkflowTrustRow, IntegrationHealthCard, HardRuleCard, KnowledgeGapCard,
   PropertyFactRow, TeamAssignmentCard, LiveActivityMilestone, SignalStrip,
   WhyLevels, SectionHead,
+  MsgChannelChip, CHANNEL_META,
 };

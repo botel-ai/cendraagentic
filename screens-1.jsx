@@ -1174,12 +1174,15 @@ function WorkDetailScreen({ onOpen, tweaks }) {
           {/* CENDRA BRIEFING — big Fraunces display */}
           <CendraBriefing g={g} />
 
-          {/* GENERATIVE CARDS */}
+          {/* GENERATIVE CARDS — Cendra's pending actions */}
           {g.cards.length > 0 && (
             <div style={{display:'grid', gap: 14, marginTop: 32}}>
               {g.cards.map((c, i) => <GenerativeCard key={i} card={c} guest={g} />)}
             </div>
           )}
+
+          {/* CONVERSATIONS — raw multi-channel threads */}
+          <ConversationsPanel guest={g} />
 
           {/* FOLLOW-UP CHIPS */}
           {g.follow_ups && g.follow_ups.length > 0 && (
@@ -1884,6 +1887,564 @@ function ApprovalScreen({ onOpen }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────
+// CONVERSATIONS PANEL — multi-channel raw threads for Guest Journey
+// 3 tabs: Guest (default) · Vendors · Activity. Channel chips per
+// message. Manual composer with channel + tone. Pending drafts
+// shown inline as amber-marked bubbles with approve/edit/reject.
+// ───────────────────────────────────────────────────────────────────
+function ConversationsPanel({ guest }) {
+  const [tab, setTab] = useState("guest");
+  const tabs = [
+    { id: "guest",   label: "Guest",    count: (guest.messages || []).filter(m => !m.kind || m.kind === "media" || m.kind === "cross_channel").length },
+    { id: "vendors", label: "Vendors",  count: (guest.vendors || []).reduce((s, v) => s + (v.messages || []).filter(m => !m.kind || m.kind === "voice").length, 0) },
+    { id: "activity",label: "Activity", count: (guest.activity || []).length },
+  ];
+
+  return (
+    <section style={{
+      marginTop: 40,
+      background: '#ffffff',
+      border: '1px solid var(--hair)',
+      borderRadius: 14,
+      boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+      overflow: 'hidden',
+    }}>
+      {/* Tab strip */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 0,
+        padding: '14px 22px 0',
+        borderBottom: '1px solid var(--hair-soft)',
+      }}>
+        <div className="mono" style={{
+          fontSize: 10, letterSpacing: '.14em', color:'var(--muted)',
+          textTransform: 'uppercase', fontWeight: 500, marginRight: 18,
+          paddingBottom: 12,
+        }}>
+          Conversations
+        </div>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            all:'unset', cursor:'pointer',
+            padding:'8px 14px 12px',
+            marginBottom: -1,
+            borderBottom: '2px solid ' + (tab === t.id ? 'var(--ink)' : 'transparent'),
+            fontSize: 13.5,
+            fontWeight: tab === t.id ? 600 : 500,
+            color: tab === t.id ? 'var(--ink)' : 'var(--muted)',
+            display:'inline-flex', alignItems:'center', gap: 8,
+            transition: 'color .12s, border-color .12s',
+          }}>
+            {t.label}
+            <span style={{
+              fontFamily:'var(--mono)', fontSize: 11,
+              color: tab === t.id ? 'var(--ink)' : 'var(--muted-2)',
+              opacity: tab === t.id ? .7 : 1,
+            }}>{t.count}</span>
+          </button>
+        ))}
+        <span style={{flex:1}} />
+        <span className="mono" style={{
+          fontSize: 9.5, letterSpacing: '.12em', color:'var(--muted-2)',
+          textTransform:'uppercase', paddingBottom: 12,
+        }}>
+          {tab === "guest" && "Raw thread · multi-channel"}
+          {tab === "vendors" && (guest.vendors?.length || 0) + " vendor" + ((guest.vendors?.length || 0) === 1 ? "" : "s")}
+          {tab === "activity" && "System events · this guest"}
+        </span>
+      </div>
+
+      {/* Tab content */}
+      {tab === "guest" && <GuestThread guest={guest} />}
+      {tab === "vendors" && <VendorsThread guest={guest} />}
+      {tab === "activity" && <ActivityFeed guest={guest} />}
+    </section>
+  );
+}
+
+// Guest thread — bubbles + system events + draft + composer
+function GuestThread({ guest }) {
+  const msgs = guest.messages || [];
+  if (msgs.length === 0) {
+    return (
+      <div style={{padding: '40px 22px', textAlign:'center'}}>
+        <div className="mono" style={{fontSize:11, color:'var(--muted)', letterSpacing:'.12em'}}>NO MESSAGES YET</div>
+      </div>
+    );
+  }
+  // Default composer channel = last guest message channel
+  const lastGuestMsg = [...msgs].reverse().find(m => m.from === "guest");
+  const defaultChannel = lastGuestMsg?.channel || guest.channel?.toLowerCase() || "airbnb";
+
+  return (
+    <div>
+      <div style={{padding: '24px 22px', display: 'flex', flexDirection: 'column', gap: 18}}>
+        {msgs.map((m, i) => {
+          if (m.kind === "system") return <SystemEventRow key={m.id || i} event={m} />;
+          return <MessageBubble key={m.id || i} msg={m} guest={guest} />;
+        })}
+      </div>
+      <ThreadComposer
+        recipient={guest.name}
+        defaultChannel={defaultChannel}
+        showTone={true}
+        availableChannels={["airbnb","booking","whatsapp","instagram","messenger","sms","email","direct"]}
+      />
+    </div>
+  );
+}
+
+// Vendor thread — same pattern, multi-vendor switcher if needed
+function VendorsThread({ guest }) {
+  const vendors = guest.vendors || [];
+  const [active, setActive] = useState(0);
+  if (vendors.length === 0) {
+    return (
+      <div style={{padding: '40px 22px', textAlign:'center'}}>
+        <div className="mono" style={{fontSize:11, color:'var(--muted)', letterSpacing:'.12em'}}>NO VENDOR INVOLVEMENT</div>
+      </div>
+    );
+  }
+  const v = vendors[active] || vendors[0];
+
+  return (
+    <div>
+      {/* Multi-vendor sub-switcher */}
+      {vendors.length > 1 && (
+        <div style={{display:'flex', gap: 6, padding:'14px 22px 0', borderBottom:'1px solid var(--hair-soft)', flexWrap:'wrap'}}>
+          {vendors.map((vd, i) => (
+            <button key={vd.id} onClick={() => setActive(i)} style={{
+              all:'unset', cursor:'pointer',
+              padding:'5px 12px', borderRadius: 999,
+              fontSize: 12, fontWeight: 500,
+              border: '1px solid ' + (i === active ? 'var(--ink)' : 'var(--hair)'),
+              background: i === active ? 'var(--ink)' : '#ffffff',
+              color: i === active ? '#ffffff' : 'var(--ink-mid)',
+              marginBottom: 12,
+            }}>{vd.name} · <span style={{opacity:.6}}>{vd.role}</span></button>
+          ))}
+        </div>
+      )}
+
+      {/* Vendor header */}
+      <div style={{
+        display:'flex', alignItems:'center', gap: 12,
+        padding: '18px 22px 8px', borderBottom: '1px solid var(--hair-soft)',
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius:'50%',
+          background:'var(--paper-2)', border:'1px solid var(--hair)',
+          display:'grid', placeItems:'center',
+          fontFamily:'var(--sans)', fontSize: 13, fontWeight: 600, color:'var(--ink)',
+        }}>{v.name.split(' ').map(s => s[0]).join('').slice(0, 2)}</div>
+        <div style={{flex: 1}}>
+          <div style={{fontSize: 14, fontWeight: 600, color:'var(--ink)'}}>{v.name}</div>
+          <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase'}}>
+            {v.role} · {v.channel_label}
+          </div>
+        </div>
+        {v.phone_available && (
+          <Btn size="sm" kind="ghost">📞 Call {v.name.split(' ')[0]}</Btn>
+        )}
+      </div>
+
+      <div style={{padding: '24px 22px', display: 'flex', flexDirection: 'column', gap: 18}}>
+        {v.messages.map((m, i) => {
+          if (m.kind === "system") return <SystemEventRow key={m.id || i} event={m} />;
+          if (m.kind === "voice") return <VoiceCallRow key={m.id || i} call={m} />;
+          return <MessageBubble key={m.id || i} msg={m} guest={{ name: v.name, initial: v.name.split(' ').map(s => s[0]).join('').slice(0,2) }} isVendor />;
+        })}
+      </div>
+
+      <ThreadComposer
+        recipient={v.name}
+        defaultChannel={v.channel}
+        showTone={false}
+        availableChannels={[v.channel, "sms", "phone", "email"].filter((c, i, a) => a.indexOf(c) === i)}
+      />
+    </div>
+  );
+}
+
+// Activity feed — chronological system events for this guest
+function ActivityFeed({ guest }) {
+  const events = guest.activity || [];
+  if (events.length === 0) {
+    return (
+      <div style={{padding: '40px 22px', textAlign:'center'}}>
+        <div className="mono" style={{fontSize:11, color:'var(--muted)', letterSpacing:'.12em'}}>NO ACTIVITY YET</div>
+      </div>
+    );
+  }
+  const kindMeta = {
+    intake:  { dot: 'var(--info)', label: 'intake'  },
+    ai:      { dot: 'var(--ink)',  label: 'ai'      },
+    check:   { dot: 'var(--info)', label: 'check'   },
+    rule:    { dot: 'var(--warn)', label: 'rule'    },
+    auto:    { dot: 'var(--ok)',   label: 'auto'    },
+    vendor:  { dot: '#4A154B',     label: 'vendor'  },
+    owner:   { dot: 'var(--info)', label: 'owner'   },
+    wait:    { dot: 'var(--muted)',label: 'wait'    },
+    pending: { dot: 'var(--warn)', label: 'pending' },
+  };
+
+  return (
+    <div style={{padding: '20px 22px'}}>
+      <div style={{display:'grid', gap: 0}}>
+        {events.map((e, i) => {
+          const m = kindMeta[e.kind] || { dot: 'var(--muted)', label: e.kind };
+          return (
+            <div key={i} style={{
+              display:'grid', gridTemplateColumns: '110px 14px 90px 1fr',
+              gap: 14, alignItems:'baseline',
+              padding:'10px 0', borderBottom: i < events.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+            }}>
+              <span className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'.04em'}}>
+                {e.time}
+              </span>
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%', background: m.dot,
+                marginLeft: 3,
+              }} />
+              <span className="mono" style={{
+                fontSize: 10, letterSpacing:'.14em', color: e.tone === 'warn' ? 'var(--warn)' : 'var(--ink-mid)',
+                textTransform:'uppercase', fontWeight: 500,
+              }}>{m.label}</span>
+              <span style={{fontSize: 13.5, color:'var(--ink)', lineHeight: 1.5}}>{e.body}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Message bubble — left for guest, right for cendra/PM, special draft state
+function MessageBubble({ msg, guest, isVendor }) {
+  const ChannelChip = window.CendraAtoms2.MsgChannelChip;
+  const isAgent = msg.from === "cendra" || msg.from === "pm" || msg.from === "you";
+  const isDraft = msg.state === "draft";
+  const isMedia = msg.kind === "media";
+  const isCross = msg.kind === "cross_channel";
+  const authorLabel = msg.from === "cendra" ? "Cendra" : msg.from === "pm" ? "You" : msg.from === "you" ? "You" : msg.from === "vendor" ? guest.name : guest.name;
+
+  // System-style cross-channel marker shows on guest side but with a hint
+  return (
+    <div style={{
+      display:'flex',
+      flexDirection: isAgent ? 'row-reverse' : 'row',
+      alignItems:'flex-end', gap: 10,
+    }}>
+      {/* Avatar */}
+      <div style={{
+        width: 28, height: 28, borderRadius:'50%',
+        background: isAgent ? 'var(--ink)' : 'var(--paper-2)',
+        color: isAgent ? '#ffffff' : 'var(--ink)',
+        border: isAgent ? 'none' : '1px solid var(--hair)',
+        display:'grid', placeItems:'center',
+        fontFamily:'var(--mono)', fontSize: 11, fontWeight: 600,
+        flexShrink: 0, letterSpacing: 0,
+      }}>{isAgent ? 'C' : (guest.initial || guest.name?.[0] || '?')}</div>
+
+      {/* Bubble + meta */}
+      <div style={{maxWidth: 540, display: 'flex', flexDirection: 'column', alignItems: isAgent ? 'flex-end' : 'flex-start'}}>
+        {/* Meta line: channel · time · author · auto/draft */}
+        <div style={{
+          display:'flex', alignItems:'center', gap: 8,
+          padding: '0 4px', marginBottom: 4,
+        }}>
+          <ChannelChip channel={msg.channel} time={msg.time} />
+          {msg.autonomy === "auto" && (
+            <span style={{
+              fontFamily:'var(--mono)', fontSize: 9, letterSpacing:'.14em',
+              padding:'2px 7px', borderRadius: 3,
+              background:'var(--ok-soft)', color:'var(--ok)', fontWeight: 600,
+            }}>AUTO</span>
+          )}
+          {isDraft && (
+            <span style={{
+              fontFamily:'var(--mono)', fontSize: 9, letterSpacing:'.14em',
+              padding:'2px 7px', borderRadius: 3,
+              background:'var(--warn-soft)', color:'var(--warn)', fontWeight: 600,
+            }}>DRAFT · PENDING</span>
+          )}
+          {isCross && (
+            <span style={{
+              fontFamily:'var(--mono)', fontSize: 9, letterSpacing:'.14em',
+              padding:'2px 7px', borderRadius: 3,
+              background:'var(--info-soft)', color:'var(--info)', fontWeight: 600,
+            }}>CROSS-CHANNEL</span>
+          )}
+        </div>
+
+        {/* Bubble */}
+        {isMedia ? (
+          <div style={{
+            padding:'10px 14px',
+            background: 'var(--paper-2)',
+            border: '1px dashed var(--hair)',
+            borderRadius: 12,
+            fontFamily:'var(--mono)', fontSize: 11.5, color:'var(--muted)',
+            letterSpacing:'.04em',
+          }}>
+            {msg.body}
+          </div>
+        ) : (
+          <div style={{
+            padding: '12px 16px',
+            background: isDraft ? '#FFFBEA' : isAgent ? 'var(--ink)' : '#ffffff',
+            color: isDraft ? 'var(--ink)' : isAgent ? '#ffffff' : 'var(--ink)',
+            border: isDraft ? '1px dashed var(--warn)' : isAgent ? 'none' : '1px solid var(--hair)',
+            borderRadius: 14,
+            borderBottomRightRadius: isAgent && !isDraft ? 4 : 14,
+            borderBottomLeftRadius: !isAgent ? 4 : 14,
+            fontSize: 14.5, lineHeight: 1.5,
+            maxWidth: 520,
+            whiteSpace: 'pre-wrap',
+          }}>
+            {msg.body}
+          </div>
+        )}
+
+        {/* Why + Draft action row (for drafts) */}
+        {isDraft && (
+          <>
+            {msg.why && (
+              <div className="mono" style={{
+                fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em',
+                padding: '6px 6px 0', maxWidth: 540, textAlign:'right',
+              }}>WHY · {msg.why}</div>
+            )}
+            <div style={{display:'flex', gap: 6, marginTop: 10, alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end'}}>
+              {msg.tone_options?.map(t => (
+                <button key={t} style={{
+                  all:'unset', cursor:'pointer',
+                  padding:'4px 10px', borderRadius: 999,
+                  border:'1px solid var(--hair)', background:'#ffffff',
+                  fontSize: 11, fontWeight: 500, color:'var(--ink-mid)',
+                  fontFamily:'var(--mono)', letterSpacing:'.04em',
+                }}>{t}</button>
+              ))}
+              <button style={{
+                all:'unset', cursor:'pointer',
+                background:'var(--ink)', color:'#ffffff',
+                padding:'8px 16px', borderRadius: 8,
+                fontSize: 13, fontWeight: 600,
+                display:'inline-flex', alignItems:'center', gap: 6,
+              }}>
+                Approve & send
+                <span style={{fontFamily:'var(--mono)', fontSize: 11, opacity:.8}}>↵</span>
+              </button>
+              <Btn size="sm">Edit</Btn>
+              <Btn size="sm" kind="ghost">Reject</Btn>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// System event row — centered dotted line for AI thoughts / rule applications
+function SystemEventRow({ event }) {
+  const color = event.tone === 'warn' ? 'var(--warn)' : event.tone === 'info' ? 'var(--info)' : event.tone === 'ok' ? 'var(--ok)' : 'var(--muted)';
+  return (
+    <div style={{
+      display:'flex', alignItems:'center', gap: 10,
+      padding:'2px 0', justifyContent:'center',
+    }}>
+      <span style={{flex:1, height: 1, background:'var(--hair-soft)', maxWidth: 80}} />
+      <span style={{
+        fontFamily:'var(--mono)', fontSize: 10.5, letterSpacing:'.06em',
+        color: color, fontStyle:'italic', textAlign:'center',
+      }}>
+        {event.body}
+        {event.source && <span style={{color:'var(--muted-2)', fontStyle:'normal', marginLeft: 8, fontSize: 10}}>· {event.source}</span>}
+        {event.time && <span style={{color:'var(--muted-2)', fontStyle:'normal', marginLeft: 8, fontSize: 10}}>· {event.time}</span>}
+      </span>
+      <span style={{flex:1, height: 1, background:'var(--hair-soft)', maxWidth: 80}} />
+    </div>
+  );
+}
+
+// Voice call row — special "voice note" style
+function VoiceCallRow({ call }) {
+  return (
+    <div style={{
+      display:'flex', flexDirection:'row-reverse', alignItems:'flex-end', gap: 10,
+    }}>
+      <div style={{
+        width: 28, height: 28, borderRadius:'50%',
+        background:'var(--ink)', color:'#ffffff',
+        display:'grid', placeItems:'center',
+        fontFamily:'var(--mono)', fontSize: 11, fontWeight: 600,
+      }}>C</div>
+      <div style={{maxWidth: 540}}>
+        <div style={{padding:'0 4px', marginBottom: 4}}>
+          <span className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', fontWeight: 500}}>
+            <span style={{display:'inline-block', width:6, height:6, borderRadius:'50%', background:'var(--rausch)', marginRight: 6}} />
+            VOICE CALL · {call.time} · {call.duration}
+          </span>
+        </div>
+        <div style={{
+          padding:'14px 18px',
+          background:'var(--paper-2)', border:'1px solid var(--hair)',
+          borderRadius: 14, borderBottomRightRadius: 4,
+          fontSize: 13.5, color:'var(--ink-mid)', maxWidth: 520, fontStyle:'italic',
+          fontFamily:'var(--serif)', lineHeight: 1.5,
+        }}>
+          {call.body}
+        </div>
+        <div style={{padding:'4px 6px'}}>
+          <button style={{
+            all:'unset', cursor:'pointer', fontSize: 11,
+            color:'var(--ink-mid)', fontFamily:'var(--mono)', letterSpacing:'.06em',
+            textDecoration:'underline', textUnderlineOffset: 3,
+          }}>play recording →</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Thread composer — channel + tone + text + voice + slash escape
+function ThreadComposer({ recipient, defaultChannel, showTone, availableChannels }) {
+  const [text, setText] = useState("");
+  const [channel, setChannel] = useState(defaultChannel);
+  const [tone, setTone] = useState("neutral");
+  const [expanded, setExpanded] = useState(false);
+  const CHANNEL_META = window.CendraAtoms2.CHANNEL_META;
+  const channelMeta = CHANNEL_META[channel] || CHANNEL_META.direct;
+
+  const tones = ["neutral", "warmer", "tighter", "more formal"];
+
+  return (
+    <div style={{
+      borderTop: '1px solid var(--hair-soft)',
+      background: 'var(--paper)',
+      padding: '14px 22px 18px',
+    }}>
+      <div className="mono" style={{
+        fontSize: 10, letterSpacing:'.14em', color:'var(--muted)',
+        textTransform:'uppercase', marginBottom: 10, fontWeight: 500,
+      }}>
+        Reply to <span style={{color:'var(--ink)'}}>{recipient}</span>
+      </div>
+
+      {/* Channel + tone selectors */}
+      <div style={{display:'flex', alignItems:'center', gap: 8, marginBottom: 10, flexWrap:'wrap'}}>
+        <div style={{position:'relative'}}>
+          <select
+            value={channel}
+            onChange={e => setChannel(e.target.value)}
+            style={{
+              fontFamily:'var(--sans)', fontSize: 12, fontWeight: 500,
+              border:'1px solid var(--hair)', background:'#ffffff',
+              borderRadius: 999, padding: '5px 24px 5px 12px',
+              appearance: 'none', cursor:'pointer',
+              color:'var(--ink)',
+              backgroundImage: 'linear-gradient(45deg, transparent 50%, var(--ink-mid) 50%), linear-gradient(135deg, var(--ink-mid) 50%, transparent 50%)',
+              backgroundPosition: 'calc(100% - 12px) 11px, calc(100% - 7px) 11px',
+              backgroundSize: '5px 5px',
+              backgroundRepeat: 'no-repeat',
+            }}
+          >
+            {availableChannels.map(c => (
+              <option key={c} value={c}>{(CHANNEL_META[c] || CHANNEL_META.direct).label}</option>
+            ))}
+          </select>
+        </div>
+        <span style={{
+          width: 6, height: 6, borderRadius: 2, background: channelMeta.color,
+        }} />
+        {showTone && (
+          <div style={{display:'flex', gap: 4}}>
+            {tones.map(t => (
+              <button key={t} onClick={() => setTone(t)} style={{
+                all:'unset', cursor:'pointer',
+                padding:'4px 10px', borderRadius: 999,
+                fontSize: 11, fontWeight: 500,
+                color: tone === t ? 'var(--ink)' : 'var(--muted)',
+                fontFamily:'var(--mono)', letterSpacing:'.04em',
+                textTransform:'uppercase',
+                background: tone === t ? '#ffffff' : 'transparent',
+                border: '1px solid ' + (tone === t ? 'var(--hair)' : 'transparent'),
+              }}>{t}</button>
+            ))}
+          </div>
+        )}
+        <span style={{flex: 1}} />
+        <button style={{
+          all:'unset', cursor:'pointer',
+          fontSize: 11, color:'var(--muted)',
+          fontFamily:'var(--mono)', letterSpacing:'.06em',
+        }}>
+          🎙 voice
+        </button>
+        <span style={{color:'var(--muted-2)', fontSize: 11}}>·</span>
+        <button style={{
+          all:'unset', cursor:'pointer',
+          fontSize: 11, color:'var(--muted)',
+          fontFamily:'var(--mono)', letterSpacing:'.06em',
+        }}>
+          📎 attach
+        </button>
+      </div>
+
+      {/* Text area */}
+      <div style={{
+        display:'flex', alignItems: expanded ? 'flex-end' : 'center', gap: 10,
+        background:'#ffffff', border:'1px solid var(--hair)',
+        borderRadius: 12, padding:'10px 14px',
+      }}>
+        {expanded ? (
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder={`Type your reply to ${recipient.split(' ')[0]}…`}
+            onBlur={() => { if (!text.trim()) setExpanded(false); }}
+            autoFocus
+            style={{
+              flex:1, border:0, outline:0, background:'transparent',
+              fontSize: 14, fontFamily:'var(--sans)', color:'var(--ink)',
+              resize:'vertical', minHeight: 80,
+            }}
+          />
+        ) : (
+          <input
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onFocus={() => setExpanded(true)}
+            placeholder={`Type your reply to ${recipient.split(' ')[0]}…`}
+            style={{
+              flex:1, border:0, outline:0, background:'transparent',
+              fontSize: 14, fontFamily:'var(--sans)', color:'var(--ink)',
+            }}
+          />
+        )}
+        <button style={{
+          all:'unset', cursor: text.trim() ? 'pointer' : 'not-allowed',
+          background: text.trim() ? 'var(--ink)' : 'var(--hair)',
+          color: text.trim() ? '#ffffff' : 'var(--muted)',
+          padding:'8px 16px', borderRadius: 8,
+          fontSize: 13, fontWeight: 600, whiteSpace:'nowrap',
+          display:'inline-flex', alignItems:'center', gap: 6,
+        }}>
+          Send to {recipient.split(' ')[0]}
+          <span style={{fontFamily:'var(--mono)', fontSize: 11, opacity:.8}}>↵</span>
+        </button>
+      </div>
+
+      <div className="mono" style={{
+        fontSize: 9.5, letterSpacing:'.10em', color:'var(--muted-2)',
+        marginTop: 8, textTransform:'uppercase',
+      }}>
+        Type <span style={{color:'var(--ink-mid)'}}>/draft</span> to ask Cendra · <span style={{color:'var(--ink-mid)'}}>/comp 30</span> for a comp offer · <span style={{color:'var(--ink-mid)'}}>/escalate</span> to hand off
+      </div>
     </div>
   );
 }
