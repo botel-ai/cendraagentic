@@ -110,7 +110,7 @@ window.CENDRA_DATA2 = {
         { id: "wf_late",   name: "Late checkout offer",           state: "semi",     samples: 96,  override: "0.0%",  incidents: 0, hold_min: 5,   scope: "portfolio", last: "Demoted 23d ago",   default: "Offer €25",      ready: true,  why: "Promotion ready: 96 cases, 0 overrides, 0 incidents in 30d." },
         { id: "wf_clean",  name: "Housekeeping coordination",     state: "semi",     samples: 184, override: "1.6%",  incidents: 0, hold_min: 5,   scope: "portfolio", last: "—",                 default: "Ping cleaner",   ready: false, why: "Held in semi until cleaning sync stabilises." },
         { id: "wf_maint",  name: "Maintenance triage",            state: "semi",     samples: 64,  override: "3.1%",  incidents: 1, hold_min: 5,   scope: "portfolio", last: "Demoted 4d ago",    default: "Photo → vendor", ready: false, why: "1 misclassified leak. Hold semi for 7 more days." },
-        { id: "wf_vendor", name: "Vendor dispatch (≤€150)",      state: "approval", samples: 41,  override: "—",     incidents: 0, hold_min: 0,   scope: "property",  last: "—",                 default: "Approval",        ready: false, why: "Spend rules need explicit budget per property." },
+        { id: "wf_vendor", name: "Vendor dispatch (≤€150)",      state: "approval", samples: 41,  override: "—",     incidents: 0, hold_min: 0,   scope: "property",  last: "—",                 default: "Approval",        ready: false, frozen: true, why: "Spend rules need explicit budget per property. You froze this workflow until budgets are ratified." },
       ],
     },
     {
@@ -221,10 +221,10 @@ window.CENDRA_DATA2 = {
     risks: ["Same-day turnovers cluster Fri/Sat", "Smart-lock pairing failed once · 60d ago"],
     fact_groups: [
       { label: "Guest-facing facts", facts: [
-        { fact: "Wi-Fi",            value: "KK12-Guest / sapphire-otter-9821", source: "Smart-lock auto", source_file: "PMS · Yale Connect", fresh: "12d", visible: "guest", state: "verified", used_in: ["wf_wifi"] },
-        { fact: "Quiet hours",      value: "23:00 → 08:00",                    source: "Building rule",   source_file: "kara12_owner_handbook.pdf · p.4", fresh: "60d", visible: "guest", state: "verified", used_in: ["wf_wifi","wf_check"] },
-        { fact: "Pets",             value: "Not allowed",                      source: "Owner rule",      source_file: "kara12_owner_handbook.pdf · p.7", fresh: "120d",visible: "guest", state: "verified", used_in: ["wf_wifi"] },
-        { fact: "Bedroom",          value: "1 king + 1 sofa-bed",              source: "Cleaner photo · listing says 1 queen", source_file: "kara12_walkthrough.mp4 · 02:14 + Airbnb listing", fresh: "live", visible: "internal", state: "conflict", used_in: ["wf_wifi"],
+        { fact: "Wi-Fi",            value: "KK12-Guest / sapphire-otter-9821", source: "Smart-lock auto", source_file: "PMS · Yale Connect", fresh: "12d", true_since: "Jan 2024", last_verified: "12d ago", pinned: true,  visible: "guest", state: "verified", used_in: ["wf_wifi"] },
+        { fact: "Quiet hours",      value: "23:00 → 08:00",                    source: "Building rule",   source_file: "kara12_owner_handbook.pdf · p.4", fresh: "60d", true_since: "Building bylaw, 2018", last_verified: "60d ago", pinned: true, visible: "guest", state: "verified", used_in: ["wf_wifi","wf_check"] },
+        { fact: "Pets",             value: "Not allowed",                      source: "Owner rule",      source_file: "kara12_owner_handbook.pdf · p.7", fresh: "120d",true_since: "Apr 2023", last_verified: "120d ago", pinned: true, visible: "guest", state: "verified", used_in: ["wf_wifi"] },
+        { fact: "Bedroom",          value: "1 king + 1 sofa-bed",              source: "Cleaner photo · listing says 1 queen", source_file: "kara12_walkthrough.mp4 · 02:14 + Airbnb listing", fresh: "live", true_since: "Refurb · Oct 2024", last_verified: "32d ago (cleaner)", visible: "internal", state: "conflict", used_in: ["wf_wifi"],
           conflict_sources: [
             {
               id: "src_a",
@@ -256,8 +256,8 @@ window.CENDRA_DATA2 = {
         },
       ]},
       { label: "Internal notes",    facts: [
-        { fact: "Cleaner notes",    value: "Hot water heater needs flush every 30 days",       source: "Marta C.",   source_file: "kara12_cleaner_notes.mp3 · 00:42", fresh: "8d",  visible: "internal", state: "verified", used_in: ["wf_maint"] },
-        { fact: "Owner preference", value: "Never offer late checkout if same-day turnover",   source: "Owner rule", source_file: "kara12_owner_handbook.pdf · p.11", fresh: "32d", visible: "internal", state: "verified", used_in: ["wf_late"] },
+        { fact: "Cleaner notes",    value: "Hot water heater needs flush every 30 days",       source: "Marta C.",   source_file: "kara12_cleaner_notes.mp3 · 00:42", fresh: "8d",  true_since: "Jul 2024", last_verified: "8d ago", visible: "internal", state: "verified", used_in: ["wf_maint"] },
+        { fact: "Owner preference", value: "Never offer late checkout if same-day turnover",   source: "Owner rule", source_file: "kara12_owner_handbook.pdf · p.11", fresh: "32d", true_since: "Owner rule, Mar 2025", last_verified: "32d ago", pinned: true, visible: "internal", state: "verified", used_in: ["wf_late"] },
       ]},
       { label: "Missing",           facts: [
         { fact: "Heating type",     value: "—", source: "—", source_file: null, fresh: "—", visible: "—", state: "missing", used_in: [] },
@@ -837,6 +837,25 @@ window.CENDRA_DATA2 = {
         ],
         cards: [
           {
+            type: "promise",
+            channel: "WhatsApp",
+            commitment: "I'll have the plumber out to you within the hour, and follow up the moment the leak's fixed.",
+            promised_at: "08:02 today",
+            due_at: "09:02 today",
+            due_in_min: 26,
+            context: "Cendra committed an ETA on guest's behalf. Plumber confirmed 11:20 — still on track unless quote stalls.",
+            primary: "Send fulfillment update",
+          },
+          {
+            type: "dependency",
+            actor_type: "vendor",
+            actor_name: "A. Sözen (Plumber)",
+            title: "Waiting on plumber arrival + on-site quote",
+            sla_min: 60,
+            last_signal: "ETA 11:20 confirmed at 08:14 · no movement since.",
+            blocking: "Approval can't release until quote firms; guest's fulfillment promise depends on this signal.",
+          },
+          {
             type: "approval",
             title: "Approve plumber ceiling · €340",
             value: "€340 ceiling",
@@ -1034,6 +1053,18 @@ window.CENDRA_DATA2 = {
         ],
         cards: [
           {
+            type: "abstention",
+            abstention_type: "underspecified",
+            question: "Should I bend the photo rule for this guest, or hold the line?",
+            why_unsure: "Two signals contradict each other: owner rule says no refund > €100 without photos, but the guest pattern (2 prior refunds granted on Airbnb) suggests we trust him. Sentiment hostile + review threat raises the cost of holding firm.",
+            what_would_unblock: [
+              "A precedent from Galata Estates on whether goodwill bypasses the photo rule",
+              "Maya's call on relationship vs policy in this kind of standoff",
+              "A new fact: did the AC actually fail? Maintenance verifies on departure — we'd know by 13:00",
+            ],
+            options: ["I'll decide now", "Wait until 13:00 verify", "Tell Cendra how to handle review threats"],
+          },
+          {
             type: "approval",
             title: "Decline refund without evidence?",
             value: "Hold or partial",
@@ -1041,6 +1072,15 @@ window.CENDRA_DATA2 = {
             why: "Owner rule requires photos. Past 2 refund asks on this guest were granted on Airbnb (with photos). This is his 3rd ask — pattern flag.",
             options: ["Hold for photos", "Offer €40 goodwill", "Decline politely", "Escalate to Maya"],
             risk: "medium", reversibility: "amber",
+          },
+          {
+            type: "dependency",
+            actor_type: "vendor",
+            actor_name: "Galata Maintenance",
+            title: "Verify AC condition on departure",
+            sla_min: 290,
+            last_signal: "Emailed 06:14 today · reply at 07:02 promised 13:00 findings.",
+            blocking: "Decline-without-evidence stance hardens or softens depending on this verify — if AC truly faulty, owner rule arguably moot.",
           },
           {
             type: "draft_reply",

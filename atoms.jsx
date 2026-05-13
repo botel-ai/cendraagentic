@@ -212,6 +212,23 @@ function DecisionCard({ decision, variant = "telegram", compact = false, onWhy, 
 }
 
 // --- Why drawer — polished to match detail-page pattern ---
+// §10 Priority Chain — Brain Engine's authoritative decision resolution order.
+// Cendra walks tier 1 → tier 6, stopping at the first that produces a binding answer.
+// Tiers above the binding tier did not apply. Tiers below were not consulted.
+const PRIORITY_CHAIN = [
+  { id: "manual",     n: 1, label: "Manual override",   sub: "You explicitly said so",                kinds: ["manual"] },
+  { id: "blocker",    n: 2, label: "Active blocker",    sub: "Safety stop — Cendra cannot proceed",  kinds: ["blocker"] },
+  { id: "safety",     n: 3, label: "Safety rule",       sub: "Hard rules · compliance · policy",     kinds: ["rule","policy","safety"] },
+  { id: "learned",    n: 4, label: "Learned behavior",  sub: "Cases · pattern · property history",   kinds: ["case","learned","pattern"] },
+  { id: "preference", n: 5, label: "Owner preference",  sub: "Soft preference · guest signal · fact",kinds: ["preference","guest","fact","owner"] },
+  { id: "ask",        n: 6, label: "Ask",               sub: "Cendra needs you to decide",            kinds: ["ask","question"] },
+];
+
+function tierForKind(kind) {
+  const t = PRIORITY_CHAIN.find(t => t.kinds.includes(kind));
+  return t ? t.id : "preference";
+}
+
 function WhyDrawer({ open, onClose, decision }) {
   if (!open) return null;
   const evidence = decision.evidence || [
@@ -222,12 +239,25 @@ function WhyDrawer({ open, onClose, decision }) {
     { kind: "policy", label: "Airbnb same-day messaging policy permits holding replies up to 1 hour", source: "channel-policy", fresh: "60d" },
   ];
 
+  // Group evidence by tier
+  const byTier = {};
+  evidence.forEach(e => {
+    const t = tierForKind(e.kind);
+    (byTier[t] = byTier[t] || []).push(e);
+  });
+
+  // Binding tier — the highest-priority tier (lowest n) that has evidence.
+  // Override with decision.binding_tier if explicitly set.
+  const inferredBinding = PRIORITY_CHAIN.find(t => byTier[t.id]?.length);
+  const bindingId = decision.binding_tier || inferredBinding?.id || "preference";
+  const bindingIdx = PRIORITY_CHAIN.findIndex(t => t.id === bindingId);
+
   return (
     <>
       <div className="drawer-backdrop" onClick={onClose} />
       <aside style={{
         position: 'fixed', top: 0, right: 0, bottom: 0,
-        width: 'min(620px, 94vw)',
+        width: 'min(640px, 94vw)',
         background: 'var(--paper)',
         borderLeft: '1px solid var(--hair)',
         boxShadow: '0 -8px 32px rgba(0,0,0,.12), -2px 0 8px rgba(0,0,0,.04)',
@@ -252,7 +282,7 @@ function WhyDrawer({ open, onClose, decision }) {
               ← CLOSE
             </button>
             <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
-            <span>WHY THIS DECISION</span>
+            <span>WHY · §10 PRIORITY CHAIN</span>
           </div>
         </div>
 
@@ -270,28 +300,93 @@ function WhyDrawer({ open, onClose, decision }) {
             color: 'var(--ink-mid)', maxWidth: 540,
             fontFamily: 'var(--sans)',
           }}>
-            Cendra walked through hard rules, active risks, safety checks, learned behaviors and owner preferences — in that order.
+            Cendra walks down six tiers in order. The first tier that applies is binding — everything below it is not consulted.
           </p>
 
-          {/* Evidence beams */}
-          <div style={{marginTop: 32}}>
-            <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 18, fontWeight: 500}}>
-              Beams of evidence · {evidence.length} sources
-            </div>
+          {/* §10 Priority chain — vertical with binding tier highlighted */}
+          <div style={{marginTop: 28, position: 'relative'}}>
             <div style={{
-              background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 12,
-              padding: '6px 0',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-            }}>
-              {evidence.map((e, i) => (
-                <div key={i} style={{
-                  padding: '16px 20px',
-                  borderBottom: i < evidence.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+              position: 'absolute', left: 18, top: 12, bottom: 12,
+              width: 1, background: 'var(--hair)',
+            }} />
+            {PRIORITY_CHAIN.map((t, i) => {
+              const items = byTier[t.id] || [];
+              const isBinding = t.id === bindingId;
+              const isAbove = i < bindingIdx;     // higher priority but didn't apply
+              const isBelow = i > bindingIdx;     // lower priority, not consulted
+              const dotBg = isBinding ? 'var(--rausch)' : isAbove ? 'var(--hair)' : 'var(--muted-2)';
+              const dotInner = isBinding ? '#ffffff' : isAbove ? 'var(--muted-2)' : '#ffffff';
+              const labelColor = isBinding ? 'var(--ink)' : isBelow ? 'var(--muted-2)' : 'var(--ink-mid)';
+              const subColor = isBinding ? 'var(--ink-mid)' : 'var(--muted-2)';
+              return (
+                <div key={t.id} style={{
+                  position: 'relative', paddingLeft: 50, paddingBottom: i < PRIORITY_CHAIN.length - 1 ? 18 : 0,
+                  opacity: isBelow ? 0.55 : 1,
                 }}>
-                  <EvidenceBeam idx={i + 1} {...e} />
+                  {/* Tier number dot */}
+                  <div style={{
+                    position: 'absolute', left: 6, top: 0,
+                    width: 26, height: 26, borderRadius: 999,
+                    background: dotBg, color: dotInner,
+                    display:'grid', placeItems:'center',
+                    fontFamily:'var(--mono)', fontSize: 11, fontWeight: 700,
+                    border: isBinding ? `2px solid var(--rausch)` : `1px solid var(--hair)`,
+                    boxShadow: isBinding ? '0 0 0 4px rgba(255,56,92,.12)' : 'none',
+                  }}>{t.n}</div>
+                  {/* Tier header */}
+                  <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: items.length ? 10 : 4, minHeight: 26}}>
+                    <span style={{
+                      fontFamily:'var(--sans)', fontSize: 13.5,
+                      fontWeight: isBinding ? 600 : 500,
+                      color: labelColor,
+                    }}>
+                      {t.label}
+                    </span>
+                    {isBinding && (
+                      <span style={{
+                        fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.12em',
+                        color: 'var(--rausch)', fontWeight: 700,
+                        padding:'2px 7px', borderRadius: 4,
+                        background:'rgba(255,56,92,.08)',
+                      }}>BINDING</span>
+                    )}
+                    {isAbove && (
+                      <span style={{
+                        fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.12em',
+                        color: 'var(--muted-2)', textTransform:'uppercase',
+                      }}>did not apply</span>
+                    )}
+                    {isBelow && (
+                      <span style={{
+                        fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.12em',
+                        color: 'var(--muted-2)', textTransform:'uppercase',
+                      }}>not consulted</span>
+                    )}
+                    <span style={{flex:1}} />
+                    <span style={{fontFamily:'var(--mono)', fontSize: 10, color: subColor, letterSpacing:'.06em'}}>
+                      {t.sub}
+                    </span>
+                  </div>
+                  {/* Evidence beams for this tier (only if tier applied) */}
+                  {items.length > 0 && !isBelow && (
+                    <div style={{
+                      background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 8,
+                      borderLeft: isBinding ? '3px solid var(--rausch)' : '1px solid var(--hair)',
+                      overflow: 'hidden',
+                    }}>
+                      {items.map((e, j) => (
+                        <div key={j} style={{
+                          padding: '12px 14px',
+                          borderBottom: j < items.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+                        }}>
+                          <EvidenceBeam idx={null} {...e} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
 
           {/* Trust footer micro band */}
@@ -303,7 +398,7 @@ function WhyDrawer({ open, onClose, decision }) {
             <TrustStat label="autonomy" value={decision.autonomy} />
             <TrustStat label="risk" value={decision.risk} tone={decision.risk === 'high' ? 'risk' : decision.risk === 'medium' ? 'warn' : 'ok'} />
             <TrustStat label="reversibility" value={decision.reversibility} tone={decision.reversibility === 'red' ? 'risk' : decision.reversibility === 'amber' ? 'warn' : 'ok'} />
-            <TrustStat label="blocker check" value="passed" tone="ok" />
+            <TrustStat label="binding tier" value={PRIORITY_CHAIN[bindingIdx]?.label.toLowerCase() || '—'} tone={bindingId === 'blocker' ? 'risk' : bindingId === 'safety' ? 'warn' : 'ok'} />
             <TrustStat label="confidence" value="0.91" />
           </div>
         </div>
@@ -411,4 +506,5 @@ function QuietState({ kind = "default", title, body, mono }) {
 window.CendraAtoms = {
   cls, Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar,
   DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState,
+  PRIORITY_CHAIN, tierForKind,
 };

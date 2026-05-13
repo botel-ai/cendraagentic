@@ -1,5 +1,6 @@
 // Cendra screens: Autopilot, Playbook, Property Brain, Learning, Audit, Mobile
 const { Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar, DecisionCard, WhyDrawer, PageHeader, QuietState } = window.CendraAtoms;
+const { TrustMeter: AutoTrustMeter, deriveTrust: autoDeriveTrust, deriveCriteria: autoDeriveCriteria } = window.CendraAtoms2;
 const D2 = window.CENDRA_DATA;
 const DP = window.CENDRA_DATA2;
 
@@ -153,38 +154,59 @@ function AutopilotScreen({ tweaks }) {
       {/* FLAT WORKFLOW TABLE — single-line rows, single-glance scan */}
       <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
         <div style={{
-          display:'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) 120px 90px 80px 80px 110px 100px',
+          display:'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) 200px 110px 80px 80px 110px',
           gap: 14, padding: '12px 22px', background:'var(--paper-2)',
           borderBottom:'1px solid var(--hair)',
           fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 500,
         }}>
-          <div>Workflow</div><div>State</div>
-          <div style={{textAlign:'right'}}>Cases</div>
+          <div>Workflow</div>
+          <div>Trust</div>
+          <div>State</div>
           <div style={{textAlign:'right'}}>Override</div>
           <div style={{textAlign:'right'}}>Incidents</div>
-          <div>Scope</div>
           <div></div>
         </div>
         {shown.map((w, i) => {
           const meta = stateMeta[w.state];
+          const trust = autoDeriveTrust(w);
+          const criteria = autoDeriveCriteria(w, trust);
+          const frozen = !!w.frozen;
           return (
             <div key={w.id} style={{
-              display:'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) 120px 90px 80px 80px 110px 100px',
+              display:'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) 200px 110px 80px 80px 110px',
               gap: 14, padding: '14px 22px', alignItems:'center',
               borderBottom: i < shown.length - 1 ? '1px solid var(--hair-soft)' : 'none',
               background: '#ffffff',
             }}>
               <div>
-                <div style={{fontSize: 13.5, fontWeight: 500, color:'var(--ink)'}}>{w.name}</div>
-                <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', marginTop: 2}}>{w.groupName}</div>
+                <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                  <div style={{fontSize: 13.5, fontWeight: 500, color:'var(--ink)'}}>{w.name}</div>
+                  {frozen && (
+                    <span style={{
+                      fontFamily:'var(--mono)', fontSize: 9, letterSpacing:'.12em',
+                      color:'#6B7280', fontWeight: 700, textTransform:'uppercase',
+                      padding:'1px 6px', borderRadius: 3,
+                      background:'rgba(107,114,128,.10)', border:'1px solid rgba(107,114,128,.25)',
+                    }}>FROZEN</span>
+                  )}
+                </div>
+                <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', marginTop: 2}}>{w.groupName} · {w.scope}</div>
+                <div className="mono" style={{fontSize: 10.5, color:'var(--ink-mid)', letterSpacing:'.02em', marginTop: 4}}>{criteria}</div>
+              </div>
+              <div style={{display:'flex', flexDirection:'column', gap: 4}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
+                  <span className="mono dim" style={{fontSize: 9, letterSpacing:'.16em'}}>SCORE</span>
+                  <span className="mono" style={{fontSize: 12, fontWeight: 600, fontVariantNumeric:'tabular-nums', color: frozen ? 'var(--muted)' : 'var(--ink)'}}>{Math.round(trust)}</span>
+                </div>
+                <AutoTrustMeter score={trust} frozen={frozen} state={w.state} />
               </div>
               <Pill tone={meta.tone}>{meta.label}</Pill>
-              <div className="mono" style={{fontSize: 12, textAlign:'right', color:'var(--ink)', fontVariantNumeric:'tabular-nums'}}>{w.samples || '—'}</div>
               <div className="mono" style={{fontSize: 12, textAlign:'right', color: w.override === '0.0%' ? 'var(--ok)' : 'var(--ink-mid)', fontVariantNumeric:'tabular-nums'}}>{w.override}</div>
               <div className="mono" style={{fontSize: 12, textAlign:'right', color: w.incidents === 0 ? 'var(--ok)' : 'var(--warn)', fontVariantNumeric:'tabular-nums'}}>{w.incidents}</div>
-              <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase'}}>{w.scope}</div>
               <div style={{textAlign:'right'}}>
-                {w.ready ? (
+                {frozen ? (
+                  <Btn size="sm" kind="ghost">Unfreeze</Btn>
+                ) : w.ready ? (
                   <Btn size="sm" kind="primary" onClick={() => setChangeReq({ wf: w, group: { id: w.groupId, name: w.groupName } })}>Promote →</Btn>
                 ) : w.state === "never" ? (
                   <span className="mono" style={{fontSize: 10, color:'var(--muted-2)', letterSpacing:'.12em'}}>PINNED</span>

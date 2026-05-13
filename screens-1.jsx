@@ -1,5 +1,6 @@
 // Cendra screens: Today, Work, Work Detail, Approval
 const { Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar, DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState } = window.CendraAtoms;
+const { StayHealthBadge, deriveStayHealth } = window.CendraAtoms2;
 const D = window.CENDRA_DATA;
 const DP = window.CENDRA_DATA2;
 
@@ -926,6 +927,7 @@ function JourneyGroup({ eyebrow, count, sub, guests, upcoming, onOpen, variant }
 // Individual guest card — Cendra's micro-take + status + stay
 function GuestJourneyCard({ g, onOpen, variant }) {
   const accent = g.status === "needs_you" ? 'var(--warn)' : g.status === "waiting" ? 'var(--info)' : 'var(--ok)';
+  const health = deriveStayHealth(g);
   return (
     <button
       onClick={() => onOpen('work_detail', g.id)}
@@ -960,6 +962,7 @@ function GuestJourneyCard({ g, onOpen, variant }) {
           <div style={{fontFamily:'var(--serif)', fontSize:18, lineHeight:1.2, letterSpacing:'-.005em'}}>
             {g.name}
           </div>
+          <StayHealthBadge health={health} />
           <span className="mono dim" style={{fontSize:10}}>{g.language}</span>
           {g.trips > 0 && <span className="mono dim" style={{fontSize:10}}>· {g.trips} prior</span>}
           <span className="mono dim" style={{fontSize:10}}>· {g.sentiment}</span>
@@ -1272,6 +1275,7 @@ function GuestJourneyHeader({ g }) {
           {g.sentiment}
         </div>
         <div style={{display:'flex', alignItems:'center', gap: 10, marginTop: 14, flexWrap:'wrap'}}>
+          <StayHealthBadge health={deriveStayHealth(g)} size="lg" />
           <GuestStatusChip status={g.status} reason={g.status_reason} slaMin={g.sla_min} />
         </div>
       </div>
@@ -1321,6 +1325,9 @@ function GenerativeCard({ card, guest }) {
     case "fact_suggestion": return <FactSuggestionCard card={card} />;
     case "upsell":          return <UpsellCard card={card} />;
     case "policy_hold":     return <PolicyHoldCard card={card} />;
+    case "promise":         return <PromiseCard card={card} guest={guest} />;
+    case "dependency":      return <DependencyCard card={card} />;
+    case "abstention":      return <AbstentionCard card={card} guest={guest} />;
     default:                return null;
   }
 }
@@ -1385,30 +1392,57 @@ function DraftReplyCard({ card, guest }) {
 
 function ApprovalGenerativeCard({ card, guest }) {
   const toneMap = { high: 'risk', medium: 'warn', low: 'ok' };
+  const [whyOpen, setWhyOpen] = useState(false);
+  const decisionForWhy = {
+    title: card.title,
+    evidence: card.evidence || [
+      { kind: card.rule_kind || "rule",     label: card.rule_label || `Owner rule constrains this decision.`,                                         source: card.rule_source || "owner-policy", fresh: "permanent" },
+      { kind: "case",                       label: card.case_label || `Recent cases on this guest/property informed the range.`,                       source: "decision-cases · 90d",            fresh: "30d" },
+      { kind: "guest",                      label: card.guest_label || `${guest?.name?.split(' ')[0] || 'Guest'}: ${guest?.trips || 0} prior · ${guest?.sentiment || 'neutral'}.`, source: "guest-memory",                    fresh: "live" },
+      { kind: "fact",                       label: card.fact_label || `Operational facts (vendor, timing) feed into the range bounds.`,               source: "ops-state",                       fresh: "live" },
+    ],
+    binding_tier: card.binding_tier,
+    autonomy: card.autonomy || (guest?.confidence > 0.85 ? 'semi' : 'approval'),
+    risk: card.risk,
+    reversibility: card.reversibility,
+  };
   return (
-    <div className="dcard" style={{padding: '18px 20px'}}>
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom: 6}}>
-        <div className="mono dim" style={{fontSize:10, letterSpacing:'.16em'}}>APPROVAL · {card.value}</div>
-        <div style={{display:'flex', gap: 6}}>
-          <Pill tone={toneMap[card.risk] || 'warn'}>Risk · {card.risk}</Pill>
-          <Pill tone={card.reversibility === 'red' ? 'risk' : card.reversibility === 'amber' ? 'warn' : 'ok'}>
-            {card.reversibility === 'red' ? 'Final' : card.reversibility === 'amber' ? 'Recoverable' : 'Reversible'}
-          </Pill>
+    <>
+      <div className="dcard" style={{padding: '18px 20px'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom: 6}}>
+          <div className="mono dim" style={{fontSize:10, letterSpacing:'.16em'}}>APPROVAL · {card.value}</div>
+          <div style={{display:'flex', gap: 6}}>
+            <Pill tone={toneMap[card.risk] || 'warn'}>Risk · {card.risk}</Pill>
+            <Pill tone={card.reversibility === 'red' ? 'risk' : card.reversibility === 'amber' ? 'warn' : 'ok'}>
+              {card.reversibility === 'red' ? 'Final' : card.reversibility === 'amber' ? 'Recoverable' : 'Reversible'}
+            </Pill>
+          </div>
+        </div>
+        <h3 style={{fontFamily:'var(--serif)', fontSize: 22, lineHeight:1.25, margin:'8px 0 8px', fontWeight: 400, letterSpacing:'-.005em'}}>
+          {card.title}
+        </h3>
+        <div className="mono dim" style={{fontSize:11, marginBottom: 4}}>RANGE · {card.range}</div>
+        <div className="dim mt-2" style={{fontSize: 13.5, lineHeight: 1.5, maxWidth: 660}}>
+          <span className="mono" style={{fontSize:10, letterSpacing:'.16em', color:'var(--ink)'}}>WHY · </span>{card.why}
+        </div>
+        <div style={{display:'flex', gap: 8, marginTop: 16, flexWrap:'wrap', alignItems:'center'}}>
+          {card.options.map((o, i) => (
+            <Btn key={o} kind={i === 0 ? 'primary' : 'default'} size="sm">{o}</Btn>
+          ))}
+          <span style={{flex: 1}} />
+          <button onClick={() => setWhyOpen(true)} style={{
+            all:'unset', cursor:'pointer',
+            fontFamily:'var(--mono)', fontSize: 10.5, letterSpacing:'.12em',
+            color:'var(--ink-mid)', textTransform:'uppercase', fontWeight: 600,
+            padding: '6px 10px', borderRadius: 6,
+            border:'1px solid var(--hair)',
+          }}>
+            Why · §10 chain →
+          </button>
         </div>
       </div>
-      <h3 style={{fontFamily:'var(--serif)', fontSize: 22, lineHeight:1.25, margin:'8px 0 8px', fontWeight: 400, letterSpacing:'-.005em'}}>
-        {card.title}
-      </h3>
-      <div className="mono dim" style={{fontSize:11, marginBottom: 4}}>RANGE · {card.range}</div>
-      <div className="dim mt-2" style={{fontSize: 13.5, lineHeight: 1.5, maxWidth: 660}}>
-        <span className="mono" style={{fontSize:10, letterSpacing:'.16em', color:'var(--ink)'}}>WHY · </span>{card.why}
-      </div>
-      <div style={{display:'flex', gap: 8, marginTop: 16, flexWrap:'wrap'}}>
-        {card.options.map((o, i) => (
-          <Btn key={o} kind={i === 0 ? 'primary' : 'default'} size="sm">{o}</Btn>
-        ))}
-      </div>
-    </div>
+      <WhyDrawer open={whyOpen} onClose={() => setWhyOpen(false)} decision={decisionForWhy} />
+    </>
   );
 }
 
@@ -1519,6 +1553,167 @@ function PolicyHoldCard({ card }) {
           <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
             {card.override_options.map((o, i) => (
               <Btn key={o} size="sm" kind={i === 0 ? 'danger' : 'default'}>{o}</Btn>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Promise card — Cendra committed to a guest. The promise has a clock.
+function PromiseCard({ card, guest }) {
+  const breached = typeof card.due_in_min === 'number' && card.due_in_min < 0;
+  const tight    = typeof card.due_in_min === 'number' && card.due_in_min >= 0 && card.due_in_min < 30;
+  const tone     = breached ? '#FF385C' : tight ? '#FFB400' : '#5E6AD2';
+  const timeText = card.due_in_min == null ? '—'
+                 : breached ? `${Math.abs(card.due_in_min)}m past due`
+                 : `${card.due_in_min}m left`;
+  return (
+    <div className="dcard" style={{padding: 0, overflow:'hidden'}}>
+      <div style={{display:'grid', gridTemplateColumns:'4px 1fr'}}>
+        <div style={{background: tone}} />
+        <div style={{padding: '18px 20px'}}>
+          <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 10}}>
+            <span style={{
+              fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.14em',
+              color: tone, fontWeight: 600, textTransform:'uppercase',
+            }}>
+              Promise · to {(guest?.name || 'guest').split(' ')[0]}
+            </span>
+            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+            <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.10em'}}>
+              {card.channel?.toUpperCase() || 'CHANNEL'}
+            </span>
+            <span style={{flex: 1}} />
+            <span className="mono" style={{
+              fontSize: 11, fontWeight: 600,
+              color: tone, letterSpacing:'.04em',
+            }}>{timeText}</span>
+          </div>
+          <p style={{fontFamily:'var(--serif)', fontSize: 18, lineHeight: 1.45, margin:'0 0 8px', maxWidth: 620, color:'var(--ink)'}}>
+            "{card.commitment}"
+          </p>
+          {card.context && (
+            <div style={{fontSize: 12.5, color:'var(--ink-mid)', marginBottom: 12, lineHeight: 1.5}}>
+              <span className="mono" style={{fontSize:10, letterSpacing:'.14em', color:'var(--ink)', marginRight: 6}}>CONTEXT</span>
+              {card.context}
+            </div>
+          )}
+          <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', marginBottom: 14, textTransform:'uppercase'}}>
+            Promised {card.promised_at} · Due {card.due_at}
+          </div>
+          <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
+            <Btn kind="primary" size="sm">{card.primary || 'Fulfill now →'}</Btn>
+            <Btn kind="ghost" size="sm">Extend window</Btn>
+            <Btn kind="ghost" size="sm">Renegotiate</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Dependency card — Cendra is waiting on an internal actor. Trackable, nudge-able.
+function DependencyCard({ card }) {
+  const actorMap = {
+    vendor:   { label: 'VENDOR',   color: '#7C3AED' },
+    cleaner:  { label: 'CLEANER',  color: '#0891B2' },
+    pms:      { label: 'PMS',      color: '#475569' },
+    owner:    { label: 'OWNER',    color: '#B45309' },
+    team:     { label: 'TEAM',     color: '#374151' },
+  };
+  const meta = actorMap[card.actor_type] || actorMap.team;
+  const breached = typeof card.sla_min === 'number' && card.sla_min < 0;
+  return (
+    <div className="dcard" style={{padding: 0, overflow:'hidden'}}>
+      <div style={{display:'grid', gridTemplateColumns:'4px 1fr'}}>
+        <div style={{background: breached ? '#FF385C' : meta.color}} />
+        <div style={{padding: '18px 20px'}}>
+          <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 10}}>
+            <span style={{
+              fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.14em',
+              color: meta.color, fontWeight: 600, textTransform:'uppercase',
+            }}>
+              Dependency · {meta.label} {card.actor_name ? `· ${card.actor_name}` : ''}
+            </span>
+            <span style={{flex: 1}} />
+            {typeof card.sla_min === 'number' && (
+              <span className="mono" style={{
+                fontSize: 11, fontWeight: 600,
+                color: breached ? '#FF385C' : 'var(--ink-mid)',
+              }}>
+                {breached ? `${Math.abs(card.sla_min)}m overdue` : `SLA ${card.sla_min}m`}
+              </span>
+            )}
+          </div>
+          <p style={{fontFamily:'var(--serif)', fontSize: 18, lineHeight: 1.4, margin:'0 0 8px', maxWidth: 620, color:'var(--ink)'}}>
+            {card.title}
+          </p>
+          {card.last_signal && (
+            <div style={{fontSize: 12.5, color:'var(--ink-mid)', marginBottom: 8, lineHeight: 1.5}}>
+              <span className="mono" style={{fontSize:10, letterSpacing:'.14em', color:'var(--ink)', marginRight: 6}}>LAST SIGNAL</span>
+              {card.last_signal}
+            </div>
+          )}
+          {card.blocking && (
+            <div style={{fontSize: 12.5, color:'var(--ink-mid)', marginBottom: 12, lineHeight: 1.5}}>
+              <span className="mono" style={{fontSize:10, letterSpacing:'.14em', color:'var(--ink)', marginRight: 6}}>BLOCKING</span>
+              {card.blocking}
+            </div>
+          )}
+          <div style={{display:'flex', gap: 8, flexWrap:'wrap', marginTop: 12}}>
+            <Btn kind="primary" size="sm">Nudge {meta.label.toLowerCase()}</Btn>
+            <Btn kind="ghost" size="sm">Reassign</Btn>
+            <Btn kind="ghost" size="sm">Open thread →</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Abstention card — Cendra recognized it does not have enough to decide.
+// Distinct from "Approval Required": there, Cendra has a proposed answer.
+// Here, Cendra is signaling unsureness and asking for direction.
+function AbstentionCard({ card, guest }) {
+  return (
+    <div className="dcard" style={{padding: 0, overflow:'hidden'}}>
+      <div style={{display:'grid', gridTemplateColumns:'4px 1fr'}}>
+        <div style={{background:'#6B7280'}} />
+        <div style={{padding: '18px 20px'}}>
+          <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 10}}>
+            <span style={{
+              fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.14em',
+              color:'#6B7280', fontWeight: 600, textTransform:'uppercase',
+            }}>
+              Cendra is unsure
+            </span>
+            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+            <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.10em'}}>
+              ABSTENTION · {(card.abstention_type || 'underspecified').toUpperCase()}
+            </span>
+          </div>
+          <p style={{fontFamily:'var(--serif)', fontSize: 19, lineHeight: 1.4, margin:'0 0 12px', maxWidth: 620, color:'var(--ink)'}}>
+            {card.question}
+          </p>
+          <div style={{fontSize: 13, color:'var(--ink-mid)', marginBottom: 14, lineHeight: 1.55}}>
+            <span className="mono" style={{fontSize:10, letterSpacing:'.14em', color:'var(--ink)', marginRight: 6}}>WHY I'M HOLDING</span>
+            {card.why_unsure}
+          </div>
+          {card.what_would_unblock && card.what_would_unblock.length > 0 && (
+            <div style={{marginBottom: 14}}>
+              <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--ink)', marginBottom: 6, textTransform:'uppercase'}}>
+                What would unblock me
+              </div>
+              <ul style={{margin: 0, padding: '0 0 0 18px', fontSize: 13, lineHeight: 1.6, color:'var(--ink-mid)'}}>
+                {card.what_would_unblock.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </div>
+          )}
+          <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
+            {(card.options || ['You decide', 'Snooze · ask later', 'Tell Cendra what to do']).map((o, i) => (
+              <Btn key={o} kind={i === 0 ? 'primary' : 'default'} size="sm">{o}</Btn>
             ))}
           </div>
         </div>

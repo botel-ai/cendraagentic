@@ -35,6 +35,84 @@ function StateBadge({ state }) {
   return <Pill tone={m.tone}>{m.label}</Pill>;
 }
 
+// ─── Stay Health badge ─────────────────────────────────────
+// Outcome signal — independent of action signal (StatusPill).
+// "How is this stay going overall?" not "what does Cendra need from me?"
+// Mirrors Brain Engine's risk rollup: healthy → critical with closed as terminal.
+const STAY_HEALTH_MAP = {
+  healthy:         { color: '#00A699', label: 'Healthy',         glyph: '◆' },
+  needs_attention: { color: '#FFB400', label: 'Needs attention', glyph: '◆' },
+  at_risk:         { color: '#FF8A00', label: 'At risk',         glyph: '◆' },
+  critical:        { color: '#FF385C', label: 'Critical',        glyph: '◆' },
+  closed:          { color: '#9CA3AF', label: 'Closed',          glyph: '○' },
+};
+
+function deriveStayHealth(g) {
+  if (!g) return 'healthy';
+  if (g.health) return g.health;
+  // Stay over
+  if (typeof g.nights_done === 'number' && typeof g.nights_total === 'number' && g.nights_done >= g.nights_total) return 'closed';
+  // Hard negative sentiment overrides everything
+  if (g.sentiment === 'hot' || g.sentiment === 'angry' || g.complaints || g.escalated) return 'critical';
+  // Overdue SLA on a needs-you item = critical
+  if (g.status === 'needs_you' && typeof g.sla_min === 'number' && g.sla_min < 0) return 'critical';
+  // Tight SLA on a needs-you item = at risk
+  if (g.status === 'needs_you' && typeof g.sla_min === 'number' && g.sla_min < 30) return 'at_risk';
+  // Other needs-you items = needs attention
+  if (g.status === 'needs_you') return 'needs_attention';
+  // Waiting state with overdue dependency = at risk
+  if (g.status === 'waiting' && typeof g.sla_min === 'number' && g.sla_min < 0) return 'at_risk';
+  // Waiting otherwise = needs attention (something is pending)
+  if (g.status === 'waiting') return 'needs_attention';
+  return 'healthy';
+}
+
+function StayHealthBadge({ health, size }) {
+  const m = STAY_HEALTH_MAP[health] || STAY_HEALTH_MAP.healthy;
+  if (size === 'lg') {
+    return (
+      <div style={{
+        display:'inline-flex', alignItems:'center', gap: 8,
+        padding:'6px 12px',
+        background: `${m.color}14`,
+        border: `1px solid ${m.color}40`,
+        borderRadius: 999,
+        fontFamily:'var(--mono)', fontSize: 11.5, letterSpacing:'.08em',
+        color: m.color, fontWeight: 600, textTransform:'uppercase',
+      }}>
+        <span style={{fontSize: 12, lineHeight: 1}}>{m.glyph}</span>
+        <span>{m.label}</span>
+      </div>
+    );
+  }
+  if (size === 'inline') {
+    return (
+      <span style={{
+        display:'inline-flex', alignItems:'center', gap: 4,
+        fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.06em',
+        color: m.color, fontWeight: 600, textTransform:'uppercase',
+      }}>
+        <span style={{fontSize: 10, lineHeight: 1}}>{m.glyph}</span>
+        <span>{m.label}</span>
+      </span>
+    );
+  }
+  // default — compact pill
+  return (
+    <span style={{
+      display:'inline-flex', alignItems:'center', gap: 5,
+      padding:'2px 7px',
+      background: `${m.color}10`,
+      borderRadius: 4,
+      fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.06em',
+      color: m.color, fontWeight: 600, textTransform:'uppercase',
+    }}>
+      <span style={{fontSize: 9, lineHeight: 1}}>{m.glyph}</span>
+      <span>{m.label}</span>
+    </span>
+  );
+}
+
 // ─── SLA timer ──────────────────────────────────────────────
 function SLATimer({ minutes }) {
   // negative = overdue
@@ -135,8 +213,92 @@ function PortfolioFilterBar({ value = {}, onChange }) {
 }
 
 // ─── Workflow trust row (Autopilot v2) ──────────────────────
+// Derive a 0-100 trust score from samples/override/incidents.
+// Brain Engine's TrustMeterService combines volume, override rate, and incidents.
+function deriveTrust(wf) {
+  if (typeof wf.trust === 'number') return Math.max(0, Math.min(100, wf.trust));
+  const overrideRate = parseFloat(String(wf.override || '0').replace('%','')) || 0;
+  const incidents    = wf.incidents || 0;
+  const samples      = wf.samples || 0;
+  const sampleScore     = Math.min(55, samples / 5);
+  const overridePenalty = overrideRate * 4;
+  const incidentPenalty = incidents * 18;
+  return Math.max(0, Math.min(100, sampleScore + 45 - overridePenalty - incidentPenalty));
+}
+
+function deriveCriteria(wf, trust) {
+  if (wf.criteria) return wf.criteria;
+  const s = wf.samples || 0;
+  const inc = wf.incidents || 0;
+  const need = wf.state === 'semi' ? 100 : 50;
+  if (wf.state === 'autopilot') return `${s} cases · stable · 0 incidents 90d`;
+  if (wf.frozen) return `Frozen at ${Math.round(trust)} · operator hold`;
+  if (wf.ready) return `${s}/${need} cases · pattern stable · ready to promote`;
+  if (inc > 0) return `${s} cases · ${inc} incident${inc > 1 ? 's' : ''} · holding`;
+  const more = Math.max(0, need - s);
+  if (more > 0) return `${s}/${need} cases · ${more} more for next tier`;
+  return `${s} cases · observing`;
+}
+
+function TrustMeter({ score, frozen, state }) {
+  const pct = Math.max(0, Math.min(100, score));
+  // Threshold bands (Brain Engine's tier promotion thresholds, illustrative)
+  const bands = [
+    { start: 0,   end: 25,  color: '#FECACA' },  // red
+    { start: 25,  end: 50,  color: '#FED7AA' },  // orange
+    { start: 50,  end: 75,  color: '#FEF3C7' },  // amber
+    { start: 75,  end: 100, color: '#BBF7D0' },  // green
+  ];
+  // marker color reflects which band the score lands in
+  const markerColor = frozen ? '#6B7280'
+                    : pct >= 75 ? '#00A699'
+                    : pct >= 50 ? '#FFB400'
+                    : pct >= 25 ? '#FF8A00'
+                    : '#FF385C';
+  return (
+    <div style={{position:'relative', width: '100%', height: 6, borderRadius: 999, background:'var(--hair-soft)', overflow:'visible'}}>
+      {/* bands */}
+      <div style={{
+        position:'absolute', inset: 0, borderRadius: 999, overflow:'hidden',
+        display:'flex',
+      }}>
+        {bands.map((b, i) => (
+          <div key={i} style={{
+            flex: b.end - b.start,
+            background: b.color,
+            opacity: frozen ? 0.35 : 0.75,
+          }} />
+        ))}
+      </div>
+      {/* threshold ticks */}
+      {[25, 50, 75].map(t => (
+        <div key={t} style={{
+          position:'absolute', left: `${t}%`, top: -2, width: 1, height: 10,
+          background: 'rgba(0,0,0,.20)', transform:'translateX(-.5px)',
+        }} />
+      ))}
+      {/* marker */}
+      <div style={{
+        position:'absolute',
+        left: `${pct}%`,
+        top: '50%',
+        width: 14, height: 14,
+        marginLeft: -7, marginTop: -7,
+        borderRadius: 999,
+        background: markerColor,
+        border: `2px solid ${frozen ? '#6B7280' : '#ffffff'}`,
+        boxShadow: '0 1px 3px rgba(0,0,0,.18)',
+        zIndex: 2,
+      }} />
+    </div>
+  );
+}
+
 function WorkflowTrustRow({ wf, expanded, onToggle, onPromote }) {
-  const isNever = wf.state === 'never';
+  const isNever  = wf.state === 'never';
+  const frozen   = !!wf.frozen;
+  const trust    = deriveTrust(wf);
+  const criteria = deriveCriteria(wf, trust);
   return (
     <div style={{
       borderBottom: '1px solid var(--hair-soft)',
@@ -144,23 +306,44 @@ function WorkflowTrustRow({ wf, expanded, onToggle, onPromote }) {
     }}>
       <div style={{
         display:'grid',
-        gridTemplateColumns: 'minmax(220px, 1.2fr) 130px 90px 90px 90px 110px 130px',
+        gridTemplateColumns: 'minmax(260px, 1.4fr) 200px 110px 90px 90px 130px',
         gap: 14,
-        padding: '12px 18px',
+        padding: '14px 18px',
         alignItems: 'center',
         cursor: 'pointer',
       }} onClick={onToggle}>
-        <div>
-          <div style={{fontSize:13.5, fontWeight:500, letterSpacing:'-.005em'}}>{wf.name}</div>
-          <div className="mono dim" style={{fontSize:10.5, marginTop:2}}>scope · {wf.scope} · {wf.default}</div>
+        <div style={{minWidth: 0}}>
+          <div style={{display:'flex', alignItems:'center', gap: 8, marginBottom: 4}}>
+            <div style={{fontSize:13.5, fontWeight:500, letterSpacing:'-.005em'}}>{wf.name}</div>
+            {frozen && (
+              <span style={{
+                fontFamily:'var(--mono)', fontSize: 9, letterSpacing:'.12em',
+                color:'#6B7280', fontWeight: 700, textTransform:'uppercase',
+                padding:'1px 6px', borderRadius: 3,
+                background:'rgba(107,114,128,.10)', border:'1px solid rgba(107,114,128,.25)',
+              }}>FROZEN</span>
+            )}
+          </div>
+          <div className="mono dim" style={{fontSize:10.5, marginBottom: 4}}>scope · {wf.scope} · {wf.default}</div>
+          <div className="mono" style={{fontSize: 10.5, color:'var(--ink-mid)', letterSpacing:'.02em'}}>
+            {criteria}
+          </div>
+        </div>
+        {/* Trust meter column */}
+        <div style={{display:'flex', flexDirection:'column', gap: 4}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
+            <span className="mono dim" style={{fontSize: 9, letterSpacing:'.16em'}}>TRUST</span>
+            <span className="mono" style={{fontSize: 12, fontWeight: 600, fontVariantNumeric:'tabular-nums', color: frozen ? 'var(--muted)' : 'var(--ink)'}}>{Math.round(trust)}</span>
+          </div>
+          <TrustMeter score={trust} frozen={frozen} state={wf.state} />
         </div>
         <AutonomyPill state={wf.state} />
-        <span className="mono" style={{fontSize:11.5, fontVariantNumeric:'tabular-nums'}}>{wf.samples || '—'}</span>
         <span className="mono" style={{fontSize:11.5, color: wf.override === '0.0%' ? 'var(--ok)' : wf.override === '—' ? 'var(--muted)' : 'var(--ink)'}}>{wf.override}</span>
         <span className="mono" style={{fontSize:11.5, color: wf.incidents === 0 ? 'var(--ok)' : 'var(--warn)'}}>{wf.incidents}</span>
-        <span className="mono dim" style={{fontSize:10.5}}>{wf.last}</span>
         <div style={{textAlign:'right'}}>
-          {wf.ready && !isNever ? (
+          {frozen ? (
+            <Btn size="sm" kind="ghost" onClick={(e) => e.stopPropagation()}>Unfreeze</Btn>
+          ) : wf.ready && !isNever ? (
             <Btn size="sm" kind="primary" onClick={(e) => { e.stopPropagation(); onPromote && onPromote(wf); }}>Promote →</Btn>
           ) : isNever ? (
             <span className="mono dim" style={{fontSize:10}}>PINNED</span>
@@ -178,6 +361,7 @@ function WorkflowTrustRow({ wf, expanded, onToggle, onPromote }) {
           <div style={{display:'flex', gap:8, justifyContent:'flex-end', alignItems:'flex-end'}}>
             <Btn size="sm" kind="ghost">Hold window</Btn>
             <Btn size="sm" kind="ghost">View cases →</Btn>
+            {!isNever && !frozen && <Btn size="sm" kind="ghost">Freeze</Btn>}
             {!isNever && <Btn size="sm" kind="ghost">Demote</Btn>}
           </div>
         </div>
@@ -484,8 +668,10 @@ function MsgChannelChip({ channel, sub, time }) {
 
 window.CendraAtoms2 = {
   StatusPill, StateBadge, SLATimer, SignalStat, PortfolioFilterBar,
-  WorkflowTrustRow, IntegrationHealthCard, HardRuleCard, KnowledgeGapCard,
+  WorkflowTrustRow, TrustMeter, deriveTrust, deriveCriteria,
+  IntegrationHealthCard, HardRuleCard, KnowledgeGapCard,
   PropertyFactRow, TeamAssignmentCard, LiveActivityMilestone, SignalStrip,
   WhyLevels, SectionHead,
+  StayHealthBadge, deriveStayHealth, STAY_HEALTH_MAP,
   MsgChannelChip, CHANNEL_META,
 };

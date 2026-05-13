@@ -982,18 +982,29 @@ function EditableFactRow({ fact, onUpdate, onResolve, isLast }) {
     );
   }
 
+  const pinned = !!fact.pinned;
   return (
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        display:'grid', gridTemplateColumns:'170px 1fr 140px 90px auto', gap: 14, alignItems:'center',
+        display:'grid', gridTemplateColumns:'170px 1fr 160px 90px auto', gap: 14, alignItems:'center',
         padding:'12px 22px',
         borderBottom: isLast ? 'none' : '1px solid var(--hair-soft)',
         background: hover ? 'var(--paper-2)' : '#ffffff',
         transition: 'background .1s',
       }}>
-      <div style={{fontSize: 13, fontWeight: 500, color:'var(--ink)'}}>{fact.fact}</div>
+      <div style={{display:'flex', alignItems:'center', gap: 6, fontSize: 13, fontWeight: 500, color:'var(--ink)'}}>
+        {pinned && (
+          <span title="Pinned · automatable" style={{
+            display:'inline-flex', width: 16, height: 16, borderRadius: 3,
+            background: 'rgba(0,166,153,.10)', color: '#00867E',
+            alignItems:'center', justifyContent:'center',
+            fontSize: 10, fontWeight: 700, lineHeight: 1, flexShrink: 0,
+          }}>⚿</span>
+        )}
+        <span>{fact.fact}</span>
+      </div>
       <div style={{minWidth: 0}}>
         <div style={{fontSize: 13, color: isMissing ? 'var(--muted)' : 'var(--ink-mid)', fontStyle: isMissing ? 'italic' : 'normal', lineHeight: 1.45}}>
           {fact.value}
@@ -1009,25 +1020,47 @@ function EditableFactRow({ fact, onUpdate, onResolve, isLast }) {
         )}
       </div>
       <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', lineHeight: 1.4}}>
-        {fact.source}<br />
-        <span style={{opacity:.6}}>{fact.fresh}</span>
+        <div>{fact.source}</div>
+        {fact.true_since || fact.last_verified ? (
+          <>
+            {fact.true_since && (
+              <div style={{opacity:.85}}>
+                <span style={{opacity:.55}}>TRUE SINCE</span> {fact.true_since}
+              </div>
+            )}
+            {fact.last_verified && (
+              <div style={{opacity:.85}}>
+                <span style={{opacity:.55}}>VERIFIED</span> {fact.last_verified}
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{opacity:.6}}>{fact.fresh}</div>
+        )}
       </div>
-      <Pill tone={sm.tone}>{sm.label}</Pill>
+      <div style={{display:'flex', alignItems:'center', gap: 4, flexWrap:'wrap'}}>
+        <Pill tone={sm.tone}>{sm.label}</Pill>
+      </div>
       <button onClick={() => {
+        if (pinned) return; // locked
         const isConflict = fact.state === "conflict";
         if (isConflict && onResolve) onResolve();
         else if (isMissing && onResolve) onResolve();
         else setEditing(true);
-      }} style={{
-        all:'unset', cursor:'pointer',
+      }} disabled={pinned} style={{
+        all:'unset', cursor: pinned ? 'default' : 'pointer',
         padding:'5px 11px', borderRadius: 7,
         fontSize: 12, fontWeight: 500,
-        color: fact.state === "conflict" ? 'var(--warn)' : (hover ? 'var(--ink)' : 'var(--muted)'),
-        border:'1px solid ' + (fact.state === "conflict" ? 'var(--warn)' : (hover ? 'var(--hair)' : 'transparent')),
-        background: fact.state === "conflict" ? 'var(--warn-soft)' : (hover ? '#ffffff' : 'transparent'),
-        opacity: fact.state === "conflict" ? 1 : (hover ? 1 : .6),
+        color: pinned ? 'var(--muted-2)' : fact.state === "conflict" ? 'var(--warn)' : (hover ? 'var(--ink)' : 'var(--muted)'),
+        border:'1px solid ' + (pinned ? 'transparent' : fact.state === "conflict" ? 'var(--warn)' : (hover ? 'var(--hair)' : 'transparent')),
+        background: fact.state === "conflict" && !pinned ? 'var(--warn-soft)' : (hover && !pinned ? '#ffffff' : 'transparent'),
+        opacity: pinned ? 1 : fact.state === "conflict" ? 1 : (hover ? 1 : .6),
         fontWeight: fact.state === "conflict" ? 600 : 500,
-      }}>{fact.state === "conflict" ? "Resolve →" : isMissing ? "Add value" : "Edit"}</button>
+        fontFamily: pinned ? 'var(--mono)' : 'inherit',
+        letterSpacing: pinned ? '.08em' : 0,
+        fontSize: pinned ? 10 : 12,
+        textTransform: pinned ? 'uppercase' : 'none',
+      }}>{pinned ? "Locked" : fact.state === "conflict" ? "Resolve →" : isMissing ? "Add value" : "Edit"}</button>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 const { TodayScreen, WorkScreen, WorkDetailScreen, ApprovalScreen } = window.CendraScreens1;
 const { AutopilotScreen, PlaybookScreen, PropertyBrainScreen, LearningScreen, AuditScreen, MobileScreen } = window.CendraScreens2;
 const { PropertiesScreen, PropertyDetailScreen, PlaybookLibraryScreen, InsightsScreen, TrustScreen, IntegrationsScreen } = window.CendraScreens3;
+const { Btn } = window.CendraAtoms;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "todayHero": "spine",
@@ -469,14 +470,11 @@ function CommandBar({ onPalette }) {
 
 function Nav({ route, goto }) {
   const main = [
-    { id: "today", label: "Today", count: 37 },
-    { id: "work", label: "Guests", count: 10 },
+    { id: "today",      label: "Today",      count: 37 },
+    { id: "work",       label: "Stays",      count: 10 },
+    { id: "work_queue", label: "Work",       count: 14 },
     { id: "properties", label: "Properties", count: 47 },
-    { id: "playbook_library", label: "Playbooks", count: 14 },
-    { id: "autopilot", label: "Autopilot", count: 10 },
-    { id: "learning", label: "Learning", count: 3 },
-    { id: "insights", label: "Insights", count: null },
-    { id: "trust", label: "Trust", count: null },
+    { id: "brain",      label: "Brain",      count: null },
   ];
   const sub = [
     { id: "approval", label: "Approval flow" },
@@ -493,7 +491,8 @@ function Nav({ route, goto }) {
           className={"nav-item" + (
             route.name === n.id ||
             (n.id === "work" && route.name === "work_detail") ||
-            (n.id === "properties" && (route.name === "property_detail" || route.name === "property_brain"))
+            (n.id === "properties" && (route.name === "property_detail" || route.name === "property_brain")) ||
+            (n.id === "brain" && ["playbook_library", "autopilot", "learning", "insights", "trust", "playbook"].includes(route.name))
               ? " active" : ""
           )}
           onClick={() => goto(n.id)}
@@ -544,7 +543,9 @@ function Routes({ route, goto, tweaks }) {
   const onOpen = (name, arg) => goto(name, arg);
   switch (route.name) {
     case "today":            return <TodayScreen onOpen={onOpen} tweaks={tweaks} />;
-    case "work":             return <WorkScreen onOpen={onOpen} />;
+    case "work":             return <WorkScreen onOpen={onOpen} />;  /* Stays */
+    case "work_queue":       return <WorkQueueScreen onOpen={onOpen} />;
+    case "brain":            return <BrainShell onOpen={onOpen} tweaks={tweaks} arg={route.arg} />;
     case "work_detail":      return <WorkDetailScreen onOpen={onOpen} tweaks={tweaks} />;
     case "approval":         return <ApprovalScreen onOpen={onOpen} />;
     case "autopilot":        return <AutopilotScreen tweaks={tweaks} />;
@@ -964,6 +965,214 @@ function scoreMatch(item, term) {
 
 function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; } return h; }
+
+// ───────────────────────────────────────────────────────────────────
+// BRAIN — consolidated shell. Five tabs collapse what used to be five
+// separate top-level routes: Playbooks · Autopilot · Learning · Trust
+// · Insights. Hash routing preserved for all legacy entries.
+// ───────────────────────────────────────────────────────────────────
+function BrainShell({ onOpen, tweaks, arg }) {
+  const tab = arg || "playbooks";
+  const tabs = [
+    { id: "playbooks", label: "Playbooks" },
+    { id: "autopilot", label: "Autopilot" },
+    { id: "learning",  label: "Learning"  },
+    { id: "trust",     label: "Trust"     },
+    { id: "insights",  label: "Insights"  },
+  ];
+
+  return (
+    <div className="stage" style={{paddingTop: 0, maxWidth: 'none'}}>
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 4,
+        background: 'var(--paper)',
+        borderBottom: '1px solid var(--hair-soft)',
+        padding: '14px 32px 0',
+      }}>
+        <div className="mono" style={{
+          fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+          marginBottom: 10,
+        }}>BRAIN · WHAT CENDRA RUNS</div>
+        <div style={{display:'flex', gap: 0, flexWrap:'wrap'}}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => onOpen('brain', t.id)} style={{
+              all:'unset', cursor:'pointer',
+              padding:'10px 16px 14px',
+              fontSize: 14, fontWeight: tab === t.id ? 600 : 500,
+              color: tab === t.id ? 'var(--ink)' : 'var(--muted)',
+              borderBottom: '2px solid ' + (tab === t.id ? 'var(--ink)' : 'transparent'),
+              marginBottom: -1,
+              transition: 'color .12s, border-color .12s',
+            }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        {tab === "playbooks" && <PlaybookLibraryScreen onOpen={onOpen} />}
+        {tab === "autopilot" && <AutopilotScreen tweaks={tweaks} />}
+        {tab === "learning"  && <LearningScreen />}
+        {tab === "trust"     && <TrustScreen onOpen={onOpen} />}
+        {tab === "insights"  && <InsightsScreen onOpen={onOpen} />}
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────
+// WORK QUEUE — aggregate of the six canonical card types across all
+// stays. Different from Stays (which is property-of-guest centric).
+// Work is comprehensive backlog; Today is exception-first.
+// ───────────────────────────────────────────────────────────────────
+function WorkQueueScreen({ onOpen }) {
+  const [filter, setFilter] = useState("all");
+  const DP = window.CENDRA_DATA2;
+
+  // Synthesize the queue from existing data
+  const items = useMemo(() => {
+    const out = [];
+    // Decisions: needs_decision + queued waiting_user from ops_queue
+    (DP.today_sections?.needs_decision || []).forEach(it => out.push({
+      id: "dec_" + it.id, type: "decision",
+      title: it.title, sub: it.sub,
+      meta: it.reason, action: it.action, waited: it.waited,
+      property: it.property || it.owner, route: it.route,
+    }));
+    // Risks
+    (DP.today_sections?.risk_sla || []).forEach(it => out.push({
+      id: "risk_" + it.id, type: "risk",
+      title: it.title, sub: it.sub,
+      meta: it.reason, action: it.action,
+      property: it.property, route: "work",
+    }));
+    // Opportunities
+    (DP.today_sections?.revenue || []).forEach(it => out.push({
+      id: "opp_" + it.id, type: "opportunity",
+      title: it.title, sub: it.sub,
+      meta: it.property, action: it.action,
+      value: `+€${it.est_eur}`, route: "work",
+    }));
+    // Dependencies (from ops_queue waiting_vendor/waiting_cleaner)
+    (DP.ops_queue || [])
+      .filter(r => ["waiting_vendor", "waiting_cleaner", "waiting_pms"].includes(r.state))
+      .forEach(r => out.push({
+        id: "dep_" + r.id, type: "dependency",
+        title: `${r.workflow} · waiting on ${r.state.replace("waiting_", "")}`,
+        sub: `${r.guest !== "—" ? r.guest : "Multi-guest"} · ${r.next}`,
+        meta: r.property, action: r.next,
+        property: r.property, route: "work_detail",
+      }));
+    // Promises (derive from waiting_guest cases — "guest waiting on us")
+    (DP.ops_queue || [])
+      .filter(r => r.state === "waiting_guest" || r.state === "running")
+      .forEach(r => out.push({
+        id: "prom_" + r.id, type: "promise",
+        title: `Promise · ${r.workflow}`,
+        sub: `${r.guest} · ${r.next}`,
+        meta: `Due · SLA ${r.sla_min}m`, action: r.next,
+        property: r.property, route: "work_detail",
+      }));
+    // Learning candidates
+    (window.CENDRA_DATA?.learnings || []).slice(0, 3).forEach(l => out.push({
+      id: "learn_" + l.id, type: "learning",
+      title: l.title,
+      sub: l.observed,
+      meta: `${l.examples} examples · ${Math.round(l.confidence * 100)}% confidence`,
+      action: "Review", property: "—", route: "brain", arg: "learning",
+    }));
+    return out;
+  }, []);
+
+  const filterDefs = [
+    { id: "all",          label: "All",          test: () => true },
+    { id: "decision",     label: "Decision",     test: i => i.type === "decision" },
+    { id: "risk",         label: "Risk",         test: i => i.type === "risk" },
+    { id: "promise",      label: "Promise",      test: i => i.type === "promise" },
+    { id: "dependency",   label: "Dependency",   test: i => i.type === "dependency" },
+    { id: "opportunity",  label: "Opportunity",  test: i => i.type === "opportunity" },
+    { id: "learning",     label: "Learning",     test: i => i.type === "learning" },
+  ];
+  const shown = items.filter(filterDefs.find(f => f.id === filter).test);
+
+  const typeMeta = {
+    decision:    { dot: 'var(--rausch)', label: 'DECISION'    },
+    risk:        { dot: 'var(--risk)',   label: 'RISK'        },
+    promise:     { dot: 'var(--info)',   label: 'PROMISE'     },
+    dependency:  { dot: 'var(--warn)',   label: 'DEPENDENCY'  },
+    opportunity: { dot: 'var(--ok)',     label: 'OPPORTUNITY' },
+    learning:    { dot: 'var(--ink)',    label: 'LEARNING'    },
+  };
+
+  return (
+    <div className="stage" style={{maxWidth: 1080, paddingTop: 56, paddingBottom: 120}}>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 28, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>WORK · COMPREHENSIVE BACKLOG</span>
+        <span style={{flex:1}} />
+        <span>{items.length} ITEMS · 6 TYPES</span>
+      </div>
+
+      <div style={{marginBottom: 40}}>
+        <h1 className="serif-display" style={{fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)'}}>
+          Everything outstanding.
+        </h1>
+        <p style={{fontSize: 16.5, lineHeight: 1.55, margin:'18px 0 0', color:'var(--ink-mid)', maxWidth: 720}}>
+          Today shows the exceptions that need you now. Work is the full picture — decisions, risks, promises, dependencies, opportunities, and learnings — across the whole portfolio.
+        </p>
+      </div>
+
+      {/* Filter pills */}
+      <div style={{display:'flex', gap: 8, flexWrap:'wrap', marginBottom: 20}}>
+        {filterDefs.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            all:'unset', cursor:'pointer',
+            padding:'7px 14px', borderRadius: 999,
+            border:'1px solid ' + (filter === f.id ? 'var(--ink)' : 'var(--hair)'),
+            background: filter === f.id ? 'var(--ink)' : '#ffffff',
+            color: filter === f.id ? '#ffffff' : 'var(--ink-mid)',
+            fontSize: 12.5, fontWeight: 500, fontFamily: 'var(--sans)',
+          }}>
+            {f.label}
+            <span style={{marginLeft: 8, opacity: filter === f.id ? .7 : .5, fontFamily:'var(--mono)', fontSize: 11}}>
+              {items.filter(f.test).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Single-line rows */}
+      <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
+        {shown.map((it, i) => {
+          const tm = typeMeta[it.type] || typeMeta.decision;
+          return (
+            <button key={it.id} onClick={() => onOpen(it.route || "work", it.arg)} style={{
+              all:'unset', cursor:'pointer',
+              display:'grid', gridTemplateColumns:'12px 100px 1fr 160px 110px',
+              gap: 14, padding:'14px 22px', alignItems:'center',
+              borderBottom: i < shown.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+              width:'calc(100% - 44px)', background:'#ffffff',
+            }}>
+              <span style={{width: 8, height: 8, borderRadius:'50%', background: tm.dot}} />
+              <span className="mono" style={{fontSize: 10, letterSpacing:'.12em', color: 'var(--ink)', textTransform:'uppercase', fontWeight: 600}}>
+                {tm.label}
+              </span>
+              <div style={{minWidth: 0}}>
+                <div style={{fontSize: 13.5, fontWeight: 500, color:'var(--ink)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{it.title}</div>
+                <div style={{fontSize: 12.5, color:'var(--muted)', marginTop: 2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{it.sub}</div>
+              </div>
+              <span style={{fontSize: 12, color:'var(--ink-mid)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{it.property}</span>
+              <span className="mono" style={{fontSize: 11, color:'var(--ink)', letterSpacing:'.04em', textAlign:'right'}}>{it.action} →</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App />);
