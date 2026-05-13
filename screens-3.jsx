@@ -106,14 +106,14 @@ function PropertiesScreen({ onOpen }) {
             {topBlocker.integrations !== 'all_ok' && <MicroBlockerStat value="!" label="integration" tone="risk" />}
           </div>
           <div style={{display:'flex', alignItems:'center', gap: 14, flexWrap:'wrap'}}>
-            <button onClick={() => onOpen('property_detail', topBlocker.id)} style={{
+            <button onClick={() => onOpen('properties',topBlocker.id)} style={{
               all:'unset', cursor:'pointer',
               background:'var(--ink)', color:'#ffffff',
               padding:'12px 22px', borderRadius: 10,
               fontSize: 14.5, fontWeight: 600,
               display:'inline-flex', alignItems:'center', gap: 8,
             }}>
-              Open property brain
+              Open {topBlocker.name}
               <span style={{fontFamily:'var(--mono)', fontSize:13, opacity:.8}}>↵</span>
             </button>
             <Btn kind="ghost">Patch the gaps with Cendra →</Btn>
@@ -167,7 +167,7 @@ function PropertiesScreen({ onOpen }) {
           <div>Risk</div>
         </div>
         {shown.map((p, i) => (
-          <button key={p.id} onClick={() => onOpen('property_detail', p.id)} style={{
+          <button key={p.id} onClick={() => onOpen('properties',p.id)} style={{
             all:'unset', cursor:'pointer', display:'grid',
             gridTemplateColumns:'minmax(220px, 1.4fr) 160px 80px 100px 110px 90px',
             gap:14, padding:'14px 22px',
@@ -230,40 +230,78 @@ function MicroStatBlock2({ value, label, sub, tone }) {
 // ───────────────────────────────────────────────────────────────────
 // PROPERTY DETAIL
 // ───────────────────────────────────────────────────────────────────
-function PropertyDetailScreen({ onOpen }) {
-  const p = D3.property_detail;
-  const [rulesOpen, setRulesOpen] = useState(false);
+function PropertyDetailScreen({ onOpen, arg, focus }) {
+  // Resolve property — Karaköy 12 is the only one with rich data;
+  // others get synthesized from the portfolio summary.
+  const targetId = arg || "p_kara12";
+  const richBase = D3.property_detail; // canonical rich record (kara12)
+  const summary = (D3.properties_brain || []).find(x => x.id === targetId) || (D3.properties_brain || [])[0];
+  const isRich = targetId === richBase.id;
+  const p = isRich ? richBase : synthProperty(summary, richBase);
+
+  // Hold facts in local state so edits persist within the session
+  const [factGroups, setFactGroups] = useState(p.fact_groups);
+  const [rules, setRules] = useState(p.rules || [
+    { id: "r1", text: "Never offer late checkout if same-day turnover", source: "OWNER · 32d" },
+    { id: "r2", text: "Hot water heater: flush every 30 days",          source: "CLEANER · 8d" },
+    { id: "r3", text: "Quiet hours: 23:00 → 08:00 (building rule)",     source: "BUILDING · 60d" },
+  ]);
+  const [rulesOpen, setRulesOpen]   = useState(true);
+  const [integOpen, setIntegOpen]   = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [guestsOpen, setGuestsOpen] = useState(false);
+  const [guestsOpen, setGuestsOpen]   = useState(false);
+  const [postureOpen, setPostureOpen] = useState(false);
+
+  // Roll-up attention items (missing / conflict / stale) for THIS property
+  const attention = factGroups.flatMap(g => g.facts.filter(f => ["missing","conflict","stale"].includes(f.state)).map(f => ({...f, _group: g.label})));
+
+  const verifiedCount = factGroups.flatMap(g => g.facts).filter(f => f.state === "verified").length;
+  const missingCount  = factGroups.flatMap(g => g.facts).filter(f => f.state === "missing").length;
+  const conflictCount = factGroups.flatMap(g => g.facts).filter(f => f.state === "conflict").length;
+  const staleCount    = factGroups.flatMap(g => g.facts).filter(f => f.state === "stale").length;
+
+  const updateFact = (groupIdx, factIdx, patch) => {
+    setFactGroups(gs => gs.map((g, gi) => gi !== groupIdx ? g : {
+      ...g,
+      facts: g.facts.map((f, fi) => fi !== factIdx ? f : { ...f, ...patch }),
+    }));
+  };
+  const addFact = (groupIdx, newFact) => {
+    setFactGroups(gs => gs.map((g, gi) => gi !== groupIdx ? g : {
+      ...g,
+      facts: [...g.facts, { ...newFact, state: newFact.value && newFact.value !== "—" ? "verified" : "missing" }],
+    }));
+  };
 
   return (
     <div className="stage" style={{maxWidth: 1020, paddingTop: 56, paddingBottom: 120}}>
       <button onClick={() => onOpen('properties')} className="mono" style={{
         all:'unset', cursor:'pointer', fontSize: 11, letterSpacing:'.14em',
         color:'var(--muted)', marginBottom: 24, display:'inline-block',
-      }}>← ALL PROPERTIES</button>
+      }}
+      onMouseEnter={e => e.currentTarget.style.color = 'var(--ink)'}
+      onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}>
+        ← ALL PROPERTIES
+      </button>
 
       <div className="mono" style={{
         fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
         marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
       }}>
-        <span>PROPERTY · {p.region.toUpperCase()} · {p.group.toUpperCase()}</span>
+        <span>PROPERTY · {(p.region || '').toUpperCase()} · {(p.group || '').toUpperCase()}</span>
         <span style={{flex:1}} />
-        <span>{p.owner.toUpperCase()} · {p.primary_contact.toUpperCase()}</span>
+        <span>{p.owner.toUpperCase()}{p.primary_contact ? ` · ${p.primary_contact.toUpperCase()}` : ''}</span>
       </div>
 
-      {/* HERO — property identity */}
+      {/* HERO */}
       <div style={{marginBottom: 32}}>
-        <h1 className="serif-display" style={{
-          fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)',
-        }}>
+        <h1 className="serif-display" style={{fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)', letterSpacing:'-.02em'}}>
           {p.name}
         </h1>
-        <p style={{
-          fontSize: 15.5, lineHeight: 1.55, margin: '14px 0 0',
-          color:'var(--ink-mid)', maxWidth: 720,
-        }}>
-          {p.access} · Wi-Fi <b style={{color:'var(--ink)'}}>{p.wifi.split(' / ')[0]}</b> · {p.floor}
+        <p style={{fontSize: 15.5, lineHeight: 1.55, margin:'14px 0 0', color:'var(--ink-mid)', maxWidth: 720}}>
+          {p.access || '—'}
+          {p.wifi && <> · Wi-Fi <b style={{color:'var(--ink)'}}>{p.wifi.split(' / ')[0]}</b></>}
+          {p.floor && <> · {p.floor}</>}
         </p>
       </div>
 
@@ -272,16 +310,54 @@ function PropertyDetailScreen({ onOpen }) {
         display:'flex', gap: 36, flexWrap:'wrap',
         paddingBottom: 24, marginBottom: 24, borderBottom:'1px solid var(--hair-soft)',
       }}>
-        <MicroStatBlock2 value={p.facts_summary.verified} label="verified facts" />
-        <MicroStatBlock2 value={p.facts_summary.missing} label="missing" tone={p.facts_summary.missing > 0 ? "warn" : "ok"} />
-        <MicroStatBlock2 value={p.facts_summary.conflicts} label="conflicts" tone={p.facts_summary.conflicts > 0 ? "warn" : "ok"} />
-        <MicroStatBlock2 value={p.facts_summary.internal} label="internal-only" />
+        <MicroStatBlock2 value={verifiedCount} label="verified facts" />
+        <MicroStatBlock2 value={missingCount} label="missing" tone={missingCount > 0 ? "warn" : "ok"} />
+        <MicroStatBlock2 value={conflictCount} label="conflicts" tone={conflictCount > 0 ? "warn" : "ok"} />
+        <MicroStatBlock2 value={staleCount} label="stale" tone={staleCount > 0 ? "warn" : "ok"} />
         <span style={{flex:1}} />
-        <MicroStatBlock2 value="all OK" label="integrations" tone="ok" />
+        <MicroStatBlock2 value={summary?.integrations === "all_ok" ? "all OK" : (summary?.integrations || "—")} label="integrations" tone={summary?.integrations === "all_ok" ? "ok" : "warn"} />
       </div>
 
-      {/* RISKS BAND — Von Restorff: only flagged when present */}
-      {p.risks.length > 0 && (
+      {/* ATTENTION HERO — only when something needs work (Von Restorff) */}
+      {attention.length > 0 && (
+        <div style={{
+          background:'#ffffff', border:'1px solid var(--hair)', borderRadius: 16,
+          padding:'24px 28px', marginBottom: 32,
+          boxShadow:'0 4px 24px rgba(0,0,0,0.04)',
+          position:'relative', overflow:'hidden',
+        }}>
+          <div style={{position:'absolute', top:0, left:0, width: 4, height:'100%', background:'var(--warn)'}} />
+          <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 12}}>
+            <span className="mono" style={{fontSize: 10, letterSpacing:'.18em', color:'var(--warn)', fontWeight: 600}}>NEEDS YOUR INPUT</span>
+            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+            <span className="mono" style={{fontSize:10, letterSpacing:'.12em', color:'var(--muted)'}}>{attention.length} FACT{attention.length === 1 ? '' : 'S'} HOLDING CENDRA BACK</span>
+          </div>
+          <h2 className="serif-display" style={{fontSize: 24, lineHeight: 1.2, margin: 0, color:'var(--ink)', marginBottom: 14}}>
+            Cendra is waiting on you for {attention.length === 1 ? "one fact" : `${attention.length} facts`}.
+          </h2>
+          <div style={{display:'grid', gap: 8}}>
+            {attention.map((f, i) => (
+              <div key={i} style={{
+                display:'grid', gridTemplateColumns:'140px 1fr auto', gap: 14, alignItems:'center',
+                padding:'10px 14px', borderRadius: 8,
+                background: 'var(--paper-2)', border:'1px solid var(--hair)',
+              }}>
+                <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color: f.state === "conflict" ? 'var(--warn)' : f.state === "stale" ? 'var(--info)' : 'var(--muted)', fontWeight: 600, textTransform:'uppercase'}}>
+                  {f.state} · {f.fact}
+                </span>
+                <span style={{fontSize: 13, color:'var(--ink-mid)'}}>
+                  {f.state === "missing" ? "No value yet" : f.value}
+                  {f.state === "conflict" && <> · source mismatch</>}
+                </span>
+                <Btn size="sm">{f.state === "missing" ? "Add value" : f.state === "stale" ? "Confirm" : "Resolve"} →</Btn>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* RISKS — small flagged callout */}
+      {p.risks && p.risks.length > 0 && (
         <div style={{
           display:'flex', gap: 14, padding:'14px 18px',
           background:'#ffffff', border:'1px solid var(--hair)', borderLeft:'4px solid var(--warn)',
@@ -292,59 +368,100 @@ function PropertyDetailScreen({ onOpen }) {
         </div>
       )}
 
-      {/* FACTS — always open, narrative anchor */}
+      {/* FACTS — always open, inline-editable */}
       <div style={{marginBottom: 32}}>
         <div className="mono" style={{
           fontSize: 11, letterSpacing:'.14em', color:'var(--ink)',
           fontWeight: 600, textTransform:'uppercase', marginBottom: 6,
-        }}>What Cendra knows · {p.facts_summary.verified} facts</div>
-        <div style={{fontSize: 13, color:'var(--muted)', marginBottom: 16}}>Grouped by visibility. Click to drill in.</div>
+        }}>What Cendra knows · {verifiedCount} verified</div>
+        <div style={{fontSize: 13, color:'var(--muted)', marginBottom: 16}}>
+          Click any row to edit. Cendra learns from your changes and applies them on the next matching guest.
+        </div>
         <div style={{display:'grid', gap: 28}}>
-          {p.fact_groups.map((g, gi) => (
+          {factGroups.map((g, gi) => (
             <div key={gi}>
-              <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>{g.label}</div>
-              <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
-                {g.facts.map((f, i) => <PropertyFactRow key={i} f={f} />)}
+              <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>
+                {g.label} · {g.facts.length}
+              </div>
+              <div className="dcard" style={{padding: 0, overflow:'hidden'}}>
+                {g.facts.map((f, fi) => (
+                  <EditableFactRow
+                    key={fi}
+                    fact={f}
+                    onUpdate={patch => updateFact(gi, fi, patch)}
+                    isLast={fi === g.facts.length - 1}
+                  />
+                ))}
+                <AddFactRow onAdd={fact => addFact(gi, fact)} groupHint={g.label} />
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* OWNER RULES — collapsible */}
+      {/* OWNER & PROPERTY RULES — collapsible, editable */}
       <CollapsibleStep
-        eyebrow="OWNER RULES · 3"
+        eyebrow={`Active rules · ${rules.length}`}
         sub="Property-specific rules Cendra honors before any decision."
         open={rulesOpen}
         onToggle={() => setRulesOpen(o => !o)}
       >
-        <div className="dcard" style={{padding:'18px 22px', marginTop: 14}}>
-          <div style={{display:'grid', gap: 0}}>
-            {[
-              { text: "Never offer late checkout if same-day turnover", source: "OWNER · 32d" },
-              { text: "Hot water heater: flush every 30 days", source: "CLEANER · 8d" },
-              { text: "Quiet hours: 23:00 → 08:00 (building rule)", source: "BUILDING · 60d" },
-            ].map((r, i, arr) => (
-              <div key={i} style={{
-                display:'flex', justifyContent:'space-between', alignItems:'center', gap: 14,
-                padding:'12px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--hair-soft)' : 'none',
-              }}>
-                <span style={{fontSize: 13.5, color:'var(--ink)'}}>{r.text}</span>
-                <span className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', whiteSpace:'nowrap'}}>{r.source}</span>
-              </div>
-            ))}
-          </div>
+        <div className="dcard" style={{padding:'8px 0', marginTop: 14}}>
+          {rules.map((r, i) => (
+            <EditableRuleRow
+              key={r.id}
+              rule={r}
+              onUpdate={patch => setRules(rs => rs.map(x => x.id === r.id ? { ...x, ...patch } : x))}
+              onDelete={() => setRules(rs => rs.filter(x => x.id !== r.id))}
+              isLast={i === rules.length - 1}
+            />
+          ))}
+          <AddRuleRow onAdd={text => setRules(rs => [...rs, { id: "r_" + Date.now(), text, source: "YOU · just now" }])} />
         </div>
       </CollapsibleStep>
 
-      {/* DECISION HISTORY — collapsible */}
+      {/* INTEGRATIONS for this property */}
       <CollapsibleStep
-        eyebrow="DECISION HISTORY · LAST 9 DAYS"
+        eyebrow="Integrations · live"
+        sub="Data sources feeding this property. Degrade triggers workflow demotion."
+        open={integOpen}
+        onToggle={() => setIntegOpen(o => !o)}
+      >
+        <div className="dcard" style={{padding: 0, marginTop: 14, overflow:'hidden'}}>
+          {(p.integrations
+            ? [
+                { name: "PMS · " + (p.integrations.pms || '—'), status: "ok" },
+                ...((p.integrations.channels || []).map(c => ({ name: "Channel · " + c, status: "ok" }))),
+                { name: "Smart-lock · " + (p.integrations.lock || '—'), status: "ok" },
+                { name: "Cleaning · " + (p.integrations.clean || '—'), status: "ok" },
+              ]
+            : []
+          ).map((src, i, arr) => (
+            <div key={i} style={{
+              display:'grid', gridTemplateColumns:'12px 1fr 90px 90px', gap: 14, alignItems:'center',
+              padding:'14px 22px',
+              borderBottom: i < arr.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+              background:'#ffffff',
+            }}>
+              <span style={{width: 8, height: 8, borderRadius:'50%', background: src.status === "ok" ? 'var(--ok)' : 'var(--warn)'}} />
+              <span style={{fontSize: 13.5, color:'var(--ink)'}}>{src.name}</span>
+              <span className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase'}}>
+                {src.status === "ok" ? "Connected" : "Degraded"}
+              </span>
+              <Btn size="sm" kind="ghost">Edit</Btn>
+            </div>
+          ))}
+        </div>
+      </CollapsibleStep>
+
+      {/* DECISION HISTORY */}
+      <CollapsibleStep
+        eyebrow="Decision history · last 9 days"
         sub="Every decision Cendra made on this property."
         open={historyOpen}
         onToggle={() => setHistoryOpen(o => !o)}
       >
-        <div className="dcard" style={{padding:'14px 18px', marginTop: 14}}>
+        <div className="dcard" style={{padding:'14px 22px', marginTop: 14}}>
           <LiveActivityMilestone label="Cendra answered Wi-Fi for Lukas Berger" tone="ok" time="11 min ago" mono="autopilot" />
           <LiveActivityMilestone label="Cendra paused early-check-in promise · cleaning unconfirmed" tone="warn" time="14 min ago" mono="approval" />
           <LiveActivityMilestone label="Marta C. confirmed cleaning ETA 14:30" tone="info" time="22 min ago" mono="cleaner" />
@@ -353,9 +470,9 @@ function PropertyDetailScreen({ onOpen }) {
         </div>
       </CollapsibleStep>
 
-      {/* GUEST MEMORY — collapsible */}
+      {/* GUEST MEMORY */}
       <CollapsibleStep
-        eyebrow="GUEST MEMORY · 3 RECENT"
+        eyebrow="Guest memory · 3 recent"
         sub="Sentiment, recurring issues, prior stays."
         open={guestsOpen}
         onToggle={() => setGuestsOpen(o => !o)}
@@ -366,6 +483,306 @@ function PropertyDetailScreen({ onOpen }) {
           </p>
         </div>
       </CollapsibleStep>
+
+      {/* CENDRA POSTURE */}
+      <CollapsibleStep
+        eyebrow="Cendra's posture · what Cendra is allowed to do here"
+        sub="Per-property autonomy overrides on top of portfolio defaults."
+        open={postureOpen}
+        onToggle={() => setPostureOpen(o => !o)}
+      >
+        <div className="dcard" style={{padding:'14px 22px', marginTop: 14}}>
+          <div style={{display:'grid', gap: 0}}>
+            {[
+              { workflow: "Wi-Fi & access info",      mode: "autopilot", note: "Verified, low-risk" },
+              { workflow: "Check-in instructions",    mode: "autopilot", note: "Smart-lock rotation OK" },
+              { workflow: "Early check-in",           mode: "approval",  note: "Same-day turnover risk · always asks you" },
+              { workflow: "Late checkout offer",      mode: "approval",  note: "Owner rule: never if same-day turnover" },
+              { workflow: "Charge guest / refund",    mode: "never",     note: "Hard rule · portfolio-wide" },
+              { workflow: "Vendor dispatch · ≤€150",  mode: "semi",      note: "Cap matches property auto-spend" },
+            ].map((row, i, arr) => (
+              <div key={i} style={{
+                display:'grid', gridTemplateColumns:'1.6fr 110px 1fr 80px', gap: 14, alignItems:'center',
+                padding:'12px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+              }}>
+                <span style={{fontSize: 13.5, color:'var(--ink)'}}>{row.workflow}</span>
+                <AutonomyPill state={row.mode} />
+                <span style={{fontSize: 12.5, color:'var(--muted)'}}>{row.note}</span>
+                <Btn size="sm" kind="ghost">Edit</Btn>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CollapsibleStep>
+    </div>
+  );
+}
+
+// Synthesize a minimum property record for properties without rich data
+function synthProperty(summary, richBase) {
+  if (!summary) return richBase;
+  return {
+    id: summary.id,
+    name: summary.name,
+    owner: summary.owner,
+    region: summary.region,
+    group: "Standard short-stay",
+    floor: "—",
+    access: "—",
+    wifi: "—",
+    primary_contact: "—",
+    integrations: { pms: "Hostaway · OK", channels: ["Airbnb · OK"], lock: "—", clean: "Properly · OK" },
+    facts_summary: {
+      verified: summary.asks > 0 ? 12 : 6,
+      missing: summary.missing || 0,
+      conflicts: summary.conflicts || 0,
+      stale: summary.stale || 0,
+      internal: 4,
+    },
+    risks: [],
+    fact_groups: [
+      {
+        label: "Guest-facing facts",
+        facts: [
+          { fact: "Wi-Fi",       value: summary.name + "-guest / **********", source: "Smart-lock auto", fresh: "live", visible: "guest", state: "verified" },
+          { fact: "Quiet hours", value: "23:00 → 08:00", source: "Building rule", fresh: "60d", visible: "guest", state: "verified" },
+          { fact: "Pets",        value: "Not allowed", source: "Owner rule", fresh: "120d", visible: "guest", state: "verified" },
+          ...(summary.missing > 0 ? [{ fact: "Parking", value: "—", source: "—", fresh: "—", visible: "—", state: "missing" }] : []),
+        ],
+      },
+      {
+        label: "Internal notes",
+        facts: [
+          { fact: "Owner preference", value: "Quiet building, no parties", source: "Owner rule", fresh: "90d", visible: "internal", state: "verified" },
+        ],
+      },
+    ],
+  };
+}
+
+// Editable fact row — view mode + inline edit mode
+function EditableFactRow({ fact, onUpdate, isLast }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(fact.value);
+  const [hover, setHover] = useState(false);
+  const stateMap = {
+    verified: { tone: "ok",   label: "Verified" },
+    missing:  { tone: "info", label: "Missing"  },
+    conflict: { tone: "warn", label: "Conflict" },
+    stale:    { tone: "info", label: "Stale"    },
+  };
+  const sm = stateMap[fact.state] || stateMap.verified;
+  const isMissing = fact.state === "missing";
+
+  if (editing) {
+    return (
+      <div style={{
+        display:'grid', gridTemplateColumns:'170px 1fr auto', gap: 14, padding:'14px 22px',
+        borderBottom: isLast ? 'none' : '1px solid var(--hair-soft)',
+        background:'var(--paper-2)', alignItems:'flex-start',
+      }}>
+        <div style={{fontSize: 13, fontWeight: 500, paddingTop: 8}}>{fact.fact}</div>
+        <div>
+          <input
+            autoFocus
+            value={value === "—" ? "" : value}
+            onChange={e => setValue(e.target.value)}
+            placeholder={isMissing ? `Add ${fact.fact.toLowerCase()}...` : "Update value"}
+            style={{
+              width:'100%', padding:'8px 12px',
+              border:'1px solid var(--ink)', borderRadius: 6,
+              background:'#ffffff', fontSize: 13.5, fontFamily:'var(--sans)',
+              color:'var(--ink)', outline: 0,
+            }}
+          />
+          <div className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.10em', marginTop: 6, textTransform:'uppercase'}}>
+            Will become: VERIFIED · YOU · just now
+          </div>
+        </div>
+        <div style={{display:'flex', gap: 6, paddingTop: 4}}>
+          <button onClick={() => { onUpdate({ value: value || "—", state: value ? "verified" : "missing", source: "You · just now", fresh: "live" }); setEditing(false); }} style={{
+            all:'unset', cursor:'pointer',
+            background:'var(--ink)', color:'#ffffff',
+            padding:'7px 14px', borderRadius: 7,
+            fontSize: 12.5, fontWeight: 600,
+          }}>Save</button>
+          <Btn size="sm" kind="ghost" onClick={() => { setEditing(false); setValue(fact.value); }}>Cancel</Btn>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display:'grid', gridTemplateColumns:'170px 1fr 140px 90px auto', gap: 14, alignItems:'center',
+        padding:'12px 22px',
+        borderBottom: isLast ? 'none' : '1px solid var(--hair-soft)',
+        background: hover ? 'var(--paper-2)' : '#ffffff',
+        transition: 'background .1s',
+      }}>
+      <div style={{fontSize: 13, fontWeight: 500, color:'var(--ink)'}}>{fact.fact}</div>
+      <div style={{fontSize: 13, color: isMissing ? 'var(--muted)' : 'var(--ink-mid)', fontStyle: isMissing ? 'italic' : 'normal', lineHeight: 1.45}}>
+        {fact.value}
+      </div>
+      <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', lineHeight: 1.4}}>
+        {fact.source}<br />
+        <span style={{opacity:.6}}>{fact.fresh}</span>
+      </div>
+      <Pill tone={sm.tone}>{sm.label}</Pill>
+      <button onClick={() => setEditing(true)} style={{
+        all:'unset', cursor:'pointer',
+        padding:'5px 11px', borderRadius: 7,
+        fontSize: 12, fontWeight: 500,
+        color: hover ? 'var(--ink)' : 'var(--muted)',
+        border:'1px solid ' + (hover ? 'var(--hair)' : 'transparent'),
+        background: hover ? '#ffffff' : 'transparent',
+        opacity: hover ? 1 : .6,
+      }}>{isMissing ? "Add value" : "Edit"}</button>
+    </div>
+  );
+}
+
+// "Add fact" row — at end of each fact group
+function AddFactRow({ onAdd, groupHint }) {
+  const [open, setOpen] = useState(false);
+  const [fact, setFact] = useState("");
+  const [value, setValue] = useState("");
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} style={{
+        all:'unset', cursor:'pointer',
+        display:'block', width:'100%',
+        padding:'10px 22px', textAlign:'left',
+        fontSize: 12.5, color:'var(--muted)',
+        background:'transparent',
+        borderTop:'1px dashed var(--hair-soft)',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--paper-2)'; e.currentTarget.style.color = 'var(--ink-mid)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--muted)'; }}>
+        + Add fact to <span style={{fontFamily:'var(--mono)', fontSize: 10.5, letterSpacing:'.10em', textTransform:'uppercase'}}>{groupHint}</span>
+      </button>
+    );
+  }
+  return (
+    <div style={{
+      display:'grid', gridTemplateColumns:'170px 1fr auto', gap: 14, padding:'14px 22px',
+      borderTop:'1px dashed var(--hair)', background:'var(--paper-2)',
+    }}>
+      <input
+        autoFocus value={fact} onChange={e => setFact(e.target.value)}
+        placeholder="Fact name"
+        style={{padding:'8px 12px', border:'1px solid var(--hair)', borderRadius: 6, background:'#ffffff', fontSize: 13, outline: 0}}
+      />
+      <input
+        value={value} onChange={e => setValue(e.target.value)}
+        placeholder="Value"
+        style={{padding:'8px 12px', border:'1px solid var(--hair)', borderRadius: 6, background:'#ffffff', fontSize: 13, outline: 0}}
+      />
+      <div style={{display:'flex', gap: 6}}>
+        <button onClick={() => { if (fact) { onAdd({ fact, value: value || "—", source: "You · just now", fresh: "live", visible: "internal" }); setFact(""); setValue(""); setOpen(false); } }} style={{
+          all:'unset', cursor:'pointer',
+          background:'var(--ink)', color:'#ffffff',
+          padding:'7px 14px', borderRadius: 7,
+          fontSize: 12.5, fontWeight: 600,
+        }}>Add</button>
+        <Btn size="sm" kind="ghost" onClick={() => { setOpen(false); setFact(""); setValue(""); }}>Cancel</Btn>
+      </div>
+    </div>
+  );
+}
+
+// Editable rule row + add-rule row
+function EditableRuleRow({ rule, onUpdate, onDelete, isLast }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(rule.text);
+  const [hover, setHover] = useState(false);
+
+  if (editing) {
+    return (
+      <div style={{
+        display:'grid', gridTemplateColumns:'1fr auto', gap: 14, padding:'14px 22px',
+        borderBottom: isLast ? 'none' : '1px solid var(--hair-soft)',
+        background:'var(--paper-2)',
+      }}>
+        <textarea
+          autoFocus value={text} onChange={e => setText(e.target.value)}
+          rows={2}
+          style={{
+            width:'100%', padding:'10px 14px',
+            border:'1px solid var(--ink)', borderRadius: 6,
+            background:'#ffffff', fontSize: 13.5, fontFamily:'var(--sans)',
+            color:'var(--ink)', outline: 0, resize:'vertical',
+          }}
+        />
+        <div style={{display:'flex', gap: 6}}>
+          <button onClick={() => { onUpdate({ text, source: "YOU · just now" }); setEditing(false); }} style={{
+            all:'unset', cursor:'pointer',
+            background:'var(--ink)', color:'#ffffff',
+            padding:'7px 14px', borderRadius: 7,
+            fontSize: 12.5, fontWeight: 600,
+          }}>Save</button>
+          <Btn size="sm" kind="ghost" onClick={() => { setEditing(false); setText(rule.text); }}>Cancel</Btn>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display:'grid', gridTemplateColumns:'1fr auto auto', gap: 14, alignItems:'center',
+        padding:'12px 22px',
+        borderBottom: isLast ? 'none' : '1px solid var(--hair-soft)',
+        background: hover ? 'var(--paper-2)' : '#ffffff',
+      }}>
+      <span style={{fontSize: 13.5, color:'var(--ink)', lineHeight: 1.5}}>{rule.text}</span>
+      <span className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', whiteSpace:'nowrap'}}>{rule.source}</span>
+      <div style={{display:'flex', gap: 4, opacity: hover ? 1 : 0, transition:'opacity .12s'}}>
+        <Btn size="sm" kind="ghost" onClick={() => setEditing(true)}>Edit</Btn>
+        <Btn size="sm" kind="ghost" onClick={onDelete}>Remove</Btn>
+      </div>
+    </div>
+  );
+}
+
+function AddRuleRow({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} style={{
+        all:'unset', cursor:'pointer',
+        display:'block', width:'100%',
+        padding:'10px 22px', textAlign:'left',
+        fontSize: 12.5, color:'var(--muted)',
+        borderTop:'1px dashed var(--hair-soft)',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--paper-2)'; e.currentTarget.style.color = 'var(--ink-mid)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--muted)'; }}>
+        + Add rule (Cendra will simulate before publishing)
+      </button>
+    );
+  }
+  return (
+    <div style={{padding:'14px 22px', borderTop:'1px dashed var(--hair)', background:'var(--paper-2)', display:'flex', gap: 10, alignItems:'flex-start'}}>
+      <input
+        autoFocus value={text} onChange={e => setText(e.target.value)}
+        placeholder='e.g. "Never accept bookings under 2 nights"'
+        style={{flex:1, padding:'10px 14px', border:'1px solid var(--hair)', borderRadius: 6, background:'#ffffff', fontSize: 13.5, outline: 0}}
+      />
+      <button onClick={() => { if (text.trim()) { onAdd(text.trim()); setText(""); setOpen(false); } }} style={{
+        all:'unset', cursor:'pointer',
+        background:'var(--ink)', color:'#ffffff',
+        padding:'9px 16px', borderRadius: 7,
+        fontSize: 12.5, fontWeight: 600,
+      }}>Add rule</button>
+      <Btn size="sm" kind="ghost" onClick={() => { setOpen(false); setText(""); }}>Cancel</Btn>
     </div>
   );
 }

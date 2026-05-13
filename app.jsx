@@ -481,7 +481,6 @@ function Nav({ route, goto }) {
   const sub = [
     { id: "approval", label: "Approval flow" },
     { id: "integrations", label: "Integrations" },
-    { id: "property_brain", label: "Property Brain" },
     { id: "audit", label: "Audit trail" },
     { id: "mobile", label: "Mobile · approval" },
   ];
@@ -491,7 +490,12 @@ function Nav({ route, goto }) {
       {main.map(n => (
         <button
           key={n.id}
-          className={"nav-item" + (route.name === n.id || (n.id === "work" && route.name === "work_detail") ? " active" : "")}
+          className={"nav-item" + (
+            route.name === n.id ||
+            (n.id === "work" && route.name === "work_detail") ||
+            (n.id === "properties" && (route.name === "property_detail" || route.name === "property_brain"))
+              ? " active" : ""
+          )}
           onClick={() => goto(n.id)}
         >
           <span>{n.label}</span>
@@ -546,9 +550,11 @@ function Routes({ route, goto, tweaks }) {
     case "autopilot":        return <AutopilotScreen tweaks={tweaks} />;
     case "playbook":         return <PlaybookScreen />;
     case "playbook_library": return <PlaybookLibraryScreen onOpen={onOpen} />;
-    case "properties":       return <PropertiesScreen onOpen={onOpen} />;
-    case "property_detail":  return <PropertyDetailScreen onOpen={onOpen} />;
-    case "property_brain":   return <PropertyBrainScreen />;
+    case "properties":       return route.arg
+                                ? <PropertyDetailScreen onOpen={onOpen} arg={route.arg} />
+                                : <PropertiesScreen onOpen={onOpen} />;
+    case "property_detail":  return <PropertyDetailScreen onOpen={onOpen} arg={route.arg} />;  /* legacy alias */
+    case "property_brain":   return <PropertyDetailScreen onOpen={onOpen} arg={route.arg || "p_kara12"} focus="attention" />;  /* legacy alias → property's attention view */
     case "insights":         return <InsightsScreen onOpen={onOpen} />;
     case "trust":            return <TrustScreen onOpen={onOpen} />;
     case "integrations":     return <IntegrationsScreen onOpen={onOpen} />;
@@ -811,7 +817,6 @@ function buildSearchIndex(DP, D) {
     { id: "scr_learning",  title: "Learning",     sub: "Suggestions Cendra wants to learn",     route: "learning" },
     { id: "scr_insights",  title: "Insights",     sub: "Ask Cendra · portfolio analytics",      route: "insights" },
     { id: "scr_trust",     title: "Trust",        sub: "Safety surface · hard rules · audit",   route: "trust" },
-    { id: "scr_brain",     title: "Property Brain", sub: "Facts and gaps",                       route: "property_brain" },
     { id: "scr_audit",     title: "Audit trail",  sub: "Every decision · immutable",            route: "audit" },
     { id: "scr_intg",      title: "Integrations", sub: "Health · PMS · channels · ops",         route: "integrations" },
   ].forEach(s => idx.push({ ...s, cat: "screen" }));
@@ -901,13 +906,24 @@ function buildSearchIndex(DP, D) {
     });
   });
 
-  // Knowledge facts (Property Brain)
+  // Knowledge facts → route into the property's detail page (merged from property_brain)
+  const scopeToId = {
+    "Karaköy · Apt 12": "p_kara12",
+    "Karaköy · Apt 9":  "p_kara9",
+    "Karaköy · Apt 4":  "p_kara4",
+    "Bosphorus Loft":   "p_bos",
+    "Studio Galata":    "p_studgal",
+    "Cihangir House":   "p_cih",
+    "Galata 3":         "p_gal3",
+    "Beşiktaş 7":       "p_bes7",
+  };
   ((D && D.property_facts) || []).forEach(f => {
+    const propId = scopeToId[f.scope];
     idx.push({
       id: f.id, cat: "knowledge",
       title: `${f.scope} · ${f.fact}`,
       sub: `${f.value || '—'} · ${f.state} · ${f.hint}`,
-      route: "property_brain",
+      route: "properties", arg: propId,  // null arg if not mapped → opens list
       keywords: [f.scope, f.fact, f.value || '', f.state].join(" ").toLowerCase(),
     });
   });
