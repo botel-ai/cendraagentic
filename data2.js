@@ -91,6 +91,67 @@ window.CENDRA_DATA2 = {
   ],
 
   // Workflow groups — Autopilot v2
+  // Kill switches — scenario-class level. Distinct axis from autonomy progression.
+  // Audit §7 #8. manager_kill_switch table.
+  kill_switches: [
+    {
+      id: "ks_refunds",
+      scenario_class: "All refund decisions",
+      reasoning_class: "REFUND",
+      armed: false,
+      last_triggered: "23d ago · Bosphorus stock photo dispute",
+      cool_down_min: 60,
+      cool_down_remaining: 0,
+      affects_workflows: 3,
+      affects_properties: 47,
+    },
+    {
+      id: "ks_early_ci",
+      scenario_class: "Early check-in promises",
+      reasoning_class: "ARRIVAL_TIMING",
+      armed: true,
+      last_triggered: "2h ago · cleaner sync degraded",
+      cool_down_min: 180,
+      cool_down_remaining: 64,
+      affects_workflows: 2,
+      affects_properties: 6,
+    },
+    {
+      id: "ks_vendor_dispatch",
+      scenario_class: "Vendor dispatch over €150",
+      reasoning_class: "VENDOR_DISPATCH",
+      armed: false,
+      last_triggered: "—",
+      cool_down_min: 30,
+      cool_down_remaining: 0,
+      affects_workflows: 4,
+      affects_properties: 47,
+    },
+    {
+      id: "ks_acl_release",
+      scenario_class: "Access code release",
+      reasoning_class: "ACCESS_CONTROL",
+      armed: false,
+      last_triggered: "—",
+      cool_down_min: 120,
+      cool_down_remaining: 0,
+      affects_workflows: 1,
+      affects_properties: 47,
+    },
+    {
+      id: "ks_outbound",
+      scenario_class: "All outbound messages",
+      reasoning_class: "GLOBAL_OUTBOUND",
+      armed: false,
+      last_triggered: "—",
+      cool_down_min: 5,
+      cool_down_remaining: 0,
+      affects_workflows: 23,
+      affects_properties: 47,
+      nuclear: true,
+    },
+  ],
+
   workflow_groups: [
     {
       id: "g_info", name: "Guest info",
@@ -495,7 +556,190 @@ window.CENDRA_DATA2 = {
     { id: "u_marta",  name: "Marta Costa",     role: "Cleaner",          avatar: "Mc",scope: "Beyoğlu",  on_shift: true,  approvals_pending: 0 },
   ],
 
+  // Per-PM decision aggregates threaded from manager_id on every DecisionCase.
+  // Audit §7 #11.
+  team_stats: [
+    {
+      manager_id: "u_maya",  name: "Maya Lindqvist",  avatar: "M", role: "Operations Lead",
+      decisions_today: 47, approvals_today: 12, overrides_today: 3, match_rate: 0.89,
+      avg_response_min: 4.2,
+      worst_workflow: "Vendor dispatch",
+      best_workflow: "Wi-Fi & access info",
+      streak_days: 23,
+      last_decision_min: 8,
+    },
+    {
+      manager_id: "u_henrik", name: "Henrik Sørensen", avatar: "H", role: "Property Manager",
+      decisions_today: 31, approvals_today: 8, overrides_today: 1, match_rate: 0.94,
+      avg_response_min: 6.8,
+      worst_workflow: "Refund request",
+      best_workflow: "Parking & directions",
+      streak_days: 11,
+      last_decision_min: 22,
+    },
+    {
+      manager_id: "u_yui",   name: "Yui Tanaka",       avatar: "Y", role: "Guest Support",
+      decisions_today: 22, approvals_today: 14, overrides_today: 0, match_rate: 0.96,
+      avg_response_min: 2.1,
+      worst_workflow: "Cross-channel merge",
+      best_workflow: "Check-in instructions",
+      streak_days: 47,
+      last_decision_min: 3,
+    },
+    {
+      manager_id: "u_adele", name: "Adèle Roux",       avatar: "A", role: "Night Manager",
+      decisions_today: 9, approvals_today: 6, overrides_today: 0, match_rate: 0.91,
+      avg_response_min: 7.4,
+      worst_workflow: "Maintenance triage",
+      best_workflow: "Access code release",
+      streak_days: 5,
+      last_decision_min: 184,
+    },
+  ],
+
   // Insights — Ask Cendra explorer
+  // Daily Brain Report — sectioned by subsystem (BootstrapEventBus,
+  // GoldenCasesRunner, FoundationDrift, FrictionTracker, Compliance, Risk,
+  // Memory consolidation, Pattern miner, A/B experiments).
+  // Each section drills into the raw event log.
+  daily_brain_report: {
+    generated_at: "Today 06:14",
+    period: "Last 24 hours · 06:14 yest → 06:14 today",
+    summary: "Cendra ran 1,247 decisions, opened 23 promises, closed 41. One foundation suggestion needs your call; one A/B verdict is in.",
+    sections: [
+      {
+        id: "bootstrap",
+        subsystem: "BootstrapEventBus",
+        eyebrow: "STARTUP",
+        title: "All 47 modules online · 14.2s cold start",
+        narrative: "Cognition loops, foundation catalog, decision pipeline gates, and approval gateway came up clean. Smart-engine subsystems remain wired-but-unconsumed.",
+        metrics: [
+          { label: "Modules", value: "47/47" },
+          { label: "Cold start", value: "14.2s", tone: "ok" },
+          { label: "Wired-but-unconsumed", value: "4", tone: "info" },
+        ],
+        event_ids: ["evt_boot_03b1", "evt_boot_03b2", "evt_boot_03b3"],
+        drill_to: "audit",
+      },
+      {
+        id: "golden_cases",
+        subsystem: "GoldenCasesRunner",
+        eyebrow: "REGRESSION GUARD",
+        title: "486 of 494 canonical cases pass · 2 regressions",
+        narrative: "Two scenarios regressed when the early-check-in rule narrowed — both on Karaköy Apt 9. Replay shows the new owner rule is binding, not a bug.",
+        metrics: [
+          { label: "Pass rate", value: "98.4%", tone: "ok" },
+          { label: "New regressions", value: "2", tone: "warn" },
+          { label: "Drift on baseline", value: "0%", tone: "ok" },
+        ],
+        event_ids: ["evt_golden_run_419"],
+        drill_to: "audit",
+      },
+      {
+        id: "foundation_drift",
+        subsystem: "FoundationDrift (FL-13)",
+        eyebrow: "SUGGESTED UPDATES",
+        title: "1 foundation suggestion for your review",
+        narrative: "Cendra noticed you handle late-checkout in Bosphorus Loft differently from the portfolio default 4 times in 30 days. Would you like to review the suggested foundation edit? Cendra never auto-writes; you decide.",
+        metrics: [
+          { label: "Suggestions open", value: "1", tone: "info" },
+          { label: "Auto-writes", value: "0", tone: "ok" },
+          { label: "Stale > 7d", value: "0", tone: "ok" },
+        ],
+        event_ids: ["evt_drift_204"],
+        drill_to: "brain",
+        drill_arg: "learning",
+      },
+      {
+        id: "friction",
+        subsystem: "FrictionTracker + ReflexionCritic",
+        eyebrow: "WHERE I SLOWED YOU DOWN",
+        title: "3 friction points · vendor-quote approval the worst",
+        narrative: "PM Maya overrode the vendor-quote approval band 3 times yesterday — Cendra was too conservative. The reflexion critic suggested raising the auto-spend cap by €50 on Bosphorus Holdings. Available as a learning candidate.",
+        metrics: [
+          { label: "Friction points", value: "3", tone: "warn" },
+          { label: "Worst feature", value: "vendor_quote_ceiling" },
+          { label: "Suggested change", value: "+€50 cap", tone: "info" },
+        ],
+        event_ids: ["evt_friction_88"],
+        drill_to: "brain",
+        drill_arg: "learning",
+      },
+      {
+        id: "compliance",
+        subsystem: "ComplianceMonitor (M19)",
+        eyebrow: "EU REGULATIONS",
+        title: "100% checks pass · 0 BLOCKS, 1 NEEDS_REVIEW",
+        narrative: "1,247 decisions ran the 5-check compliance pipeline. One refund decision needs your GDPR Art.22 sign-off because it involved a natural-person automated decision over €100. Cendra paused; you decide.",
+        metrics: [
+          { label: "PASS", value: "1,246", tone: "ok" },
+          { label: "NEEDS_REVIEW", value: "1", tone: "warn" },
+          { label: "BLOCK", value: "0", tone: "ok" },
+        ],
+        event_ids: ["evt_comp_review_18"],
+        drill_to: "trust",
+      },
+      {
+        id: "risk_gate",
+        subsystem: "RiskGate (M9 · EV/CVaR)",
+        eyebrow: "RISK REFUSALS",
+        title: "4 actions refused on worst-case threshold",
+        narrative: "Each refusal carried PROCEED / ABSTAIN / INSUFFICIENT_DATA verdict with rationale. The biggest refusal — €620 vendor counter-quote — would have averaged €350 in the worst 5% of outcomes.",
+        metrics: [
+          { label: "Refused", value: "4", tone: "info" },
+          { label: "Top CVaR", value: "€350", tone: "info" },
+          { label: "Reversed", value: "0", tone: "ok" },
+        ],
+        event_ids: ["evt_risk_330"],
+        drill_to: "audit",
+      },
+      {
+        id: "memory",
+        subsystem: "EpisodicDedup + KG sync",
+        eyebrow: "OVERNIGHT CONSOLIDATION",
+        title: "58 duplicate episodes merged · 142 KG nodes touched",
+        narrative: "Cendra cleaned up overlapping memories overnight. Reduction ratio 28% — within the advisory band. No KG nodes deleted; 3 new relationships inferred from yesterday's decisions.",
+        metrics: [
+          { label: "Episodes merged", value: "58", tone: "ok" },
+          { label: "KG relationships", value: "+3", tone: "ok" },
+          { label: "Half-life decay applied", value: "412 facts", tone: "info" },
+        ],
+        event_ids: ["evt_consolidate_77"],
+        drill_to: "audit",
+      },
+      {
+        id: "ab_experiments",
+        subsystem: "ABExperimentRegistry",
+        eyebrow: "VERDICTS",
+        title: "1 verdict in · early-check-in tone (warmth vs precision)",
+        narrative: "47/50 trials in arm A (warmth), 49/50 in arm B (precision). Arm A wins 0.04 NPS difference at 95% confidence. Rolling out warmth tone to early-check-in workflow.",
+        metrics: [
+          { label: "Verdicts", value: "1", tone: "ok" },
+          { label: "Trials still running", value: "2", tone: "info" },
+          { label: "Stopped early", value: "0", tone: "ok" },
+        ],
+        event_ids: ["evt_ab_verdict_4"],
+        drill_to: "brain",
+        drill_arg: "learning",
+      },
+      {
+        id: "pattern_miner",
+        subsystem: "GlobalPatternMiner",
+        eyebrow: "LEARNED RULES",
+        title: "0 new global patterns · 2 candidates below threshold",
+        narrative: "Two candidate rules reached 2 of the 3-tenant minimum yesterday. They'll surface as global suggestions only when a 3rd tenant adopts the same handling — privacy guarantee.",
+        metrics: [
+          { label: "New globals", value: "0", tone: "ok" },
+          { label: "Pending threshold", value: "2", tone: "info" },
+          { label: "Per-property rules added", value: "3", tone: "ok" },
+        ],
+        event_ids: ["evt_miner_15"],
+        drill_to: "brain",
+        drill_arg: "learning",
+      },
+    ],
+  },
+
   insights: {
     suggested: [
       "Why did automation drop this week?",
@@ -604,22 +848,39 @@ window.CENDRA_DATA2 = {
   // Cendra is confident handling for each property (extracted from
   // PM data + uploaded knowledge sources).
   scenario_coverage: {
-    portfolio_total: 469,
-    portfolio_covered: 187,
+    // FL-14 two-tier customer foundation. Core is the canonical default catalog.
+    // Your additions are scenarios this customer added on top.
+    portfolio_total: 469,             // legacy alias (= core total)
+    portfolio_covered: 187,           // legacy alias (= core covered)
+    portfolio_core_total: 469,
+    portfolio_core_covered: 187,
+    portfolio_addition_total: 23,
+    portfolio_addition_covered: 17,
     stages: [
-      { id: "s1", label: "Pre-booking",        total: 50, covered: 24 },
-      { id: "s2", label: "Booking confirmation", total: 40, covered: 22 },
-      { id: "s3", label: "Pre-arrival",        total: 61, covered: 38 },
-      { id: "s4", label: "Check-in day",       total: 61, covered: 44 },
-      { id: "s5", label: "During stay",        total: 84, covered: 32 },
-      { id: "s6", label: "Upsell / Revenue",   total: 41, covered: 9  },
-      { id: "s7", label: "Check-out",          total: 40, covered: 10 },
-      { id: "s8", label: "Post-stay",          total: 40, covered: 6  },
-      { id: "s9", label: "Internal / Vendor",  total: 52, covered: 2  },
+      { id: "s1", label: "Pre-booking",          total: 50, covered: 24, core_total: 50, core_covered: 24, addition_total: 2, addition_covered: 1  },
+      { id: "s2", label: "Booking confirmation", total: 40, covered: 22, core_total: 40, core_covered: 22, addition_total: 1, addition_covered: 1  },
+      { id: "s3", label: "Pre-arrival",          total: 61, covered: 38, core_total: 61, core_covered: 38, addition_total: 4, addition_covered: 4  },
+      { id: "s4", label: "Check-in day",         total: 61, covered: 44, core_total: 61, core_covered: 44, addition_total: 3, addition_covered: 3  },
+      { id: "s5", label: "During stay",          total: 84, covered: 32, core_total: 84, core_covered: 32, addition_total: 7, addition_covered: 5  },
+      { id: "s6", label: "Upsell / Revenue",     total: 41, covered: 9,  core_total: 41, core_covered: 9,  addition_total: 4, addition_covered: 2  },
+      { id: "s7", label: "Check-out",            total: 40, covered: 10, core_total: 40, core_covered: 10, addition_total: 1, addition_covered: 1  },
+      { id: "s8", label: "Post-stay",            total: 40, covered: 6,  core_total: 40, core_covered: 6,  addition_total: 0, addition_covered: 0  },
+      { id: "s9", label: "Internal / Vendor",    total: 52, covered: 2,  core_total: 52, core_covered: 2,  addition_total: 1, addition_covered: 0  },
+    ],
+    // Sample of your additions — scenarios this customer added beyond the canonical 469
+    additions_catalog: [
+      { id: "add_1", scenario: "Returning guest free late checkout up to 14:00", stage: "Check-out",       added_by: "Owner · Karaköy LLC", source: "kara_portfolio_handbook.pdf · p.13", covered: true,  scope: "owner" },
+      { id: "add_2", scenario: "Bosphorus terrace use after 22:00 forbidden",    stage: "During stay",     added_by: "Building · Bosphorus", source: "bosphorus_owner_briefing.pdf · p.7",   covered: true,  scope: "property" },
+      { id: "add_3", scenario: "Cihangir pet upsell standard",                   stage: "Pre-booking",     added_by: "Owner · Cihangir Living", source: "cihangir_house_pets.pdf",         covered: true,  scope: "owner" },
+      { id: "add_4", scenario: "Pet deposit handling mid-stay",                  stage: "During stay",     added_by: "You · 2026-03-14",     source: "ad-hoc · approval",                   covered: false, scope: "portfolio" },
+      { id: "add_5", scenario: "Recurring leak attribution rule",                stage: "During stay",     added_by: "You · 2026-04-02",     source: "ad-hoc · approval",                   covered: false, scope: "property" },
     ],
     by_property: {
       p_kara12: {
         covered: 75,
+        core_covered: 71,
+        additions_covered: 4,
+        additions_total: 4,
         top_gaps: [
           { id: "g1", scenario: "Pet deposit dispute mid-stay",   stage: "During stay",  why: "No documented pet deposit policy" },
           { id: "g2", scenario: "Off-channel payment refusal",    stage: "Pre-booking",  why: "Cendra has no PM stance on file" },
@@ -628,6 +889,9 @@ window.CENDRA_DATA2 = {
       },
       p_bos: {
         covered: 42,
+        core_covered: 40,
+        additions_covered: 2,
+        additions_total: 3,
         top_gaps: [
           { id: "g1", scenario: "Recurring leak attribution dispute", stage: "During stay", why: "Source-of-truth gap" },
           { id: "g2", scenario: "Vendor delay → guest comp",          stage: "During stay", why: "No threshold defined" },

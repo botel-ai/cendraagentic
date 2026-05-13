@@ -972,8 +972,9 @@ function hashStr(s) { let h = 0; for (let i = 0; i < s.length; i++) { h = ((h <<
 // · Insights. Hash routing preserved for all legacy entries.
 // ───────────────────────────────────────────────────────────────────
 function BrainShell({ onOpen, tweaks, arg }) {
-  const tab = arg || "playbooks";
+  const tab = arg || "report";
   const tabs = [
+    { id: "report",    label: "Report"    },
     { id: "playbooks", label: "Playbooks" },
     { id: "autopilot", label: "Autopilot" },
     { id: "learning",  label: "Learning"  },
@@ -1011,11 +1012,126 @@ function BrainShell({ onOpen, tweaks, arg }) {
       </div>
 
       <div>
+        {tab === "report"    && <DailyBrainReport onOpen={onOpen} />}
         {tab === "playbooks" && <PlaybookLibraryScreen onOpen={onOpen} />}
         {tab === "autopilot" && <AutopilotScreen tweaks={tweaks} />}
         {tab === "learning"  && <LearningScreen />}
         {tab === "trust"     && <TrustScreen onOpen={onOpen} />}
         {tab === "insights"  && <InsightsScreen onOpen={onOpen} />}
+      </div>
+    </div>
+  );
+}
+
+// Daily Brain Report — sectioned by subsystem with verifiable event ids.
+// Audit §7 #2: each section drills into the raw event log.
+function DailyBrainReport({ onOpen }) {
+  const DP = window.CENDRA_DATA2;
+  const R = DP.daily_brain_report;
+  const [openEvents, setOpenEvents] = useState(null);
+
+  return (
+    <div className="stage" style={{maxWidth: 1020, paddingTop: 56, paddingBottom: 120}}>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>DAILY BRAIN REPORT · {R.generated_at.toUpperCase()}</span>
+        <span style={{flex:1}} />
+        <span>{R.period.toUpperCase()}</span>
+      </div>
+
+      <div style={{marginBottom: 40}}>
+        <h1 className="serif-display" style={{
+          fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)',
+        }}>
+          What Cendra did overnight.
+        </h1>
+        <p style={{
+          fontSize: 16.5, lineHeight: 1.55, margin:'18px 0 0',
+          color:'var(--ink-mid)', maxWidth: 720,
+        }}>
+          {R.summary}
+        </p>
+      </div>
+
+      <div style={{display:'grid', gap: 1, background:'var(--hair)', border:'1px solid var(--hair)', borderRadius: 12, overflow:'hidden'}}>
+        {R.sections.map(s => {
+          const isOpen = openEvents === s.id;
+          return (
+            <div key={s.id} style={{background:'#ffffff'}}>
+              <div style={{display:'grid', gridTemplateColumns:'180px 1fr 320px', gap: 18, padding:'20px 24px'}}>
+                {/* LEFT — eyebrow + subsystem */}
+                <div>
+                  <div className="mono" style={{fontSize: 9.5, letterSpacing:'.16em', color:'var(--ink)', fontWeight: 700, textTransform:'uppercase', marginBottom: 6}}>
+                    {s.eyebrow}
+                  </div>
+                  <div className="mono" style={{fontSize: 10, letterSpacing:'.06em', color:'var(--muted)', textTransform:'uppercase'}}>
+                    {s.subsystem}
+                  </div>
+                </div>
+                {/* MIDDLE — title + narrative */}
+                <div style={{minWidth: 0}}>
+                  <div style={{fontFamily:'var(--serif)', fontSize: 19, lineHeight: 1.32, color:'var(--ink)', marginBottom: 8, letterSpacing:'-.005em'}}>
+                    {s.title}
+                  </div>
+                  <p style={{fontSize: 13.5, lineHeight: 1.55, color:'var(--ink-mid)', margin: 0}}>
+                    {s.narrative}
+                  </p>
+                  <div style={{display:'flex', gap: 8, marginTop: 12, alignItems:'center', flexWrap:'wrap'}}>
+                    <button onClick={() => setOpenEvents(o => o === s.id ? null : s.id)} style={{
+                      all:'unset', cursor:'pointer',
+                      fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.10em', textTransform:'uppercase',
+                      color:'var(--ink-mid)', fontWeight: 600,
+                      padding:'4px 10px', borderRadius: 6,
+                      border:'1px solid var(--hair)',
+                    }}>
+                      {isOpen ? '↑ Hide events' : `↓ ${s.event_ids.length} event${s.event_ids.length > 1 ? 's' : ''}`}
+                    </button>
+                    {s.drill_to && (
+                      <button onClick={() => onOpen(s.drill_to, s.drill_arg)} style={{
+                        all:'unset', cursor:'pointer',
+                        fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.10em', textTransform:'uppercase',
+                        color:'var(--ink)', fontWeight: 600,
+                        padding:'4px 10px', borderRadius: 6,
+                      }}>
+                        Drill in →
+                      </button>
+                    )}
+                  </div>
+                  {isOpen && (
+                    <div style={{
+                      marginTop: 12, padding:'10px 12px',
+                      background: 'var(--paper-2)', borderRadius: 6,
+                      border:'1px solid var(--hair-soft)',
+                    }}>
+                      <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', marginBottom: 6, textTransform:'uppercase'}}>
+                        Verifiable event ids
+                      </div>
+                      {s.event_ids.map(eid => (
+                        <div key={eid} className="mono" style={{fontSize: 11, color:'var(--ink-mid)', letterSpacing:'.02em', lineHeight: 1.7}}>
+                          <span style={{color:'var(--muted-2)', marginRight: 6}}>↪</span>{eid}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* RIGHT — metrics */}
+                <div style={{display:'flex', flexDirection:'column', gap: 6, alignItems:'flex-end'}}>
+                  {s.metrics.map((m, i) => {
+                    const tone = m.tone === 'ok' ? 'var(--ok)' : m.tone === 'warn' ? 'var(--warn)' : m.tone === 'risk' ? 'var(--risk)' : 'var(--ink)';
+                    return (
+                      <div key={i} style={{display:'flex', alignItems:'baseline', gap: 10}}>
+                        <span className="mono" style={{fontSize: 10, letterSpacing:'.10em', color:'var(--muted)', textTransform:'uppercase'}}>{m.label}</span>
+                        <span className="mono" style={{fontSize: 13, color: tone, fontWeight: 600, fontVariantNumeric:'tabular-nums', minWidth: 60, textAlign:'right'}}>{m.value}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

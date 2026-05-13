@@ -67,48 +67,142 @@ function deriveStayHealth(g) {
   return 'healthy';
 }
 
-function StayHealthBadge({ health, size }) {
-  const m = STAY_HEALTH_MAP[health] || STAY_HEALTH_MAP.healthy;
-  if (size === 'lg') {
-    return (
-      <div style={{
-        display:'inline-flex', alignItems:'center', gap: 8,
-        padding:'6px 12px',
-        background: `${m.color}14`,
-        border: `1px solid ${m.color}40`,
-        borderRadius: 999,
-        fontFamily:'var(--mono)', fontSize: 11.5, letterSpacing:'.08em',
-        color: m.color, fontWeight: 600, textTransform:'uppercase',
-      }}>
-        <span style={{fontSize: 12, lineHeight: 1}}>{m.glyph}</span>
-        <span>{m.label}</span>
-      </div>
-    );
+// Surface the active signals that produced the current Stay Health.
+// Audit §7 #5: derivation tooltip with sources.
+function deriveStayHealthSignals(g) {
+  const out = [];
+  if (!g) return out;
+  if (typeof g.nights_done === 'number' && typeof g.nights_total === 'number' && g.nights_done >= g.nights_total) {
+    out.push({ kind: 'stage', label: 'Stay is over — checkout reached', weight: 'binding' });
+    return out;
   }
-  if (size === 'inline') {
+  if (g.escalated)             out.push({ kind: 'escalation', label: 'Active escalation', weight: 'binding' });
+  if (g.complaints)            out.push({ kind: 'complaint', label: 'Open complaint', weight: 'binding' });
+  if (g.sentiment === 'hot' || g.sentiment === 'angry')
+    out.push({ kind: 'sentiment', label: `Sentiment: ${g.sentiment}`, weight: 'binding' });
+  if (g.status === 'needs_you' && typeof g.sla_min === 'number' && g.sla_min < 0)
+    out.push({ kind: 'sla', label: `SLA breached · ${Math.abs(g.sla_min)}m overdue`, weight: 'binding' });
+  else if (g.status === 'needs_you' && typeof g.sla_min === 'number' && g.sla_min < 30)
+    out.push({ kind: 'sla', label: `SLA tight · ${g.sla_min}m left`, weight: 'major' });
+  else if (typeof g.sla_min === 'number')
+    out.push({ kind: 'sla', label: `SLA: ${g.sla_min < 0 ? Math.abs(g.sla_min) + 'm overdue' : g.sla_min + 'm left'}`, weight: g.sla_min < 0 ? 'major' : 'minor' });
+  if (g.status === 'needs_you')  out.push({ kind: 'queue',     label: 'Needs your decision', weight: 'major' });
+  else if (g.status === 'waiting') out.push({ kind: 'queue',   label: `Waiting · ${g.status_reason || 'dependency'}`, weight: 'minor' });
+  if (g.sentiment && g.sentiment !== 'hot' && g.sentiment !== 'angry')
+    out.push({ kind: 'sentiment', label: `Sentiment: ${g.sentiment}`, weight: 'minor' });
+  if (g.confidence != null && g.confidence < 0.7)
+    out.push({ kind: 'confidence', label: `Low confidence (${(g.confidence * 100).toFixed(0)}%)`, weight: 'minor' });
+  if (out.length === 0) out.push({ kind: 'stage', label: 'Nothing pending · routine running', weight: 'binding' });
+  return out;
+}
+
+const SIGNAL_KIND_META = {
+  stage:       { color: '#374151', label: 'STAGE'       },
+  sla:         { color: '#FF385C', label: 'SLA'         },
+  queue:       { color: '#FFB400', label: 'QUEUE'       },
+  sentiment:   { color: '#7C3AED', label: 'SENTIMENT'   },
+  complaint:   { color: '#FF385C', label: 'COMPLAINT'   },
+  escalation:  { color: '#FF385C', label: 'ESCALATION'  },
+  confidence:  { color: '#475569', label: 'CONFIDENCE'  },
+};
+
+function StayHealthBadge({ health, size, signals }) {
+  const m = STAY_HEALTH_MAP[health] || STAY_HEALTH_MAP.healthy;
+  const [showTip, setShowTip] = useState(false);
+  const hasTip = Array.isArray(signals) && signals.length > 0;
+
+  const inner = (() => {
+    if (size === 'lg') {
+      return (
+        <div style={{
+          display:'inline-flex', alignItems:'center', gap: 8,
+          padding:'6px 12px',
+          background: `${m.color}14`,
+          border: `1px solid ${m.color}40`,
+          borderRadius: 999,
+          fontFamily:'var(--mono)', fontSize: 11.5, letterSpacing:'.08em',
+          color: m.color, fontWeight: 600, textTransform:'uppercase',
+          cursor: hasTip ? 'help' : 'default',
+        }}>
+          <span style={{fontSize: 12, lineHeight: 1}}>{m.glyph}</span>
+          <span>{m.label}</span>
+          {hasTip && <span style={{fontSize: 10, opacity: .55, marginLeft: 2}}>ⓘ</span>}
+        </div>
+      );
+    }
+    if (size === 'inline') {
+      return (
+        <span style={{
+          display:'inline-flex', alignItems:'center', gap: 4,
+          fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.06em',
+          color: m.color, fontWeight: 600, textTransform:'uppercase',
+          cursor: hasTip ? 'help' : 'default',
+        }}>
+          <span style={{fontSize: 10, lineHeight: 1}}>{m.glyph}</span>
+          <span>{m.label}</span>
+        </span>
+      );
+    }
     return (
       <span style={{
-        display:'inline-flex', alignItems:'center', gap: 4,
+        display:'inline-flex', alignItems:'center', gap: 5,
+        padding:'2px 7px',
+        background: `${m.color}10`,
+        borderRadius: 4,
         fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.06em',
         color: m.color, fontWeight: 600, textTransform:'uppercase',
+        cursor: hasTip ? 'help' : 'default',
       }}>
-        <span style={{fontSize: 10, lineHeight: 1}}>{m.glyph}</span>
+        <span style={{fontSize: 9, lineHeight: 1}}>{m.glyph}</span>
         <span>{m.label}</span>
       </span>
     );
-  }
-  // default — compact pill
+  })();
+
+  if (!hasTip) return inner;
+
   return (
-    <span style={{
-      display:'inline-flex', alignItems:'center', gap: 5,
-      padding:'2px 7px',
-      background: `${m.color}10`,
-      borderRadius: 4,
-      fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.06em',
-      color: m.color, fontWeight: 600, textTransform:'uppercase',
-    }}>
-      <span style={{fontSize: 9, lineHeight: 1}}>{m.glyph}</span>
-      <span>{m.label}</span>
+    <span
+      style={{position:'relative', display:'inline-block'}}
+      onMouseEnter={() => setShowTip(true)}
+      onMouseLeave={() => setShowTip(false)}
+      onClick={(e) => { e.stopPropagation(); setShowTip(v => !v); }}
+    >
+      {inner}
+      {showTip && (
+        <div style={{
+          position:'absolute', top: 'calc(100% + 6px)', left: 0,
+          minWidth: 280, maxWidth: 360,
+          background:'#ffffff',
+          border:'1px solid var(--hair)', borderRadius: 10,
+          boxShadow:'0 8px 28px rgba(0,0,0,.10), 0 1px 3px rgba(0,0,0,.06)',
+          padding:'12px 14px', zIndex: 30,
+          color:'var(--ink)', cursor:'default',
+        }}
+        onClick={(e) => e.stopPropagation()}>
+          <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', marginBottom: 8, textTransform:'uppercase', fontWeight: 600}}>
+            Why this state · {signals.length} signal{signals.length > 1 ? 's' : ''}
+          </div>
+          <div style={{display:'grid', gap: 8}}>
+            {signals.map((sig, i) => {
+              const km = SIGNAL_KIND_META[sig.kind] || SIGNAL_KIND_META.stage;
+              const weightBg = sig.weight === 'binding' ? '#FF385C'
+                            : sig.weight === 'major'   ? '#FFB400'
+                            : '#9CA3AF';
+              return (
+                <div key={i} style={{display:'grid', gridTemplateColumns:'10px 84px 1fr', gap: 8, alignItems:'baseline'}}>
+                  <span style={{width: 6, height: 6, borderRadius: 999, background: weightBg, marginTop: 5}} />
+                  <span className="mono" style={{fontSize: 9, letterSpacing:'.12em', color: km.color, fontWeight: 700}}>{km.label}</span>
+                  <span style={{fontSize: 12, color:'var(--ink-mid)', lineHeight: 1.4}}>{sig.label}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mono" style={{fontSize: 9.5, letterSpacing:'.10em', color:'var(--muted-2)', marginTop: 10, textTransform:'uppercase', borderTop:'1px solid var(--hair-soft)', paddingTop: 8}}>
+            <span style={{color:'#FF385C'}}>●</span> binding · <span style={{color:'#FFB400'}}>●</span> major · <span style={{color:'#9CA3AF'}}>●</span> minor
+          </div>
+        </div>
+      )}
     </span>
   );
 }
@@ -672,6 +766,6 @@ window.CendraAtoms2 = {
   IntegrationHealthCard, HardRuleCard, KnowledgeGapCard,
   PropertyFactRow, TeamAssignmentCard, LiveActivityMilestone, SignalStrip,
   WhyLevels, SectionHead,
-  StayHealthBadge, deriveStayHealth, STAY_HEALTH_MAP,
+  StayHealthBadge, deriveStayHealth, deriveStayHealthSignals, STAY_HEALTH_MAP,
   MsgChannelChip, CHANNEL_META,
 };

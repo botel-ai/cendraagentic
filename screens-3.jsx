@@ -369,6 +369,39 @@ function MicroStatBlock2({ value, label, sub, tone }) {
 // ───────────────────────────────────────────────────────────────────
 // PROPERTY DETAIL
 // ───────────────────────────────────────────────────────────────────
+// Parse a fact's last_verified / fresh into approximate "days ago" for as_of comparison.
+// Supports: "12d ago", "live", "just now", "Today …", "60d", "Jul 2024", "Refurb · Oct 2024".
+function factVerifiedDaysAgo(fact) {
+  const f = fact.last_verified || fact.fresh || '';
+  if (typeof f !== 'string') return 0;
+  if (/^(live|just now|today)/i.test(f)) return 0;
+  const d = f.match(/(\d+)d/i);
+  if (d) return parseInt(d[1], 10);
+  // Month name = at least 30 days
+  if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(f)) {
+    const yMatch = f.match(/20\d{2}/);
+    if (yMatch) {
+      const year = parseInt(yMatch[0], 10);
+      const now = new Date();
+      const monthIdx = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+        .findIndex(m => new RegExp(m, 'i').test(f));
+      const d2 = new Date(year, Math.max(0, monthIdx), 15);
+      return Math.max(0, Math.round((now - d2) / 86400000));
+    }
+    return 60; // unknown year → assume ~60d
+  }
+  return 0;
+}
+
+const AS_OF_PRESETS = [
+  { id: 'now',     label: 'Now',           daysBack: 0 },
+  { id: '7d',      label: '7 days ago',    daysBack: 7 },
+  { id: '30d',     label: '30 days ago',   daysBack: 30 },
+  { id: '90d',     label: '90 days ago',   daysBack: 90 },
+  { id: '180d',    label: '6 months ago',  daysBack: 180 },
+  { id: '365d',    label: '1 year ago',    daysBack: 365 },
+];
+
 function PropertyDetailScreen({ onOpen, arg, focus }) {
   // Resolve property — every property in property_details gets rich data;
   // anything missing falls back to synth from portfolio summary.
@@ -387,6 +420,11 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
 
   const [importOpen, setImportOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(true);
+  // Audit §7 #4 — Property Brain as_of bi-temporal slider.
+  // `?as_of=…` is supported by PmFactStore.list_facts; the UI is the slider.
+  const [asOfPreset, setAsOfPreset] = useState('now');
+  const asOfDays = AS_OF_PRESETS.find(p => p.id === asOfPreset)?.daysBack || 0;
+  const isAsOfPast = asOfDays > 0;
 
   // Hold facts in local state so edits persist within the session
   const [factGroups, setFactGroups] = useState(p.fact_groups);
@@ -456,6 +494,47 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
           {p.wifi && <> · Wi-Fi <b style={{color:'var(--ink)'}}>{p.wifi.split(' / ')[0]}</b></>}
           {p.floor && <> · {p.floor}</>}
         </p>
+      </div>
+
+      {/* AS_OF SLIDER — bi-temporal time travel. View what Cendra knew on a past date. */}
+      <div style={{
+        display:'flex', gap: 14, alignItems:'center',
+        padding: '10px 14px', marginBottom: 16,
+        background: isAsOfPast ? 'rgba(255,180,0,.08)' : 'var(--paper-2)',
+        border: '1px solid ' + (isAsOfPast ? 'rgba(255,180,0,.30)' : 'var(--hair-soft)'),
+        borderRadius: 10,
+      }}>
+        <span className="mono" style={{
+          fontSize: 10, letterSpacing:'.16em',
+          color: isAsOfPast ? '#B45309' : 'var(--muted)',
+          fontWeight: 600, textTransform:'uppercase',
+        }}>
+          {isAsOfPast ? 'Time travel · viewing past' : 'As of'}
+        </span>
+        <div style={{display:'flex', gap: 4, flexWrap:'wrap'}}>
+          {AS_OF_PRESETS.map(opt => (
+            <button key={opt.id} onClick={() => setAsOfPreset(opt.id)} style={{
+              all:'unset', cursor:'pointer',
+              padding:'4px 10px', borderRadius: 999,
+              border:'1px solid ' + (asOfPreset === opt.id ? 'var(--ink)' : 'var(--hair)'),
+              background: asOfPreset === opt.id ? 'var(--ink)' : '#ffffff',
+              color: asOfPreset === opt.id ? '#ffffff' : 'var(--ink-mid)',
+              fontSize: 11, fontWeight: 500, fontFamily: 'var(--sans)',
+            }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <span style={{flex: 1}} />
+        {isAsOfPast && (() => {
+          const allFacts = factGroups.flatMap(g => g.facts);
+          const notYetKnown = allFacts.filter(f => factVerifiedDaysAgo(f) < asOfDays && f.state !== 'missing').length;
+          return (
+            <span className="mono" style={{fontSize: 10.5, color:'#B45309', letterSpacing:'.06em'}}>
+              {notYetKnown} fact{notYetKnown !== 1 ? 's' : ''} not yet known
+            </span>
+          );
+        })()}
       </div>
 
       {/* MICRO STAT BAND */}
@@ -561,6 +640,7 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
                     onUpdate={patch => updateFact(gi, fi, patch)}
                     onResolve={() => openResolver(gi, fi, f)}
                     isLast={fi === g.facts.length - 1}
+                    asOfDays={asOfDays}
                   />
                 ))}
                 <AddFactRow onAdd={fact => addFact(gi, fact)} groupHint={g.label} />
@@ -576,13 +656,17 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
           background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 14,
           padding: '20px 24px', marginBottom: 24,
         }}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 14, marginBottom: 10, flexWrap: 'wrap'}}>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 14, marginBottom: 14, flexWrap: 'wrap'}}>
             <div>
               <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--ink)', textTransform:'uppercase', fontWeight: 600, marginBottom: 4}}>
-                Scenario coverage
+                Scenario coverage · core + your additions
               </div>
               <div style={{fontSize: 13, color:'var(--muted)'}}>
-                Cendra knows how to handle <b style={{color:'var(--ink)'}}>{propCoverage.covered} of {D3.scenario_coverage.portfolio_total}</b> hospitality scenarios for this property.
+                Cendra knows how to handle <b style={{color:'var(--ink)'}}>{propCoverage.core_covered ?? propCoverage.covered} of {D3.scenario_coverage.portfolio_core_total}</b> core scenarios
+                {(propCoverage.additions_total ?? 0) > 0 && (
+                  <> · plus <b style={{color:'var(--ink)'}}>{propCoverage.additions_covered ?? 0} of {propCoverage.additions_total}</b> additions you've added</>
+                )}
+                .
                 {propCoverage.top_gaps && propCoverage.top_gaps.length > 0 && <> Import more knowledge to close the gaps below.</>}
               </div>
             </div>
@@ -592,6 +676,44 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
               border: '1px solid var(--ink)', background: '#ffffff',
               fontSize: 12.5, fontWeight: 500, color: 'var(--ink)',
             }}>+ Add source</button>
+          </div>
+
+          {/* Core vs additions split — two-tier visualization (FL-14) */}
+          <div style={{display:'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14}}>
+            <div style={{
+              padding: '12px 14px', borderRadius: 8,
+              background: 'var(--paper-2)', border: '1px solid var(--hair-soft)',
+            }}>
+              <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', marginBottom: 6, textTransform:'uppercase'}}>
+                Core catalog
+              </div>
+              <div style={{display:'flex', alignItems:'baseline', gap: 8}}>
+                <span style={{fontFamily:'var(--serif)', fontSize: 24, fontWeight: 500, color:'var(--ink)', letterSpacing:'-.01em'}}>
+                  {propCoverage.core_covered ?? propCoverage.covered}
+                </span>
+                <span className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'.06em'}}>of {D3.scenario_coverage.portfolio_core_total}</span>
+              </div>
+              <div className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.10em', marginTop: 4, textTransform:'uppercase'}}>
+                Industry standard hospitality scenarios
+              </div>
+            </div>
+            <div style={{
+              padding: '12px 14px', borderRadius: 8,
+              background: 'rgba(255,180,0,.06)', border: '1px solid rgba(255,180,0,.30)',
+            }}>
+              <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'#B45309', marginBottom: 6, textTransform:'uppercase'}}>
+                Your additions
+              </div>
+              <div style={{display:'flex', alignItems:'baseline', gap: 8}}>
+                <span style={{fontFamily:'var(--serif)', fontSize: 24, fontWeight: 500, color:'#B45309', letterSpacing:'-.01em'}}>
+                  {propCoverage.additions_covered ?? 0}
+                </span>
+                <span className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'.06em'}}>of {propCoverage.additions_total ?? 0}</span>
+              </div>
+              <div className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.10em', marginTop: 4, textTransform:'uppercase'}}>
+                Owner / building / portfolio-specific
+              </div>
+            </div>
           </div>
           {propCoverage.top_gaps && propCoverage.top_gaps.length > 0 && (
             <div style={{marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--hair-soft)'}}>
@@ -931,10 +1053,12 @@ function synthProperty(summary, richBase) {
 }
 
 // Editable fact row — view mode + inline edit mode
-function EditableFactRow({ fact, onUpdate, onResolve, isLast }) {
+function EditableFactRow({ fact, onUpdate, onResolve, isLast, asOfDays }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(fact.value);
   const [hover, setHover] = useState(false);
+  // Bi-temporal: if asOfDays > 0 and fact was verified more recently than that, dim it.
+  const notYetKnown = asOfDays > 0 && factVerifiedDaysAgo(fact) < asOfDays && fact.state !== 'missing';
   const stateMap = {
     verified: { tone: "ok",   label: "Verified" },
     missing:  { tone: "info", label: "Missing"  },
@@ -993,6 +1117,8 @@ function EditableFactRow({ fact, onUpdate, onResolve, isLast }) {
         borderBottom: isLast ? 'none' : '1px solid var(--hair-soft)',
         background: hover ? 'var(--paper-2)' : '#ffffff',
         transition: 'background .1s',
+        opacity: notYetKnown ? 0.32 : 1,
+        filter: notYetKnown ? 'grayscale(.5)' : 'none',
       }}>
       <div style={{display:'flex', alignItems:'center', gap: 6, fontSize: 13, fontWeight: 500, color:'var(--ink)'}}>
         {pinned && (
@@ -1502,9 +1628,10 @@ function InsightsScreen({ onOpen }) {
 function TrustScreen({ onOpen }) {
   const [tab, setTab] = useState("safety");
 
-  // Three semantic groups — Hick's Law: 6 tabs → 3
+  // Three semantic groups — Hick's Law: 6 tabs → 4
   const tabs = [
     { id: "safety", label: "Safety",     count: D3.hard_rules.length + D3.team.length },
+    { id: "team",   label: "Team",       count: (D3.team_stats || []).length },
     { id: "data",   label: "Data",       count: D3.integrations.length + 4 },
     { id: "audit",  label: "Audit",      count: D2.audit.length },
   ];
@@ -1613,6 +1740,70 @@ function TrustScreen({ onOpen }) {
                 <PIIRow label="ID documents"        mode="Stored in PMS · never sent to channel inbox" />
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TEAM — per-PM aggregates via manager_id. Audit §7 #11. */}
+      {tab === "team" && (
+        <div style={{display:'grid', gap: 18}}>
+          <SectionLabel2 eyebrow={`${(D3.team_stats || []).length} active managers · today`} sub="Per-PM decision aggregates from manager_id on every DecisionCase." />
+          <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
+            <div style={{
+              display:'grid', gridTemplateColumns: 'minmax(220px, 1.6fr) 90px 110px 110px 110px 130px 90px',
+              gap: 14, padding: '12px 22px', background:'var(--paper-2)',
+              borderBottom:'1px solid var(--hair)',
+              fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.12em',
+              color:'var(--muted)', textTransform:'uppercase', fontWeight: 500,
+            }}>
+              <div>Manager</div>
+              <div style={{textAlign:'right'}}>Decisions</div>
+              <div style={{textAlign:'right'}}>Approvals</div>
+              <div style={{textAlign:'right'}}>Overrides</div>
+              <div style={{textAlign:'right'}}>Match rate</div>
+              <div style={{textAlign:'right'}}>Avg response</div>
+              <div style={{textAlign:'right'}}>Last</div>
+            </div>
+            {(D3.team_stats || []).map((m, i, arr) => {
+              const matchTone = m.match_rate >= 0.95 ? 'var(--ok)' : m.match_rate >= 0.9 ? 'var(--ink)' : 'var(--warn)';
+              const overrideTone = m.overrides_today === 0 ? 'var(--ok)' : m.overrides_today > 2 ? 'var(--warn)' : 'var(--ink)';
+              return (
+                <div key={m.manager_id} style={{
+                  display:'grid', gridTemplateColumns: 'minmax(220px, 1.6fr) 90px 110px 110px 110px 130px 90px',
+                  gap: 14, padding:'14px 22px', alignItems:'center',
+                  borderBottom: i < arr.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+                  background:'#ffffff',
+                }}>
+                  {/* Manager */}
+                  <div style={{display:'flex', alignItems:'center', gap: 12, minWidth: 0}}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius:'50%',
+                      background:'var(--ink)', color:'#ffffff',
+                      display:'grid', placeItems:'center',
+                      fontFamily:'var(--serif)', fontStyle:'italic', fontSize: 14, flexShrink: 0,
+                    }}>{m.avatar}</div>
+                    <div style={{minWidth: 0}}>
+                      <div style={{fontSize: 13.5, fontWeight: 500, color:'var(--ink)'}}>{m.name}</div>
+                      <div className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.04em', marginTop: 2, textTransform:'uppercase'}}>
+                        {m.role} · streak {m.streak_days}d · top: {m.best_workflow}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mono" style={{fontSize: 14, textAlign:'right', color:'var(--ink)', fontVariantNumeric:'tabular-nums', fontWeight: 600}}>{m.decisions_today}</div>
+                  <div className="mono" style={{fontSize: 13, textAlign:'right', color:'var(--ink-mid)', fontVariantNumeric:'tabular-nums'}}>{m.approvals_today}</div>
+                  <div className="mono" style={{fontSize: 13, textAlign:'right', color: overrideTone, fontVariantNumeric:'tabular-nums', fontWeight: m.overrides_today > 0 ? 600 : 400}}>{m.overrides_today}</div>
+                  <div className="mono" style={{fontSize: 13, textAlign:'right', color: matchTone, fontVariantNumeric:'tabular-nums', fontWeight: 600}}>{(m.match_rate * 100).toFixed(0)}%</div>
+                  <div className="mono" style={{fontSize: 12, textAlign:'right', color:'var(--ink-mid)', fontVariantNumeric:'tabular-nums'}}>{m.avg_response_min.toFixed(1)}m</div>
+                  <div className="mono" style={{fontSize: 11, textAlign:'right', color:'var(--muted)'}}>
+                    {m.last_decision_min < 60 ? `${m.last_decision_min}m` : `${(m.last_decision_min/60).toFixed(1)}h`}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex', gap: 8, justifyContent:'flex-end'}}>
+            <Btn size="sm" kind="ghost">Export team stats · CSV</Btn>
+            <Btn size="sm" kind="ghost">View on-shift roster →</Btn>
           </div>
         </div>
       )}

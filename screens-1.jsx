@@ -1,6 +1,6 @@
 // Cendra screens: Today, Work, Work Detail, Approval
 const { Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar, DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState } = window.CendraAtoms;
-const { StayHealthBadge, deriveStayHealth } = window.CendraAtoms2;
+const { StayHealthBadge, deriveStayHealth, deriveStayHealthSignals } = window.CendraAtoms2;
 const D = window.CENDRA_DATA;
 const DP = window.CENDRA_DATA2;
 
@@ -962,7 +962,7 @@ function GuestJourneyCard({ g, onOpen, variant }) {
           <div style={{fontFamily:'var(--serif)', fontSize:18, lineHeight:1.2, letterSpacing:'-.005em'}}>
             {g.name}
           </div>
-          <StayHealthBadge health={health} />
+          <StayHealthBadge health={health} signals={deriveStayHealthSignals(g)} />
           <span className="mono dim" style={{fontSize:10}}>{g.language}</span>
           {g.trips > 0 && <span className="mono dim" style={{fontSize:10}}>· {g.trips} prior</span>}
           <span className="mono dim" style={{fontSize:10}}>· {g.sentiment}</span>
@@ -1275,7 +1275,7 @@ function GuestJourneyHeader({ g }) {
           {g.sentiment}
         </div>
         <div style={{display:'flex', alignItems:'center', gap: 10, marginTop: 14, flexWrap:'wrap'}}>
-          <StayHealthBadge health={deriveStayHealth(g)} size="lg" />
+          <StayHealthBadge health={deriveStayHealth(g)} size="lg" signals={deriveStayHealthSignals(g)} />
           <GuestStatusChip status={g.status} reason={g.status_reason} slaMin={g.sla_min} />
         </div>
       </div>
@@ -1393,6 +1393,7 @@ function DraftReplyCard({ card, guest }) {
 function ApprovalGenerativeCard({ card, guest }) {
   const toneMap = { high: 'risk', medium: 'warn', low: 'ok' };
   const [whyOpen, setWhyOpen] = useState(false);
+  const [oneOff, setOneOff] = useState(false);
   const decisionForWhy = {
     title: card.title,
     evidence: card.evidence || [
@@ -1425,7 +1426,33 @@ function ApprovalGenerativeCard({ card, guest }) {
         <div className="dim mt-2" style={{fontSize: 13.5, lineHeight: 1.5, maxWidth: 660}}>
           <span className="mono" style={{fontSize:10, letterSpacing:'.16em', color:'var(--ink)'}}>WHY · </span>{card.why}
         </div>
-        <div style={{display:'flex', gap: 8, marginTop: 16, flexWrap:'wrap', alignItems:'center'}}>
+        {/* One-off exception checkbox — Audit §7 #7. Maps to causal_tag = one_off_exception. */}
+        <label style={{
+          display:'flex', alignItems:'flex-start', gap: 10,
+          marginTop: 14, padding:'10px 12px',
+          background:'var(--paper-2)', borderRadius: 6,
+          border:'1px solid var(--hair-soft)',
+          cursor:'pointer', maxWidth: 580,
+        }}>
+          <input
+            type="checkbox"
+            checked={oneOff}
+            onChange={(e) => setOneOff(e.target.checked)}
+            style={{marginTop: 2, accentColor: 'var(--ink)', cursor:'pointer'}}
+          />
+          <div style={{minWidth: 0}}>
+            <div style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 500, lineHeight: 1.45}}>
+              Treat as one-off · don't learn from this decision
+            </div>
+            <div style={{fontSize: 11.5, color:'var(--muted)', lineHeight: 1.5, marginTop: 2}}>
+              {oneOff
+                ? 'Cendra will tag this case as one_off_exception. It will not contribute to pattern mining or rule promotion.'
+                : 'Default: Cendra will include this decision in pattern mining unless you say otherwise.'}
+            </div>
+          </div>
+        </label>
+
+        <div style={{display:'flex', gap: 8, marginTop: 14, flexWrap:'wrap', alignItems:'center'}}>
           {card.options.map((o, i) => (
             <Btn key={o} kind={i === 0 ? 'primary' : 'default'} size="sm">{o}</Btn>
           ))}

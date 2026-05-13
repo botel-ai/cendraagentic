@@ -151,6 +151,9 @@ function AutopilotScreen({ tweaks }) {
         ))}
       </div>
 
+      {/* KILL SWITCHES — scenario-class level. Distinct axis from autonomy progression. */}
+      <KillSwitchPanel />
+
       {/* FLAT WORKFLOW TABLE — single-line rows, single-glance scan */}
       <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
         <div style={{
@@ -220,6 +223,139 @@ function AutopilotScreen({ tweaks }) {
       </div>
 
       {changeReq && <ChangeRequestDrawer wf={changeReq.wf} group={changeReq.group} onClose={() => setChangeReq(null)} />}
+    </div>
+  );
+}
+
+// Kill switches — scenario-class STOPs distinct from autonomy progression.
+// Audit §7 #8 (manager_kill_switch).
+function KillSwitchPanel() {
+  const switches = DP.kill_switches || [];
+  const [open, setOpen] = useState(switches.some(s => s.armed));
+  const [armedLocal, setArmedLocal] = useState({});
+
+  const isArmed = (s) => armedLocal[s.id] != null ? armedLocal[s.id] : s.armed;
+  const armedCount = switches.filter(isArmed).length;
+
+  return (
+    <div style={{marginBottom: 32}}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        all:'unset', cursor:'pointer',
+        display:'flex', alignItems:'center', gap: 14,
+        padding: '14px 18px',
+        background: armedCount > 0 ? 'rgba(255,56,92,.06)' : '#ffffff',
+        border: '1px solid ' + (armedCount > 0 ? 'rgba(255,56,92,.30)' : 'var(--hair)'),
+        borderRadius: 12,
+        width: 'calc(100% - 38px)',
+      }}>
+        <span style={{
+          width: 28, height: 28, borderRadius: 6,
+          background: armedCount > 0 ? '#FF385C' : 'var(--ink)',
+          color: '#ffffff',
+          display:'grid', placeItems:'center',
+          fontFamily:'var(--mono)', fontSize: 14, fontWeight: 800,
+        }}>!</span>
+        <div style={{flex: 1, minWidth: 0}}>
+          <div style={{display:'flex', alignItems:'center', gap: 10}}>
+            <span style={{fontSize: 13.5, fontWeight: 600, color:'var(--ink)'}}>
+              Kill switches · per scenario-class
+            </span>
+            {armedCount > 0 && (
+              <span style={{
+                fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.14em',
+                color:'#FF385C', fontWeight: 700, textTransform:'uppercase',
+                padding:'2px 7px', borderRadius: 4,
+                background:'rgba(255,56,92,.10)', border:'1px solid rgba(255,56,92,.30)',
+              }}>{armedCount} armed</span>
+            )}
+          </div>
+          <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', marginTop: 2}}>
+            STOP Cendra on a whole class for a cool-down. Distinct from autonomy progression.
+          </div>
+        </div>
+        <span className="mono" style={{fontSize: 10, letterSpacing:'.12em', color:'var(--ink-mid)', textTransform:'uppercase'}}>
+          {open ? '↑ Collapse' : '↓ Show all'}
+        </span>
+      </button>
+
+      {open && (
+        <div className="dcard" style={{marginTop: 12, padding: 0, overflow:'hidden'}}>
+          {switches.map((s, i) => {
+            const armed = isArmed(s);
+            const isNuclear = !!s.nuclear;
+            return (
+              <div key={s.id} style={{
+                display:'grid', gridTemplateColumns: 'minmax(260px, 1.4fr) 200px 160px 130px 130px',
+                gap: 14, padding:'14px 22px', alignItems:'center',
+                borderBottom: i < switches.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+                background: armed ? 'rgba(255,56,92,.04)' : '#ffffff',
+              }}>
+                {/* Class */}
+                <div>
+                  <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                    <span style={{fontSize: 13.5, fontWeight: 500, color:'var(--ink)'}}>{s.scenario_class}</span>
+                    {isNuclear && (
+                      <span style={{
+                        fontFamily:'var(--mono)', fontSize: 9, letterSpacing:'.14em',
+                        color:'#FF385C', fontWeight: 700, textTransform:'uppercase',
+                        padding:'1px 6px', borderRadius: 3,
+                        background:'rgba(255,56,92,.10)', border:'1px solid rgba(255,56,92,.30)',
+                      }}>NUCLEAR</span>
+                    )}
+                  </div>
+                  <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', marginTop: 3}}>
+                    class · {s.reasoning_class} · {s.affects_workflows} workflows · {s.affects_properties} props
+                  </div>
+                </div>
+                {/* Last triggered */}
+                <div className="mono" style={{fontSize: 11, color:'var(--ink-mid)', letterSpacing:'.04em'}}>
+                  <div style={{color:'var(--muted)', fontSize: 9.5, letterSpacing:'.12em', textTransform:'uppercase', marginBottom: 2}}>Last triggered</div>
+                  {s.last_triggered}
+                </div>
+                {/* Cool-down */}
+                <div>
+                  <div className="mono" style={{color:'var(--muted)', fontSize: 9.5, letterSpacing:'.12em', textTransform:'uppercase', marginBottom: 2}}>Cool-down</div>
+                  <span className="mono" style={{fontSize: 12, color: armed && s.cool_down_remaining > 0 ? '#FF385C' : 'var(--ink-mid)', fontWeight: armed ? 600 : 500}}>
+                    {armed && s.cool_down_remaining > 0
+                      ? `${s.cool_down_remaining}m left · resumes`
+                      : `${s.cool_down_min}m on trigger`}
+                  </span>
+                </div>
+                {/* State */}
+                <div style={{textAlign:'right'}}>
+                  {armed ? (
+                    <span style={{
+                      fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.14em',
+                      color:'#FF385C', fontWeight: 700, textTransform:'uppercase',
+                      padding:'4px 10px', borderRadius: 999,
+                      background:'rgba(255,56,92,.10)', border:'1px solid rgba(255,56,92,.40)',
+                    }}>● ARMED</span>
+                  ) : (
+                    <span style={{
+                      fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.14em',
+                      color:'var(--ok)', fontWeight: 700, textTransform:'uppercase',
+                    }}>○ Standby</span>
+                  )}
+                </div>
+                {/* Action */}
+                <div style={{textAlign:'right'}}>
+                  <button onClick={() => setArmedLocal(a => ({...a, [s.id]: !armed}))} style={{
+                    all:'unset', cursor:'pointer',
+                    padding:'7px 14px', borderRadius: 8,
+                    background: armed ? 'var(--ok)' : (isNuclear ? '#FF385C' : '#1F2937'),
+                    color: '#ffffff',
+                    fontSize: 11.5, fontWeight: 700,
+                    fontFamily: 'var(--mono)', letterSpacing: '.08em', textTransform: 'uppercase',
+                    boxShadow: '0 1px 2px rgba(0,0,0,.20)',
+                  }}>
+                    {armed ? 'Resume' : (isNuclear ? '⛔ Kill all' : '⛔ Stop')}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -995,17 +1131,68 @@ function FactCard({ f }) {
 // ───────────────────────────────────────────────────────────────────
 // LEARNING CENTER
 // ───────────────────────────────────────────────────────────────────
+// Audit §7 #9 — Refusal-type filter. RefusalType is on every rule's rationale.
+const REFUSAL_META = {
+  all:            { label: "All",                description: "Every suggestion regardless of why I deferred" },
+  safety:         { label: "Safety hold",        description: "Cendra deferred because the action could go wrong" },
+  documents:      { label: "Documents needed",   description: "Cendra deferred until evidence (photos / passport / receipt)" },
+  owner_approval: { label: "Owner approval",     description: "Cendra deferred to the owner of this property" },
+  compliance:     { label: "Compliance",         description: "Cendra deferred per regulation (GDPR Art.22, EU Reg 2024/1028)" },
+  experience:     { label: "Experience-led",     description: "Cendra deferred because past cases informed a better answer" },
+  ambiguity:      { label: "Ambiguity",          description: "Cendra deferred because sources disagree" },
+};
+
 function LearningScreen() {
+  const [filter, setFilter] = useState("all");
+  const all = D2.learnings || [];
+  const shown = filter === "all" ? all : all.filter(l => l.refusal_type === filter);
+  const filterIds = ["all", ...Object.keys(REFUSAL_META).filter(k => k !== "all" && all.some(l => l.refusal_type === k))];
+  const meta = REFUSAL_META[filter] || REFUSAL_META.all;
+
   return (
     <div className="stage">
       <PageHeader
-        eyebrow="LEARNING · 3 SUGGESTIONS"
-        title="Cendra would like to learn three things."
-        lead="Each suggestion is drawn from your edits and approvals. Nothing becomes a rule until you decide."
+        eyebrow={`LEARNING · ${shown.length} OF ${all.length} SUGGESTIONS`}
+        title="Cendra would like to learn from how you defer."
+        lead="Filter by why Cendra held off. Each suggestion came from a refusal pattern; nothing becomes a rule until you decide."
       />
 
+      {/* Refusal-type filter pills */}
+      <div style={{display:'flex', gap: 8, flexWrap:'wrap', marginBottom: 18, alignItems:'center'}}>
+        {filterIds.map(id => {
+          const m = REFUSAL_META[id];
+          const isActive = filter === id;
+          const count = id === "all" ? all.length : all.filter(l => l.refusal_type === id).length;
+          return (
+            <button key={id} onClick={() => setFilter(id)} style={{
+              all:'unset', cursor:'pointer',
+              padding:'7px 14px', borderRadius: 999,
+              border:'1px solid ' + (isActive ? 'var(--ink)' : 'var(--hair)'),
+              background: isActive ? 'var(--ink)' : '#ffffff',
+              color: isActive ? '#ffffff' : 'var(--ink-mid)',
+              fontSize: 12.5, fontWeight: 500, fontFamily: 'var(--sans)',
+            }}>
+              {m.label}
+              <span style={{marginLeft: 8, opacity: isActive ? .7 : .5, fontFamily:'var(--mono)', fontSize: 11}}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+      {filter !== "all" && (
+        <div className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'.06em', marginBottom: 24, marginTop: -8}}>
+          {meta.description.toUpperCase()}
+        </div>
+      )}
+
       <div className="col gap-4">
-        {D2.learnings.map(l => <LearningCard key={l.id} l={l} />)}
+        {shown.map(l => <LearningCard key={l.id} l={l} />)}
+        {shown.length === 0 && (
+          <QuietState
+            title="Nothing in this refusal class yet."
+            body="When Cendra defers on this kind of decision multiple times, a suggestion will appear here."
+            mono={`FILTER · ${(REFUSAL_META[filter]?.label || '').toUpperCase()}`}
+          />
+        )}
       </div>
 
       <div className="mt-8">
@@ -1041,8 +1228,17 @@ function LearningCard({ l }) {
           <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginTop: 4, fontWeight: 500}}>confidence</div>
         </div>
         <div style={{flex: 1, minWidth: 0}}>
-          <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 6, fontWeight: 500}}>
-            CENDRA NOTICED · {l.examples} EXAMPLES · {l.overrides} OVERRIDES · {l.incidents} INCIDENTS
+          <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 6, fontWeight: 500, display:'flex', alignItems:'center', gap: 8, flexWrap:'wrap'}}>
+            {l.refusal_type && (
+              <span style={{
+                padding:'2px 8px', borderRadius: 999,
+                background:'var(--paper-2)', border:'1px solid var(--hair)',
+                color:'var(--ink)', fontWeight: 600,
+              }}>
+                ↪ {(REFUSAL_META[l.refusal_type]?.label || l.refusal_type).toUpperCase()}
+              </span>
+            )}
+            <span>CENDRA NOTICED · {l.examples} EXAMPLES · {l.overrides} OVERRIDES · {l.incidents} INCIDENTS</span>
           </div>
           <h3 className="serif-display" style={{
             fontSize: 24, lineHeight: 1.2, margin: 0, color:'var(--ink)',
@@ -1111,6 +1307,7 @@ function LearningCard({ l }) {
 function AuditScreen() {
   const [filter, setFilter] = useState("all");
   const [expandedId, setExpandedId] = useState(null);
+  const [replayOf, setReplayOf] = useState(null);
 
   const filterDefs = [
     { id: "all",       label: "All",        test: () => true },
@@ -1235,8 +1432,11 @@ function AuditScreen() {
                       <div className="mono" style={{fontSize: 11.5, color:'var(--ink)'}}>{a.workflow}</div>
                     </div>
                   </div>
-                  <div style={{display:'flex', gap: 8, marginTop: 14}}>
+                  <div style={{display:'flex', gap: 8, marginTop: 14, alignItems:'center'}}>
                     <Btn size="sm">Open full record</Btn>
+                    <Btn size="sm" kind="ghost" onClick={() => setReplayOf(a)}>
+                      ▶ Replay against today's rules
+                    </Btn>
                     {(a.reversible === "green" || a.reversible === "amber") && <Btn size="sm" kind="ghost">Roll back</Btn>}
                   </div>
                 </div>
@@ -1245,7 +1445,132 @@ function AuditScreen() {
           );
         })}
       </div>
+      {replayOf && <ReplayModal entry={replayOf} onClose={() => setReplayOf(null)} />}
     </div>
+  );
+}
+
+// Audit §7 #13 — Replay engine surfacing.
+// InMemoryReplayEngine has 5 breakpoints (PRE_INTENT, POST_MEMORY, PRE_LLM, POST_LLM, PRE_RESPONSE).
+// PM-facing copy: "Cendra against today's rules" — not dev terminology.
+function ReplayModal({ entry, onClose }) {
+  const [stage, setStage] = useState("running"); // running | done
+  useEffect(() => {
+    const t = setTimeout(() => setStage("done"), 1400);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Synthesise a plausible diff per audit kind
+  const same = entry.workflow === "info_reply" || entry.workflow === "promotion_gate";
+  const diff = same ? null : (entry.workflow === "extension_offer"
+    ? "Pricing rule has tightened — would now offer €25 not €30. Outcome class unchanged."
+    : entry.workflow === "vendor_dispatch"
+    ? "Bosphorus auto-spend cap raised from €150 to €200 since this decision. Would now auto-dispatch instead of routing for approval."
+    : entry.workflow === "rule_publish"
+    ? "Rule remains in force. No replay-eligible behavioural change."
+    : entry.workflow === "damage_claim"
+    ? "Compliance Art.22 NEEDS_REVIEW is now mandatory — would emit identical hold but with explicit GDPR badge."
+    : "Active rule set produces the same decision today.");
+
+  const breakpoints = [
+    { id: "intent",   label: "Intent classified",   detail: "EARLY_CHECKIN / VENDOR_DISPATCH / etc. — same as then" },
+    { id: "memory",   label: "Memory retrieved",    detail: "Working + episodic + procedural · 4 tiers consulted" },
+    { id: "rules",    label: "Rules evaluated",     detail: same ? "All 6 priority tiers consulted · same binding tier" : "Rule set has drifted · see diff below" },
+    { id: "decision", label: "Decision computed",   detail: same ? "Identical to original" : "Behavioural delta detected" },
+  ];
+
+  return (
+    <>
+      <div style={{
+        position:'fixed', inset: 0, background:'rgba(0,0,0,.40)', zIndex: 30,
+      }} onClick={onClose} />
+      <div style={{
+        position:'fixed', top:'50%', left:'50%', transform:'translate(-50%, -50%)',
+        width: 'min(640px, 92vw)', maxHeight: '86vh', overflowY: 'auto',
+        background: 'var(--paper)', borderRadius: 14,
+        boxShadow:'0 24px 64px rgba(0,0,0,.20)', zIndex: 31,
+        display:'flex', flexDirection:'column',
+      }}>
+        <div style={{
+          padding:'20px 28px 14px', borderBottom:'1px solid var(--hair-soft)',
+          display:'flex', alignItems:'center', gap: 14,
+        }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 8,
+            background:'var(--ink)', color:'#ffffff',
+            display:'grid', placeItems:'center',
+            fontFamily:'var(--mono)', fontWeight: 700, fontSize: 16,
+          }}>▶</div>
+          <div style={{flex: 1}}>
+            <div className="mono" style={{fontSize: 10, letterSpacing:'.16em', color:'var(--muted)', textTransform:'uppercase'}}>
+              Replay · {entry.time}
+            </div>
+            <div style={{fontFamily:'var(--serif)', fontSize: 19, lineHeight: 1.25, marginTop: 4, color:'var(--ink)'}}>
+              {entry.action} · {entry.target}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            all:'unset', cursor:'pointer',
+            padding:'4px 10px', fontFamily:'var(--mono)', fontSize: 11,
+            color:'var(--muted)', letterSpacing:'.10em',
+          }}>CLOSE</button>
+        </div>
+        <div style={{padding:'18px 28px', flex: 1}}>
+          <p style={{margin: '0 0 16px', fontSize: 14, color:'var(--ink-mid)', lineHeight: 1.55}}>
+            {stage === "running"
+              ? "Re-running this decision against today's active rules + memory snapshot…"
+              : same
+                ? "Cendra arrives at the same decision today. Active rules have not drifted on this scenario."
+                : "Active rules have drifted since this decision. Today's outcome would differ."}
+          </p>
+
+          <div style={{position:'relative', paddingLeft: 24}}>
+            <div style={{position:'absolute', left: 8, top: 4, bottom: 4, width: 1, background:'var(--hair)'}} />
+            {breakpoints.map((b, i) => (
+              <div key={b.id} style={{position:'relative', paddingBottom: 14}}>
+                <div style={{
+                  position:'absolute', left: -22, top: 2,
+                  width: 14, height: 14, borderRadius: 999,
+                  background: stage === "done" ? 'var(--ok)' : 'var(--ink-mid)',
+                  border:'2px solid var(--paper)',
+                }} />
+                <div className="mono" style={{fontSize: 10.5, letterSpacing:'.10em', color:'var(--ink)', fontWeight: 600, textTransform:'uppercase'}}>
+                  {b.label}
+                </div>
+                <div style={{fontSize: 12.5, color:'var(--ink-mid)', marginTop: 2, lineHeight: 1.5}}>
+                  {b.detail}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {stage === "done" && (
+            <div style={{
+              marginTop: 16, padding:'14px 16px', borderRadius: 10,
+              background: same ? 'rgba(0,166,153,.06)' : 'rgba(255,180,0,.08)',
+              border: '1px solid ' + (same ? 'rgba(0,166,153,.30)' : 'rgba(255,180,0,.30)'),
+            }}>
+              <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color: same ? '#00867E' : '#B45309', textTransform:'uppercase', fontWeight: 700, marginBottom: 6}}>
+                {same ? '✓ Replay matches' : 'Δ Rule drift detected'}
+              </div>
+              <div style={{fontSize: 13, color:'var(--ink)', lineHeight: 1.55}}>
+                {diff || "Same decision today."}
+              </div>
+            </div>
+          )}
+        </div>
+        <div style={{
+          padding:'14px 28px', borderTop:'1px solid var(--hair-soft)',
+          display:'flex', gap: 8, alignItems:'center',
+        }}>
+          <span style={{flex: 1}} />
+          <Btn size="sm" kind="ghost" onClick={onClose}>Close</Btn>
+          {stage === "done" && !same && (
+            <Btn size="sm">Update rule to match replay →</Btn>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
