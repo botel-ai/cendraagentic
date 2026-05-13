@@ -7,13 +7,14 @@ const DP = window.CENDRA_DATA2;
 // AUTOPILOT / Trust Meter — autonomy ladder (orchestra)
 // ───────────────────────────────────────────────────────────────────
 function AutopilotScreen({ tweaks }) {
-  const ladderVariant = tweaks?.autonomyLadder || "orchestra";
   const [changeReq, setChangeReq] = useState(null);
+  const [filter, setFilter] = useState("all");
 
-  // Aggregate stats from groups
-  const allWfs = DP.workflow_groups.flatMap(g => g.workflows);
+  const allWfs = DP.workflow_groups.flatMap(g =>
+    g.workflows.map(w => ({ ...w, groupId: g.id, groupName: g.name }))
+  );
+
   const stats = {
-    total: allWfs.length,
     autopilot: allWfs.filter(w => w.state === "autopilot").length,
     semi:      allWfs.filter(w => w.state === "semi").length,
     approval:  allWfs.filter(w => w.state === "approval").length,
@@ -21,48 +22,193 @@ function AutopilotScreen({ tweaks }) {
     never:     allWfs.filter(w => w.state === "never").length,
     ready:     allWfs.filter(w => w.ready).length,
   };
+  const readyList = allWfs.filter(w => w.ready);
+  const firstReady = readyList[0];
+
+  // Filter pills — Hick's Law: small set, single-select
+  const filterDefs = [
+    { id: "all",      label: "All",         test: () => true },
+    { id: "ready",    label: "Ready to promote", test: w => w.ready },
+    { id: "live",     label: "Live",        test: w => w.state === "autopilot" || w.state === "semi" },
+    { id: "approval", label: "Approval",    test: w => w.state === "approval" },
+    { id: "never",    label: "Never auto",  test: w => w.state === "never" },
+  ];
+  const shown = allWfs.filter(filterDefs.find(f => f.id === filter).test);
+
+  const stateMeta = {
+    autopilot: { tone: "ok",   label: "Autopilot" },
+    semi:      { tone: "info", label: "Semi-auto" },
+    approval:  { tone: "warn", label: "Approval" },
+    observe:   { tone: "info", label: "Observe" },
+    never:     { tone: "risk", label: "Never auto" },
+  };
 
   return (
-    <div className="stage">
-      <PageHeader
-        eyebrow="AUTOPILOT · WORKFLOW TRUST CENTER"
-        title="What you let Cendra handle."
-        lead={<>Each workflow has its own trust level. Cendra promotes itself slowly, demotes itself instantly. <b style={{color:'var(--ink)'}}>There is no global AI on/off.</b></>}
-        right={
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <Btn kind="ghost" size="sm">Pause all</Btn>
-            <Btn>+ New workflow</Btn>
-          </div>
-        }
-      />
+    <div className="stage" style={{maxWidth: 1080, paddingTop: 56, paddingBottom: 120}}>
 
-      {/* Stats strip */}
-      <div style={{
-        display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap: 0,
-        border:'1px solid var(--hair)', background:'var(--card)', borderRadius:6,
-        marginBottom: 22,
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 28, display:'flex', gap: 16, alignItems:'center',
       }}>
-        {[
-          { label: "Autopilot",  v: stats.autopilot, c: 'var(--ok)' },
-          { label: "Semi-auto",  v: stats.semi,      c: 'var(--info)' },
-          { label: "Approval",   v: stats.approval,  c: 'var(--warn)' },
-          { label: "Observe",    v: stats.observe,   c: 'var(--muted)' },
-          { label: "Never auto", v: stats.never,     c: 'var(--risk)' },
-          { label: "Ready to promote", v: stats.ready, c: 'var(--ok)' },
-        ].map((s, i) => (
-          <div key={i} style={{padding:'14px 16px', borderLeft: i === 0 ? 'none' : '1px solid var(--hair-soft)'}}>
-            <div className="mono dim" style={{fontSize:9.5, letterSpacing:'.16em', textTransform:'uppercase'}}>{s.label}</div>
-            <div style={{fontFamily:'var(--mono)', fontSize:22, fontWeight:500, color: s.c, lineHeight:1.1, marginTop:4}}>{s.v}</div>
+        <span>AUTOPILOT · WORKFLOW TRUST</span>
+        <span style={{flex:1}} />
+        <span>{allWfs.length} WORKFLOWS · NO GLOBAL ON/OFF</span>
+      </div>
+
+      {/* HERO — Cendra speaks about promotion readiness */}
+      <div style={{marginBottom: 48}}>
+        <h1 className="serif-display" style={{
+          fontSize: 46, lineHeight: 1.05, margin: 0, color: 'var(--ink)',
+        }}>
+          {stats.ready > 0
+            ? <>{stats.ready} workflow{stats.ready > 1 ? 's' : ''} ready to level up.</>
+            : <>Everything is at the right level.</>
+          }
+        </h1>
+        {firstReady && (
+          <p style={{
+            fontSize: 16.5, lineHeight: 1.55, margin: '18px 0 0',
+            color: 'var(--ink-mid)', maxWidth: 720, fontFamily: 'var(--sans)',
+          }}>
+            <b style={{color:'var(--ink)'}}>{firstReady.name}</b> — {firstReady.samples} cases, {firstReady.override} override, {firstReady.incidents} incidents in the last 30 days. {firstReady.why}
+          </p>
+        )}
+      </div>
+
+      {/* HERO PROMOTE CARD — Fitts-friendly primary action */}
+      {firstReady && (
+        <div style={{
+          background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 16,
+          padding: '28px 32px', marginBottom: 56,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{position:'absolute', top:0, left:0, width:4, height:'100%', background:'var(--ok)'}} />
+          <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 16}}>
+            <span className="mono" style={{fontSize: 10, letterSpacing: '.18em', color: 'var(--ok)', fontWeight: 600}}>READY TO PROMOTE</span>
+            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+            <span className="mono" style={{fontSize:10, letterSpacing:'.12em', color:'var(--muted)'}}>{firstReady.groupName.toUpperCase()}</span>
+            <span style={{flex:1}} />
+            <Pill tone={stateMeta[firstReady.state].tone}>{stateMeta[firstReady.state].label}</Pill>
           </div>
+          <h2 className="serif-display" style={{
+            fontSize: 32, lineHeight: 1.12, margin: 0, color: 'var(--ink)', marginBottom: 12,
+          }}>{firstReady.name}</h2>
+          <p style={{margin: 0, fontSize: 15, lineHeight: 1.55, color: 'var(--ink-mid)', maxWidth: 720}}>
+            {firstReady.why}
+          </p>
+          <div style={{display:'flex', alignItems:'center', gap: 14, marginTop: 24, flexWrap:'wrap'}}>
+            <button onClick={() => setChangeReq({ wf: firstReady, group: { id: firstReady.groupId, name: firstReady.groupName } })} style={{
+              all:'unset', cursor:'pointer',
+              background: 'var(--ink)', color: '#ffffff',
+              padding: '12px 22px', borderRadius: 10,
+              fontSize: 14.5, fontWeight: 600,
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+            }}>
+              Promote to {firstReady.state === "approval" ? "semi-auto" : "autopilot"}
+              <span style={{fontFamily:'var(--mono)', fontSize:13, opacity:.8}}>↵</span>
+            </button>
+            <Btn kind="ghost">Review {firstReady.samples} cases →</Btn>
+            <span style={{flex:1}} />
+            <span className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em'}}>
+              {firstReady.scope.toUpperCase()} SCOPE
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* STAT BAND — compressed, micro */}
+      <div style={{
+        display:'flex', gap: 36, flexWrap:'wrap',
+        paddingBottom: 24, marginBottom: 24, borderBottom:'1px solid var(--hair-soft)',
+      }}>
+        <MicroStatBlock value={stats.autopilot} label="autopilot" tone="ok" />
+        <MicroStatBlock value={stats.semi}      label="semi-auto" tone="info" />
+        <MicroStatBlock value={stats.approval}  label="approval"  tone="warn" />
+        <MicroStatBlock value={stats.observe}   label="observe" />
+        <MicroStatBlock value={stats.never}     label="never auto" tone="risk" />
+        <span style={{flex:1}} />
+        <MicroStatBlock value={stats.ready}     label="ready" tone="ok" />
+      </div>
+
+      {/* FILTER PILLS — Hick's Law: 5 max */}
+      <div style={{display:'flex', gap: 8, flexWrap:'wrap', marginBottom: 20}}>
+        {filterDefs.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            all:'unset', cursor:'pointer',
+            padding:'7px 14px', borderRadius: 999,
+            border:'1px solid ' + (filter === f.id ? 'var(--ink)' : 'var(--hair)'),
+            background: filter === f.id ? 'var(--ink)' : '#ffffff',
+            color: filter === f.id ? '#ffffff' : 'var(--ink-mid)',
+            fontSize: 12.5, fontWeight: 500, fontFamily: 'var(--sans)',
+          }}>
+            {f.label}
+            <span style={{marginLeft: 8, opacity: filter === f.id ? .7 : .5, fontFamily:'var(--mono)', fontSize: 11}}>
+              {allWfs.filter(f.test).length}
+            </span>
+          </button>
         ))}
       </div>
 
-      {/* Workflow groups */}
-      {DP.workflow_groups.map(group => (
-        <WorkflowGroup key={group.id} group={group} onPromote={(wf) => setChangeReq({ wf, group })} />
-      ))}
+      {/* FLAT WORKFLOW TABLE — single-line rows, single-glance scan */}
+      <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
+        <div style={{
+          display:'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) 120px 90px 80px 80px 110px 100px',
+          gap: 14, padding: '12px 22px', background:'var(--paper-2)',
+          borderBottom:'1px solid var(--hair)',
+          fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 500,
+        }}>
+          <div>Workflow</div><div>State</div>
+          <div style={{textAlign:'right'}}>Cases</div>
+          <div style={{textAlign:'right'}}>Override</div>
+          <div style={{textAlign:'right'}}>Incidents</div>
+          <div>Scope</div>
+          <div></div>
+        </div>
+        {shown.map((w, i) => {
+          const meta = stateMeta[w.state];
+          return (
+            <div key={w.id} style={{
+              display:'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) 120px 90px 80px 80px 110px 100px',
+              gap: 14, padding: '14px 22px', alignItems:'center',
+              borderBottom: i < shown.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+              background: '#ffffff',
+            }}>
+              <div>
+                <div style={{fontSize: 13.5, fontWeight: 500, color:'var(--ink)'}}>{w.name}</div>
+                <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', marginTop: 2}}>{w.groupName}</div>
+              </div>
+              <Pill tone={meta.tone}>{meta.label}</Pill>
+              <div className="mono" style={{fontSize: 12, textAlign:'right', color:'var(--ink)', fontVariantNumeric:'tabular-nums'}}>{w.samples || '—'}</div>
+              <div className="mono" style={{fontSize: 12, textAlign:'right', color: w.override === '0.0%' ? 'var(--ok)' : 'var(--ink-mid)', fontVariantNumeric:'tabular-nums'}}>{w.override}</div>
+              <div className="mono" style={{fontSize: 12, textAlign:'right', color: w.incidents === 0 ? 'var(--ok)' : 'var(--warn)', fontVariantNumeric:'tabular-nums'}}>{w.incidents}</div>
+              <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase'}}>{w.scope}</div>
+              <div style={{textAlign:'right'}}>
+                {w.ready ? (
+                  <Btn size="sm" kind="primary" onClick={() => setChangeReq({ wf: w, group: { id: w.groupId, name: w.groupName } })}>Promote →</Btn>
+                ) : w.state === "never" ? (
+                  <span className="mono" style={{fontSize: 10, color:'var(--muted-2)', letterSpacing:'.12em'}}>PINNED</span>
+                ) : (
+                  <Btn size="sm" kind="ghost">Manage</Btn>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       {changeReq && <ChangeRequestDrawer wf={changeReq.wf} group={changeReq.group} onClose={() => setChangeReq(null)} />}
+    </div>
+  );
+}
+
+// MicroStatBlock — tiny inline stat for the band
+function MicroStatBlock({ value, label, tone }) {
+  const color = tone === 'ok' ? 'var(--ok)' : tone === 'warn' ? 'var(--warn)' : tone === 'risk' ? 'var(--risk)' : tone === 'info' ? 'var(--info)' : 'var(--ink)';
+  return (
+    <div>
+      <div style={{fontFamily:'var(--sans)', fontSize: 22, fontWeight: 500, color, lineHeight: 1.1, letterSpacing:'-.015em', fontVariantNumeric:'tabular-nums'}}>{value}</div>
+      <div className="mono" style={{fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase', marginTop: 4, fontWeight: 500}}>{label}</div>
     </div>
   );
 }

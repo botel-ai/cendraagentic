@@ -61,8 +61,8 @@ function TodayScreen({ onOpen, tweaks }) {
           fontVariationSettings: '"opsz" 72, "SOFT" 50, "WONK" 0',
         }}>
           {s.needs_you === 0
-            ? <>Hiçbir şey seni beklemiyor. Cendra <b style={{color:'var(--ink)'}}>{s.actions_total.toLocaleString()}</b> aksiyon halletti, sıfır olay. Gönlün rahat olsun.</>
-            : <><b style={{color:'var(--ink)'}}>{s.needs_you} şey</b> seni bekliyor bugün. Önce şuna bakalım —</>
+            ? <>Nothing is waiting on you. Cendra handled <b style={{color:'var(--ink)'}}>{s.actions_total.toLocaleString()}</b> actions, zero incidents. Rest easy.</>
+            : <><b style={{color:'var(--ink)'}}>{s.needs_you} things</b> are waiting today. Let's start here —</>
           }
         </p>
       </div>
@@ -715,10 +715,10 @@ function WorkScreen({ onOpen }) {
           fontSize: 48, lineHeight: 1.05, margin: 0, color: 'var(--ink)',
         }}>
           {needsYou.length === 0 && waiting.length === 0
-            ? <>Sessiz bir gün. Kimse seni beklemiyor.</>
+            ? <>A quiet day. No one is waiting on you.</>
             : firstPriority
-              ? <>Önce <span style={{fontVariationSettings:'"opsz" 144, "SOFT" 70, "WONK" 1'}}>{firstPriority.name.split(' ')[0]}</span>'a bakalım.</>
-              : <>Bugünün konukları.</>
+              ? <>Let's start with <span style={{fontVariationSettings:'"opsz" 144, "SOFT" 70, "WONK" 1'}}>{firstPriority.name.split(' ')[0]}</span>.</>
+              : <>Today's guests.</>
           }
         </h1>
         {firstPriority && (
