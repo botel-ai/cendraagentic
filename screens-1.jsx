@@ -1394,6 +1394,30 @@ function ApprovalGenerativeCard({ card, guest }) {
   const toneMap = { high: 'risk', medium: 'warn', low: 'ok' };
   const [whyOpen, setWhyOpen] = useState(false);
   const [oneOff, setOneOff] = useState(false);
+  const [rolloutOpen, setRolloutOpen] = useState(false);
+  // Property Twin imagined rollouts (Audit §3.5 + §8.1 #1).
+  // LinearWorldModel walks N steps; baseline analytical model — not neural.
+  // Honest framing: "based on similar past patterns" not "simulation".
+  const rollouts = card.rollouts || (
+    card.options ? card.options.slice(0, 3).map((opt, i) => ({
+      option: opt,
+      headline: i === 0
+        ? `Most likely path · ${card.range || 'this branch'}`
+        : i === 1
+        ? "Conservative alternative"
+        : "Counter / negotiate path",
+      outcomes_14d: i === 0
+        ? ["Guest sentiment: neutral → positive", "1 follow-up promise likely (cleanup status)", "Cost: as-quoted · €0 hidden overruns in similar past"]
+        : i === 1
+        ? ["Guest sentiment: tense (review-threat risk)", "+2 follow-up cycles to negotiate scope", "Cost: ~30% lower · 1 partial-fix risk"]
+        : ["Guest sentiment: neutral", "+1 follow-up to settle final price", "Cost: midpoint · 4 similar past cases averaged 92% acceptance"],
+      based_on: i === 0
+        ? "12 similar past cases at this property class"
+        : i === 1
+        ? "8 partial-decline cases · 90d"
+        : "4 counter-quote cases · 90d",
+    })) : []
+  );
   const decisionForWhy = {
     title: card.title,
     evidence: card.evidence || [
@@ -1426,6 +1450,55 @@ function ApprovalGenerativeCard({ card, guest }) {
         <div className="dim mt-2" style={{fontSize: 13.5, lineHeight: 1.5, maxWidth: 660}}>
           <span className="mono" style={{fontSize:10, letterSpacing:'.16em', color:'var(--ink)'}}>WHY · </span>{card.why}
         </div>
+        {/* Property Twin rollouts — what if I approve / decline / counter? */}
+        {rollouts.length > 0 && (
+          <div style={{
+            marginTop: 14, borderRadius: 8,
+            border: '1px solid var(--hair)',
+            background: '#ffffff',
+            overflow:'hidden',
+          }}>
+            <button onClick={() => setRolloutOpen(o => !o)} style={{
+              all:'unset', cursor:'pointer',
+              display:'flex', alignItems:'center', gap: 10,
+              padding:'10px 14px', width:'calc(100% - 28px)',
+              borderBottom: rolloutOpen ? '1px solid var(--hair-soft)' : 'none',
+            }}>
+              <span style={{
+                fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.16em',
+                color:'var(--ink)', fontWeight: 700, textTransform:'uppercase',
+              }}>
+                ↓ What if?
+              </span>
+              <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.06em'}}>
+                Property twin · {rollouts.length} rollout paths · based on similar past patterns
+              </span>
+              <span style={{flex: 1}} />
+              <span style={{fontFamily:'var(--mono)', fontSize: 14, color:'var(--ink-mid)', transform: rolloutOpen ? 'rotate(90deg)' : 'none', transition:'transform .15s'}}>›</span>
+            </button>
+            {rolloutOpen && (
+              <div style={{display:'grid', gridTemplateColumns:`repeat(${rollouts.length}, 1fr)`, gap: 1, background:'var(--hair-soft)'}}>
+                {rollouts.map((r, i) => (
+                  <div key={i} style={{padding:'14px 16px', background:'#ffffff'}}>
+                    <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 6, fontWeight: 600}}>
+                      Path {i + 1} · {r.option}
+                    </div>
+                    <div style={{fontFamily:'var(--serif)', fontSize: 14, lineHeight: 1.35, color:'var(--ink)', marginBottom: 10, letterSpacing:'-.005em'}}>
+                      {r.headline}
+                    </div>
+                    <ul style={{margin: 0, padding:'0 0 0 16px', fontSize: 12, lineHeight: 1.55, color:'var(--ink-mid)'}}>
+                      {r.outcomes_14d.map((o, j) => <li key={j} style={{marginBottom: 3}}>{o}</li>)}
+                    </ul>
+                    <div className="mono" style={{fontSize: 9.5, letterSpacing:'.10em', color:'var(--muted-2)', marginTop: 10, textTransform:'uppercase', borderTop:'1px solid var(--hair-soft)', paddingTop: 8}}>
+                      Based on · {r.based_on}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* One-off exception checkbox — Audit §7 #7. Maps to causal_tag = one_off_exception. */}
         <label style={{
           display:'flex', alignItems:'flex-start', gap: 10,

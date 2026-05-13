@@ -4,6 +4,73 @@ const { TrustMeter: AutoTrustMeter, deriveTrust: autoDeriveTrust, deriveCriteria
 const D2 = window.CENDRA_DATA;
 const DP = window.CENDRA_DATA2;
 
+// HMAC-signed autonomy certificate. Audit §8.1 #7 — 5-tier autonomy certs are
+// HMAC-SHA256 signed + scope-validated + policy-ceiling-checked + expiry-checked.
+// Cryptographic, not paper.
+function CertBadge({ wf }) {
+  const [open, setOpen] = useState(false);
+  if (wf.state !== 'autopilot' && wf.state !== 'semi') return null;
+  // Synthesise cert details from workflow id + state
+  const tier = wf.state === 'autopilot' ? 'T4 · auto-act-with-disclosure' : 'T3 · semi-with-pm-co-sign';
+  const expires = wf.state === 'autopilot' ? '7d' : '24h';
+  const digest = wf.cert_digest || ((wf.id || 'wf') + '_03b1' + (wf.samples || 0)).slice(0, 16) + '…';
+  return (
+    <span style={{position:'relative', display:'inline-block', marginLeft: 4}}>
+      <button onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }} style={{
+        all:'unset', cursor:'pointer',
+        padding:'1px 6px', borderRadius: 4,
+        background:'rgba(0,166,153,.10)', border:'1px solid rgba(0,166,153,.30)',
+        fontFamily:'var(--mono)', fontSize: 9, letterSpacing:'.10em',
+        color:'#00867E', fontWeight: 700, textTransform:'uppercase',
+        display:'inline-flex', alignItems:'center', gap: 3,
+      }}
+      title="HMAC-SHA256 signed autonomy certificate">
+        🔒 Cert
+      </button>
+      {open && (
+        <div style={{
+          position:'absolute', top:'calc(100% + 6px)', right: 0,
+          minWidth: 280, maxWidth: 360,
+          background:'#ffffff',
+          border:'1px solid var(--hair)', borderRadius: 10,
+          boxShadow:'0 8px 28px rgba(0,0,0,.10), 0 1px 3px rgba(0,0,0,.06)',
+          padding:'12px 14px', zIndex: 30, cursor:'default',
+        }}
+        onClick={(e) => e.stopPropagation()}>
+          <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 600, marginBottom: 8}}>
+            HMAC autonomy certificate
+          </div>
+          <div style={{display:'grid', gap: 6}}>
+            <div style={{display:'flex', gap: 8, alignItems:'baseline'}}>
+              <span className="mono" style={{fontSize: 9, letterSpacing:'.12em', color:'var(--muted)', width: 80, textTransform:'uppercase'}}>Tier</span>
+              <span style={{fontSize: 12, color:'var(--ink)', fontWeight: 600}}>{tier}</span>
+            </div>
+            <div style={{display:'flex', gap: 8, alignItems:'baseline'}}>
+              <span className="mono" style={{fontSize: 9, letterSpacing:'.12em', color:'var(--muted)', width: 80, textTransform:'uppercase'}}>Scope</span>
+              <span style={{fontSize: 12, color:'var(--ink)'}}>{wf.scope || 'portfolio'} · {wf.id || wf.name}</span>
+            </div>
+            <div style={{display:'flex', gap: 8, alignItems:'baseline'}}>
+              <span className="mono" style={{fontSize: 9, letterSpacing:'.12em', color:'var(--muted)', width: 80, textTransform:'uppercase'}}>Expires</span>
+              <span style={{fontSize: 12, color:'var(--ink)'}}>{expires} · re-issued on each gate pass</span>
+            </div>
+            <div style={{display:'flex', gap: 8, alignItems:'baseline'}}>
+              <span className="mono" style={{fontSize: 9, letterSpacing:'.12em', color:'var(--muted)', width: 80, textTransform:'uppercase'}}>Ceiling</span>
+              <span style={{fontSize: 12, color:'var(--ink)'}}>policy-ceiling-checked · within bounds</span>
+            </div>
+            <div style={{display:'flex', gap: 8, alignItems:'baseline'}}>
+              <span className="mono" style={{fontSize: 9, letterSpacing:'.12em', color:'var(--muted)', width: 80, textTransform:'uppercase'}}>Digest</span>
+              <span className="mono" style={{fontSize: 11, color:'var(--ink-mid)', wordBreak:'break-all'}}>{digest}</span>
+            </div>
+          </div>
+          <div className="mono" style={{fontSize: 9.5, letterSpacing:'.10em', color:'var(--muted-2)', marginTop: 10, textTransform:'uppercase', borderTop:'1px solid var(--hair-soft)', paddingTop: 8}}>
+            HMAC-SHA256 · verified on every side-effecting tool call
+          </div>
+        </div>
+      )}
+    </span>
+  );
+}
+
 // ───────────────────────────────────────────────────────────────────
 // AUTOPILOT / Trust Meter — autonomy ladder (orchestra)
 // ───────────────────────────────────────────────────────────────────
@@ -203,7 +270,10 @@ function AutopilotScreen({ tweaks }) {
                 </div>
                 <AutoTrustMeter score={trust} frozen={frozen} state={w.state} />
               </div>
-              <Pill tone={meta.tone}>{meta.label}</Pill>
+              <div style={{display:'flex', alignItems:'center', gap: 4, flexWrap:'wrap'}}>
+                <Pill tone={meta.tone}>{meta.label}</Pill>
+                <CertBadge wf={w} />
+              </div>
               <div className="mono" style={{fontSize: 12, textAlign:'right', color: w.override === '0.0%' ? 'var(--ok)' : 'var(--ink-mid)', fontVariantNumeric:'tabular-nums'}}>{w.override}</div>
               <div className="mono" style={{fontSize: 12, textAlign:'right', color: w.incidents === 0 ? 'var(--ok)' : 'var(--warn)', fontVariantNumeric:'tabular-nums'}}>{w.incidents}</div>
               <div style={{textAlign:'right'}}>

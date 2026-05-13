@@ -1628,12 +1628,13 @@ function InsightsScreen({ onOpen }) {
 function TrustScreen({ onOpen }) {
   const [tab, setTab] = useState("safety");
 
-  // Three semantic groups — Hick's Law: 6 tabs → 4
+  // Trust Center tabs — 5 surfaces
   const tabs = [
-    { id: "safety", label: "Safety",     count: D3.hard_rules.length + D3.team.length },
-    { id: "team",   label: "Team",       count: (D3.team_stats || []).length },
-    { id: "data",   label: "Data",       count: D3.integrations.length + 4 },
-    { id: "audit",  label: "Audit",      count: D2.audit.length },
+    { id: "safety",     label: "Safety",     count: D3.hard_rules.length + D3.team.length },
+    { id: "team",       label: "Team",       count: (D3.team_stats || []).length },
+    { id: "compliance", label: "Compliance", count: 4 },
+    { id: "data",       label: "Data",       count: D3.integrations.length + 4 },
+    { id: "audit",      label: "Audit",      count: D2.audit.length },
   ];
 
   return (
@@ -1850,6 +1851,78 @@ function TrustScreen({ onOpen }) {
         </div>
       )}
 
+      {/* COMPLIANCE — EU regulation pack (Audit §3.11 + §8.1 #4) */}
+      {tab === "compliance" && (
+        <div style={{display:'grid', gap: 18}}>
+          <SectionLabel2 eyebrow="EU compliance · 4 pieces · all live" sub="Cendra ships the full EU pack: AI Act Art.12 (audit), Art.50 (disclosure), GDPR Art.22 (review), DSA Reg 2024/1028 (per-unit registration)." />
+          <div style={{display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap: 16}}>
+            <ComplianceCard
+              eyebrow="AI ACT · ART.12"
+              title="Tamper-evident audit log"
+              status="LIVE"
+              statusTone="ok"
+              detail="Every decision pinned with a BLAKE2B-256 hash of the prior entry. Chain verified in real time."
+              metrics={[
+                { label: "Entries · 30d", value: "12,847" },
+                { label: "Last verified", value: "2m ago" },
+                { label: "Broken links", value: "0", tone: "ok" },
+              ]}
+              cta="Verify chain →"
+            />
+            <ComplianceCard
+              eyebrow="AI ACT · ART.50"
+              title="5-locale disclosure"
+              status="LIVE"
+              statusTone="ok"
+              detail="When Cendra writes to a guest, the disclosure 'Replied with help from Cendra' is auto-prepended in EN · DE · FR · ES · IT."
+              metrics={[
+                { label: "Locales", value: "5/5" },
+                { label: "Outbound", value: "2,418" },
+                { label: "Skipped", value: "0", tone: "ok" },
+              ]}
+              cta="See disclosure copy →"
+            />
+            <ComplianceCard
+              eyebrow="GDPR · ART.22"
+              title="Automated-decision review"
+              status="ACTIVE"
+              statusTone="warn"
+              detail="When a decision over €100 about a natural person would otherwise auto-execute, Cendra holds for PM sign-off."
+              metrics={[
+                { label: "Held · 30d", value: "11" },
+                { label: "BLOCK", value: "0", tone: "ok" },
+                { label: "NEEDS_REVIEW", value: "1 open", tone: "warn" },
+              ]}
+              cta="Open held decisions →"
+            />
+            <ComplianceCard
+              eyebrow="DSA · REG 2024/1028"
+              title="Per-unit registration"
+              status="LIVE"
+              statusTone="ok"
+              detail="Every active unit carries a registration_id per Reg (EU) 2024/1028. Monthly export bundle is shipped automatically."
+              metrics={[
+                { label: "Registered units", value: "47/47", tone: "ok" },
+                { label: "Last export", value: "5d ago" },
+                { label: "Missing IDs", value: "0", tone: "ok" },
+              ]}
+              cta="Download bundle →"
+            />
+          </div>
+          <div style={{
+            padding:'14px 18px', borderRadius: 12,
+            background:'rgba(255,56,92,.04)', border:'1px solid rgba(255,56,92,.20)',
+          }}>
+            <div className="mono" style={{fontSize: 10, letterSpacing:'.16em', color:'#FF385C', fontWeight: 700, textTransform:'uppercase', marginBottom: 6}}>
+              Never-AI denylist · 4 categories
+            </div>
+            <div style={{fontSize: 13, color:'var(--ink)', lineHeight: 1.5}}>
+              Cendra is structurally barred from making decisions in: <b>damage claims · refunds &gt; €100 to natural persons · booking cancellations · permanent guest bans</b>. These categories never reach autopilot regardless of trust score.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* AUDIT — link to audit trail + incident review */}
       {tab === "audit" && (
         <div style={{display:'grid', gap: 32}}>
@@ -1899,6 +1972,54 @@ function SectionLabel2({ eyebrow, sub }) {
         fontWeight: 600, textTransform:'uppercase', marginBottom: 4,
       }}>{eyebrow}</div>
       {sub && <div style={{fontSize: 13, color:'var(--muted)'}}>{sub}</div>}
+    </div>
+  );
+}
+
+function ComplianceCard({ eyebrow, title, status, statusTone, detail, metrics, cta }) {
+  const toneColor = statusTone === 'ok' ? 'var(--ok)' : statusTone === 'warn' ? 'var(--warn)' : statusTone === 'risk' ? 'var(--risk)' : 'var(--ink)';
+  return (
+    <div style={{
+      background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 14,
+      padding:'18px 20px',
+    }}>
+      <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 8}}>
+        <span className="mono" style={{fontSize: 9.5, letterSpacing:'.16em', color:'var(--ink)', fontWeight: 700, textTransform:'uppercase'}}>
+          {eyebrow}
+        </span>
+        <span style={{flex: 1}} />
+        <span style={{
+          fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.14em',
+          color: toneColor, fontWeight: 700, textTransform:'uppercase',
+          padding:'2px 8px', borderRadius: 4,
+          background: statusTone === 'ok' ? 'rgba(0,166,153,.10)' : statusTone === 'warn' ? 'rgba(255,180,0,.10)' : 'rgba(255,56,92,.10)',
+          border: '1px solid ' + (statusTone === 'ok' ? 'rgba(0,166,153,.30)' : statusTone === 'warn' ? 'rgba(255,180,0,.30)' : 'rgba(255,56,92,.30)'),
+        }}>● {status}</span>
+      </div>
+      <div style={{fontFamily:'var(--serif)', fontSize: 18, lineHeight: 1.25, color:'var(--ink)', marginBottom: 8, letterSpacing:'-.005em'}}>
+        {title}
+      </div>
+      <p style={{margin: 0, fontSize: 12.5, color:'var(--ink-mid)', lineHeight: 1.55}}>
+        {detail}
+      </p>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap: 0, marginTop: 14, paddingTop: 12, borderTop:'1px solid var(--hair-soft)'}}>
+        {metrics.map((m, i) => {
+          const c = m.tone === 'ok' ? 'var(--ok)' : m.tone === 'warn' ? 'var(--warn)' : 'var(--ink)';
+          return (
+            <div key={i} style={{paddingRight: i < metrics.length - 1 ? 10 : 0, borderRight: i < metrics.length - 1 ? '1px solid var(--hair-soft)' : 'none', paddingLeft: i > 0 ? 10 : 0}}>
+              <div className="mono" style={{fontSize: 9, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 500}}>{m.label}</div>
+              <div className="mono" style={{fontSize: 14, fontWeight: 600, color: c, marginTop: 2, fontVariantNumeric:'tabular-nums'}}>{m.value}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{marginTop: 12}}>
+        <button style={{
+          all:'unset', cursor:'pointer',
+          fontFamily:'var(--mono)', fontSize: 10.5, letterSpacing:'.10em',
+          color:'var(--ink)', fontWeight: 600, textTransform:'uppercase',
+        }}>{cta}</button>
+      </div>
     </div>
   );
 }
