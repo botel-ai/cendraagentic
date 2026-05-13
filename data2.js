@@ -265,6 +265,200 @@ window.CENDRA_DATA2 = {
     ],
   },
 
+  // ──────────────────────────────────────────────────────────────────
+  // Rich detail records for every property in the portfolio
+  // Keyed by property id. Each property gets its own facts, rules,
+  // integrations, risks, and quirks so detail pages feel distinct.
+  // ──────────────────────────────────────────────────────────────────
+  property_details: {
+    p_kara9: {
+      id: "p_kara9", name: "Karaköy · Apartment 9",
+      owner: "Karaköy LLC", primary_contact: "Mehmet Demir",
+      region: "Beyoğlu", group: "Standard short-stay",
+      floor: "3F", access: "Smart-lock · KK9-Yale-9512", wifi: "KK9-Guest / honey-fox-2244",
+      integrations: { pms: "Hostaway · OK", channels: ["Airbnb · OK", "Booking · OK", "Expedia · OK"], lock: "Yale Connect · OK", clean: "Properly · OK" },
+      facts_summary: { verified: 12, missing: 0, conflicts: 0, stale: 1, internal: 4 },
+      risks: ["Lobby renovation ongoing · periodic noise 09:00–17:00 weekdays"],
+      fact_groups: [
+        { label: "Guest-facing facts", facts: [
+          { fact: "Wi-Fi",        value: "KK9-Guest / honey-fox-2244",      source: "Smart-lock auto", source_file: "PMS · Yale Connect",                fresh: "8d",  visible: "guest", state: "verified" },
+          { fact: "Quiet hours",  value: "23:00 → 08:00",                    source: "Building rule",   source_file: "kara_portfolio_handbook.pdf · p.4", fresh: "60d", visible: "guest", state: "verified" },
+          { fact: "Pets",         value: "Allowed · €100 deposit",           source: "Owner rule",      source_file: "kara9_owner_addendum.pdf",          fresh: "45d", visible: "guest", state: "verified" },
+          { fact: "Bedroom",      value: "1 queen + futon",                  source: "Cleaner verified",source_file: "kara9_walkthrough.mp4 · 01:08",     fresh: "22d", visible: "guest", state: "verified" },
+          { fact: "Parking",      value: "Street parking · paid 08:00–18:00",source: "Owner input",     source_file: "kara_portfolio_handbook.pdf · p.9", fresh: "60d", visible: "guest", state: "verified" },
+          { fact: "Smoking",      value: "Balcony only",                     source: "Owner rule",      source_file: "kara_portfolio_handbook.pdf · p.6", fresh: "60d", visible: "guest", state: "verified" },
+        ]},
+        { label: "Internal notes", facts: [
+          { fact: "Hot water reset", value: "Boiler in kitchen utility · breaker B3", source: "Marta C.", source_file: "kara9_cleaner_notes.mp3 · 00:18", fresh: "12d", visible: "internal", state: "verified" },
+          { fact: "Heating service", value: "Boiler annual inspection",       source: "Maintenance log", source_file: "boiler_log_2025.xlsx",            fresh: "180d", visible: "internal", state: "stale" },
+        ]},
+      ],
+    },
+
+    p_kara4: {
+      id: "p_kara4", name: "Karaköy · Apartment 4",
+      owner: "Karaköy LLC", primary_contact: "Mehmet Demir",
+      region: "Beyoğlu", group: "Standard short-stay",
+      floor: "Ground · garden access", access: "Smart-lock · KK4-Yale-9234", wifi: "KK4-Guest / ocean-mint-7763",
+      integrations: { pms: "Hostaway · OK", channels: ["Airbnb · OK", "Booking · OK", "Direct · OK"], lock: "Yale Connect · OK", clean: "Properly · OK" },
+      facts_summary: { verified: 14, missing: 0, conflicts: 0, stale: 0, internal: 5 },
+      risks: [],
+      fact_groups: [
+        { label: "Guest-facing facts", facts: [
+          { fact: "Wi-Fi",          value: "KK4-Guest / ocean-mint-7763",     source: "Smart-lock auto", source_file: "PMS · Yale Connect",                fresh: "11d", visible: "guest", state: "verified" },
+          { fact: "Garden access",  value: "Private · side door key in box",   source: "Owner walkthrough", source_file: "kara4_owner_intro.pdf · p.3",     fresh: "120d", visible: "guest", state: "verified" },
+          { fact: "Quiet hours",    value: "22:00 → 09:00 (garden quieter)",   source: "Building rule",   source_file: "kara_portfolio_handbook.pdf · p.4", fresh: "60d", visible: "guest", state: "verified" },
+          { fact: "Pets",           value: "Allowed in garden, indoors yes",   source: "Owner rule",      source_file: "kara4_owner_addendum.pdf",          fresh: "90d", visible: "guest", state: "verified" },
+          { fact: "Bedroom",        value: "1 king",                            source: "Cleaner verified",source_file: "kara4_walkthrough.mp4 · 00:54",     fresh: "30d", visible: "guest", state: "verified" },
+        ]},
+        { label: "Internal notes", facts: [
+          { fact: "Returning guests", value: "Returning guests get free late checkout (up to 14:00)", source: "Owner preference", source_file: "kara_portfolio_handbook.pdf · p.13", fresh: "180d", visible: "internal", state: "verified" },
+          { fact: "Garden maintenance", value: "Gardener weekly · Wednesday 09:00–11:00", source: "Owner schedule", source_file: "kara4_maintenance.eml", fresh: "30d", visible: "internal", state: "verified" },
+        ]},
+      ],
+    },
+
+    p_bos: {
+      id: "p_bos", name: "Bosphorus Loft",
+      owner: "Bosphorus Holdings", primary_contact: "Aylin Yıldız",
+      region: "Beşiktaş", group: "Premium · serviced",
+      floor: "Penthouse · 2 floors", access: "Smart-lock · BOS-Yale-5512 (intermittent)", wifi: "BosphorusLoft / starlight-9921",
+      integrations: { pms: "Hostaway · OK", channels: ["Airbnb · OK", "Booking · OK", "Direct · OK"], lock: "Yale Connect · degraded", clean: "Properly · OK" },
+      facts_summary: { verified: 18, missing: 1, conflicts: 1, stale: 2, internal: 6 },
+      risks: ["Active leak under bathroom sink · plumber dispatched 08:01", "Smart-lock pairing failures · 3 in 30 days", "High-value loft · premium guest expectations"],
+      fact_groups: [
+        { label: "Guest-facing facts", facts: [
+          { fact: "Wi-Fi",          value: "BosphorusLoft / starlight-9921",  source: "Smart-lock auto", source_file: "PMS · Yale Connect",            fresh: "14d", visible: "guest", state: "verified" },
+          { fact: "Bedroom",        value: "2 bedrooms · 1 king + 1 queen",     source: "Cleaner verified",source_file: "bos_walkthrough.mp4 · 03:22",   fresh: "45d", visible: "guest", state: "verified" },
+          { fact: "View",           value: "Bosphorus view from terrace + master", source: "Listing copy", source_file: "bos_listing_airbnb.html",       fresh: "180d", visible: "guest", state: "verified" },
+          { fact: "Pets",           value: "Allowed · €200 deposit",            source: "Owner rule (Aylin Y.)", source_file: "bosphorus_owner_briefing.pdf · p.5", fresh: "45d", visible: "guest", state: "conflict",
+            conflict_sources: [
+              { id: "bos_a", label: "Owner rule",         value: "Allowed · €200 deposit", source_file: "bosphorus_owner_briefing.pdf · p.5", source_type: "pdf",  captured: "45d ago",  captured_by: "Aylin Y.", confidence: 0.94, evidence: "Owner explicitly added pet allowance with deposit during Q1 onboarding.",                fix_if_loses: "Reconcile with building management on bylaws.", fix_if_wins:  "Push corrective edit to building bylaws (Maya · ops)." },
+              { id: "bos_b", label: "Building bylaws",     value: "No pets",                source_file: "besiktas_building_bylaws.pdf · §4",  source_type: "pdf",  captured: "120d ago", captured_by: "Building mgmt", confidence: 0.86, evidence: "Bylaws §4 prohibit pets in all units. Building admin signed by all owners.", fix_if_loses: "Update owner rule to align with bylaws.",                    fix_if_wins:  "Owner must negotiate exception with building." },
+            ],
+          },
+          { fact: "Quiet hours",    value: "22:00 → 09:00",                     source: "Building rule",   source_file: "besiktas_building_bylaws.pdf · §6", fresh: "120d", visible: "guest", state: "verified" },
+        ]},
+        { label: "Internal notes", facts: [
+          { fact: "Same-day turnover", value: "Avoid · 4h minimum gap required between guests", source: "Owner preference", source_file: "bosphorus_owner_briefing.pdf · p.8", fresh: "45d", visible: "internal", state: "verified" },
+          { fact: "Plumber preferred",  value: "A. Sözen · +90 555 234 8821 · responsive same-day", source: "PM directory", source_file: "vendor_directory_2026.xlsx", fresh: "21d", visible: "internal", state: "verified" },
+          { fact: "Cleaner contact",    value: "Marta C. · last verified contact info",            source: "PM directory", source_file: "vendor_directory_2026.xlsx", fresh: "90d", visible: "internal", state: "stale" },
+        ]},
+        { label: "Missing", facts: [
+          { fact: "Pool heating schedule", value: "—", source: "—", source_file: null, fresh: "—", visible: "—", state: "missing" },
+        ]},
+      ],
+    },
+
+    p_studgal: {
+      id: "p_studgal", name: "Studio Galata",
+      owner: "Galata Estates", primary_contact: "Erkan Polat",
+      region: "Beyoğlu", group: "Standard short-stay",
+      floor: "2F", access: "Lockbox · SG-4421 (rotates monthly)", wifi: "StudioGalata / orange-river-3344",
+      integrations: { pms: "Hostaway · OK", channels: ["Airbnb · OK", "Booking · OK"], lock: "Master lock · physical", clean: "Properly · OK" },
+      facts_summary: { verified: 8, missing: 4, conflicts: 0, stale: 2, internal: 3 },
+      risks: ["High guest question volume on parking (5 asks · 30d)", "Older listing copy · last updated 200d ago"],
+      fact_groups: [
+        { label: "Guest-facing facts", facts: [
+          { fact: "Wi-Fi",          value: "StudioGalata / orange-river-3344", source: "Owner input",     source_file: "studio_galata_listing.html",   fresh: "200d", visible: "guest", state: "verified" },
+          { fact: "Layout",         value: "Studio · sleeps 2 · sofa-bed",       source: "Listing copy",   source_file: "studio_galata_listing.html",   fresh: "200d", visible: "guest", state: "verified" },
+          { fact: "Quiet hours",    value: "23:00 → 08:00",                     source: "Building rule",   source_file: "studio_galata_listing.html",   fresh: "200d", visible: "guest", state: "verified" },
+          { fact: "Pets",           value: "Not allowed",                       source: "Owner rule",      source_file: "studio_galata_listing.html",   fresh: "200d", visible: "guest", state: "verified" },
+        ]},
+        { label: "Internal notes", facts: [
+          { fact: "Lockbox rotation", value: "Code rotates first of every month",  source: "Owner SOP",       source_file: "galata_estates_lockbox_sop.pdf", fresh: "45d",  visible: "internal", state: "verified" },
+          { fact: "Building gate",    value: "Main door auto-locks 22:00",         source: "Building rule",   source_file: "—",                              fresh: "180d", visible: "internal", state: "stale" },
+        ]},
+        { label: "Missing", facts: [
+          { fact: "Parking",          value: "—", source: "Guest question · 5 asks in 30d", source_file: null, fresh: "—", visible: "—", state: "missing" },
+          { fact: "Heating type",     value: "—", source: "—",                                source_file: null, fresh: "—", visible: "—", state: "missing" },
+          { fact: "Air conditioning", value: "—", source: "Guest question · 2 asks in 30d", source_file: null, fresh: "—", visible: "—", state: "missing" },
+          { fact: "Building name",    value: "—", source: "—",                                source_file: null, fresh: "—", visible: "—", state: "missing" },
+        ]},
+      ],
+    },
+
+    p_cih: {
+      id: "p_cih", name: "Cihangir House",
+      owner: "Cihangir Living", primary_contact: "Selin Çelik",
+      region: "Beyoğlu", group: "Premium · serviced",
+      floor: "3-story townhouse · 240m²", access: "Smart-lock · CH-Yale-7799", wifi: "CihangirHouse / moonlight-2233",
+      integrations: { pms: "Hostaway · OK", channels: ["Airbnb · OK", "Booking · OK", "Expedia · OK"], lock: "Yale Connect · OK", clean: "Properly · OK" },
+      facts_summary: { verified: 16, missing: 0, conflicts: 0, stale: 0, internal: 6 },
+      risks: ["Building gate causes 9 first-night confusions in 30d", "Neighbor sensitivity to balcony noise after 22:00", "Currently under sentiment alert · Rafael S."],
+      fact_groups: [
+        { label: "Guest-facing facts", facts: [
+          { fact: "Wi-Fi",          value: "CihangirHouse / moonlight-2233",   source: "Smart-lock auto", source_file: "PMS · Yale Connect",              fresh: "10d", visible: "guest", state: "verified" },
+          { fact: "Layout",         value: "3 bed · 2 bath · terrace · 240m²",   source: "Listing copy",   source_file: "cihangir_house_listing.html",     fresh: "60d", visible: "guest", state: "verified" },
+          { fact: "Max guests",     value: "6 (owner rule · enforced)",          source: "Owner rule",      source_file: "cihangir_house_briefing.pdf · p.2", fresh: "90d", visible: "guest", state: "verified" },
+          { fact: "Building gate",  value: "Press buzzer 'CH' · gate beeps then push hard within 3s", source: "Owner SOP", source_file: "cihangir_gate_video.mp4 · 00:14", fresh: "30d", visible: "guest", state: "verified" },
+          { fact: "Quiet hours",    value: "22:00 → 09:00 (neighbor sensitivity)", source: "Owner preference + neighbor complaints", source_file: "cihangir_neighbor_log.eml", fresh: "45d", visible: "guest", state: "verified" },
+          { fact: "Pets",           value: "Not allowed · neighbor allergies",   source: "Owner rule",      source_file: "cihangir_house_briefing.pdf · p.5", fresh: "90d", visible: "guest", state: "verified" },
+        ]},
+        { label: "Internal notes", facts: [
+          { fact: "Owner approval",   value: "Required for any compensation > €30 (sentiment-sensitive owner)", source: "Owner preference", source_file: "cihangir_house_briefing.pdf · p.7", fresh: "45d", visible: "internal", state: "verified" },
+          { fact: "Late checkout",    value: "€25 · always offer if no same-day arrival",                        source: "Owner pricing",    source_file: "cihangir_house_briefing.pdf · p.9", fresh: "45d", visible: "internal", state: "verified" },
+          { fact: "Neighbor contact", value: "Apt 2 — Mrs. Aydın · prefers email · noise sensitive",            source: "PM note",          source_file: "cihangir_neighbor_log.eml",         fresh: "45d", visible: "internal", state: "verified" },
+        ]},
+      ],
+    },
+
+    p_gal3: {
+      id: "p_gal3", name: "Galata 3",
+      owner: "Galata Estates", primary_contact: "Erkan Polat",
+      region: "Beyoğlu", group: "Standard short-stay",
+      floor: "1F", access: "Smart-lock · G3-Yale-8821", wifi: "Galata3-Guest / silver-cloud-6611",
+      integrations: { pms: "Hostaway · OK", channels: ["Booking · OK", "Airbnb · OK"], lock: "Yale Connect · OK", clean: "Properly · OK" },
+      facts_summary: { verified: 10, missing: 2, conflicts: 1, stale: 0, internal: 4 },
+      risks: ["AC service history disputed", "Active refund request from Thomas Geier · €120"],
+      fact_groups: [
+        { label: "Guest-facing facts", facts: [
+          { fact: "Wi-Fi",          value: "Galata3-Guest / silver-cloud-6611", source: "Smart-lock auto", source_file: "PMS · Yale Connect",              fresh: "11d", visible: "guest", state: "verified" },
+          { fact: "Bedroom",        value: "1 queen + 1 sofa-bed",               source: "Cleaner verified",source_file: "galata3_walkthrough.mp4 · 01:22", fresh: "25d", visible: "guest", state: "verified" },
+          { fact: "AC age",         value: "Installed 2022 (per owner)",          source: "Owner statement · maintenance log says 2018 unit serviced", source_file: "galata_estates_owner_brief.pdf + maintenance_log_2025.xlsx", fresh: "live", visible: "internal", state: "conflict",
+            conflict_sources: [
+              { id: "g3_a", label: "Owner statement",      value: "Installed 2022",                source_file: "galata_estates_owner_brief.pdf · p.4", source_type: "pdf", captured: "60d ago", captured_by: "Erkan P.", confidence: 0.78, evidence: "Owner mentioned 2022 installation date during Q1 review.",         fix_if_loses: "Owner needs to confirm installation paperwork.",       fix_if_wins:  "Update maintenance log to reflect actual install date." },
+              { id: "g3_b", label: "Maintenance log",       value: "2018 unit · serviced 2024",     source_file: "maintenance_log_2025.xlsx · row 47",   source_type: "xlsx", captured: "30d ago", captured_by: "Tradify",   confidence: 0.89, evidence: "Service ticket #G3-2024-11 references serial number from 2018 unit.", fix_if_loses: "Re-verify serial number on next service.",              fix_if_wins:  "Owner statement is outdated · update brief." },
+            ],
+          },
+          { fact: "Pets",           value: "Not allowed",                        source: "Owner rule",      source_file: "galata_estates_owner_brief.pdf · p.6", fresh: "60d", visible: "guest", state: "verified" },
+          { fact: "Parking",        value: "Paid garage 80m away (€15/day)",      source: "Owner input",     source_file: "galata_estates_owner_brief.pdf · p.7", fresh: "60d", visible: "guest", state: "verified" },
+        ]},
+        { label: "Internal notes", facts: [
+          { fact: "Refund policy",   value: "Refunds > €100 require photo evidence (owner rule)", source: "Owner rule", source_file: "galata_estates_owner_brief.pdf · p.10", fresh: "90d", visible: "internal", state: "verified" },
+          { fact: "AC complaint history", value: "2 refunds granted on Airbnb (with photos) · this guest's 3rd ask", source: "Audit trail", source_file: "decision_cases · 180d", fresh: "live", visible: "internal", state: "verified" },
+        ]},
+        { label: "Missing", facts: [
+          { fact: "Heating fuel type",  value: "—", source: "—", source_file: null, fresh: "—", visible: "—", state: "missing" },
+          { fact: "Hot water capacity", value: "—", source: "Guest question · 1 ask",  source_file: null, fresh: "—", visible: "—", state: "missing" },
+        ]},
+      ],
+    },
+
+    p_bes7: {
+      id: "p_bes7", name: "Beşiktaş 7",
+      owner: "Independent · 6 owners", primary_contact: "—",
+      region: "Beşiktaş", group: "Standard short-stay",
+      floor: "5F · walk-up (no elevator)", access: "Lockbox · BES-9912", wifi: "Besiktas7 / coral-stone-4477",
+      integrations: { pms: "Hostaway · OK", channels: ["Direct · OK", "Airbnb · OK"], lock: "Master lock · physical", clean: "Properly · OK" },
+      facts_summary: { verified: 6, missing: 0, conflicts: 0, stale: 1, internal: 2 },
+      risks: ["No elevator · 5-floor walk-up · mention in pre-arrival to avoid bad reviews"],
+      fact_groups: [
+        { label: "Guest-facing facts", facts: [
+          { fact: "Wi-Fi",          value: "Besiktas7 / coral-stone-4477",     source: "Owner input",     source_file: "besiktas7_listing.html",        fresh: "30d", visible: "guest", state: "verified" },
+          { fact: "Walk-up",        value: "5 floors · no elevator",            source: "Owner SOP",       source_file: "besiktas7_listing.html",        fresh: "30d", visible: "guest", state: "verified" },
+          { fact: "Bedroom",        value: "1 double bed",                       source: "Listing copy",   source_file: "besiktas7_listing.html",        fresh: "30d", visible: "guest", state: "verified" },
+          { fact: "Quiet hours",    value: "23:00 → 08:00",                     source: "Building rule",   source_file: "—",                             fresh: "—",   visible: "guest", state: "stale" },
+          { fact: "Pets",           value: "Not allowed",                       source: "Owner rule",      source_file: "besiktas7_listing.html",        fresh: "30d", visible: "guest", state: "verified" },
+        ]},
+        { label: "Internal notes", facts: [
+          { fact: "Walk-up disclosure", value: "Always confirm with guest at booking · prevents bad reviews", source: "PM SOP", source_file: "besiktas7_pm_notes.txt", fresh: "15d", visible: "internal", state: "verified" },
+          { fact: "Owner contact",      value: "Multiple owners · use master pool · response time variable", source: "PM note", source_file: "—",                  fresh: "120d", visible: "internal", state: "verified" },
+        ]},
+      ],
+    },
+  },
+
   // Integrations health
   integrations: [
     { id: "int_pms",     name: "Hostaway PMS",         category: "PMS",     status: "connected", last_sync: "2 min ago",  affects_props: 47, affects_workflows: ["wf_check","wf_clean","wf_wifi","all"], fallback: "—",                       open_incident: false },

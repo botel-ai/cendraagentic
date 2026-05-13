@@ -370,13 +370,16 @@ function MicroStatBlock2({ value, label, sub, tone }) {
 // PROPERTY DETAIL
 // ───────────────────────────────────────────────────────────────────
 function PropertyDetailScreen({ onOpen, arg, focus }) {
-  // Resolve property — Karaköy 12 is the only one with rich data;
-  // others get synthesized from the portfolio summary.
+  // Resolve property — every property in property_details gets rich data;
+  // anything missing falls back to synth from portfolio summary.
   const targetId = arg || "p_kara12";
-  const richBase = D3.property_detail; // canonical rich record (kara12)
+  const richBase = D3.property_detail; // canonical example (kara12)
   const summary = (D3.properties_brain || []).find(x => x.id === targetId) || (D3.properties_brain || [])[0];
-  const isRich = targetId === richBase.id;
-  const p = isRich ? richBase : synthProperty(summary, richBase);
+  const richMap = D3.property_details || {};
+  const richRecord = targetId === richBase.id
+    ? richBase
+    : richMap[targetId] || null;
+  const p = richRecord || synthProperty(summary, richBase);
 
   // Knowledge sources for THIS property
   const propSources = (D3.knowledge_sources?.by_property?.[targetId]) || [];
