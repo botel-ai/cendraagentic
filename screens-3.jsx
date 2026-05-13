@@ -14,6 +14,7 @@ const D3 = window.CENDRA_DATA2;
 function PropertiesScreen({ onOpen }) {
   const props = D3.properties_brain;
   const [filter, setFilter] = useState("attention");
+  const [importOpen, setImportOpen] = useState(false);
 
   // Derive issue count per property and the top blocker
   const enriched = props.map(p => ({
@@ -51,6 +52,16 @@ function PropertiesScreen({ onOpen }) {
         <span>PORTFOLIO BRAIN</span>
         <span style={{flex:1}} />
         <span>{props.length} UNITS · 5 OWNERS · 4 REGIONS</span>
+        <button onClick={() => setImportOpen(true)} style={{
+          all: 'unset', cursor: 'pointer',
+          background: 'var(--ink)', color: '#ffffff',
+          padding: '7px 14px', borderRadius: 8,
+          fontSize: 12, fontWeight: 600, letterSpacing: 0,
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          textTransform: 'none',
+        }}>
+          ↓ Import knowledge
+        </button>
       </div>
 
       {/* HERO — narrative on what needs attention */}
@@ -133,6 +144,19 @@ function PropertiesScreen({ onOpen }) {
         <MicroStatBlock2 value={totalStale} label="stale (>60d)" tone={totalStale > 0 ? "warn" : "ok"} />
       </div>
 
+      {/* KNOWLEDGE SOURCES STRIP — portfolio sources Cendra has ingested */}
+      <KnowledgeSourcesStrip
+        sources={D3.knowledge_sources.portfolio}
+        onAdd={() => setImportOpen(true)}
+      />
+
+      {/* SCENARIO COVERAGE + PLAYBOOK CANDIDATES — sectoral intelligence */}
+      <PortfolioIntelligenceStrip
+        coverage={D3.scenario_coverage}
+        candidates={D3.playbook_candidates}
+        onOpenPlaybook={() => onOpen('playbook_library')}
+      />
+
       {/* FILTER PILLS */}
       <div style={{display:'flex', gap: 8, flexWrap:'wrap', marginBottom: 20}}>
         {filterDefs.map(f => (
@@ -202,7 +226,122 @@ function PropertiesScreen({ onOpen }) {
           </button>
         ))}
       </div>
+
+      {importOpen && <ImportModal scope="portfolio" onClose={() => setImportOpen(false)} />}
     </div>
+  );
+}
+
+// Portfolio knowledge sources strip — horizontal carousel of latest imports
+function KnowledgeSourcesStrip({ sources, onAdd }) {
+  const top = (sources || []).slice(0, 3);
+  return (
+    <section style={{marginBottom: 28}}>
+      <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom: 12, gap: 12, flexWrap: 'wrap'}}>
+        <div>
+          <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--ink)', fontWeight: 600, textTransform:'uppercase', marginBottom: 4}}>
+            Knowledge sources · {sources?.length || 0}
+          </div>
+          <div style={{fontSize: 13, color:'var(--muted)'}}>
+            Cendra has read these to build the portfolio brain. Drop anything else and it'll learn from it.
+          </div>
+        </div>
+        <button onClick={onAdd} style={{
+          all:'unset', cursor:'pointer',
+          padding:'7px 14px', borderRadius: 999,
+          border:'1px solid var(--ink)', background:'#ffffff',
+          fontSize: 12.5, fontWeight: 500, color:'var(--ink)',
+          fontFamily: 'var(--sans)',
+        }}>+ Add source</button>
+      </div>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap: 10}}>
+        {top.map(s => <KnowledgeSourceCard key={s.id} source={s} compact />)}
+      </div>
+    </section>
+  );
+}
+
+// Portfolio intelligence strip — scenario coverage + playbook candidates
+function PortfolioIntelligenceStrip({ coverage, candidates, onOpenPlaybook }) {
+  const pct = Math.round((coverage.portfolio_covered / coverage.portfolio_total) * 100);
+  return (
+    <section style={{marginBottom: 32, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14}}>
+      {/* Scenario coverage card */}
+      <div style={{
+        background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 14,
+        padding: '18px 22px',
+      }}>
+        <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 6, fontWeight: 500}}>
+          Scenario coverage
+        </div>
+        <div style={{display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4}}>
+          <span style={{fontFamily:'var(--sans)', fontSize: 28, fontWeight: 500, letterSpacing:'-.018em', color:'var(--ink)', fontVariantNumeric:'tabular-nums'}}>
+            {coverage.portfolio_covered}<span style={{fontSize: 16, color:'var(--muted)'}}> / {coverage.portfolio_total}</span>
+          </span>
+          <span className="mono" style={{fontSize: 11, color: pct >= 50 ? 'var(--ok)' : 'var(--warn)', fontWeight: 600}}>
+            {pct}%
+          </span>
+        </div>
+        <div style={{fontSize: 12.5, color:'var(--muted)', marginBottom: 14}}>
+          Hospitality scenarios Cendra can confidently handle for your portfolio.
+        </div>
+        <div style={{display: 'flex', gap: 6, height: 8, background: 'var(--hair-soft)', borderRadius: 4, overflow: 'hidden', marginBottom: 12}}>
+          {coverage.stages.map(s => (
+            <div key={s.id} title={`${s.label}: ${s.covered}/${s.total}`} style={{
+              flex: s.total,
+              background: s.covered / s.total >= 0.6 ? 'var(--ok)' : s.covered / s.total >= 0.3 ? 'var(--warn)' : 'var(--hair)',
+            }} />
+          ))}
+        </div>
+        <div className="mono" style={{fontSize: 9.5, letterSpacing:'.10em', color:'var(--muted)', textTransform:'uppercase', display:'flex', gap: 4, flexWrap:'wrap'}}>
+          {coverage.stages.map(s => (
+            <span key={s.id} style={{flex: s.total, minWidth: 0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
+              {s.label.split(' ')[0]}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Playbook candidates card */}
+      <div style={{
+        background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 14,
+        padding: '18px 22px',
+      }}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6}}>
+          <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 500}}>
+            Playbook candidates · {candidates.length}
+          </div>
+          <button onClick={onOpenPlaybook} style={{
+            all:'unset', cursor:'pointer',
+            fontSize: 11, color:'var(--ink)', fontFamily:'var(--mono)', letterSpacing:'.06em', fontWeight: 500,
+          }}>review all →</button>
+        </div>
+        <div style={{fontSize: 12.5, color:'var(--muted)', marginBottom: 14}}>
+          Proactive playbooks Cendra detected from your operational patterns.
+        </div>
+        <div style={{display:'grid', gap: 8}}>
+          {candidates.slice(0, 3).map(c => (
+            <div key={c.id} style={{
+              display:'grid', gridTemplateColumns:'1fr auto', gap: 12, alignItems:'center',
+              padding:'10px 12px', borderRadius: 8,
+              background: 'var(--paper-2)',
+            }}>
+              <div style={{minWidth: 0}}>
+                <div style={{fontSize: 13, color:'var(--ink)', fontWeight: 500, marginBottom: 2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>
+                  {c.name}
+                </div>
+                <div className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.04em'}}>
+                  {c.detected_from} · {c.est_revenue_per_property_30d}
+                </div>
+              </div>
+              <span className="mono" style={{fontSize: 10.5, color: c.confidence >= 0.8 ? 'var(--ok)' : 'var(--warn)', fontWeight: 600}}>
+                {Math.round(c.confidence * 100)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -238,6 +377,13 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
   const summary = (D3.properties_brain || []).find(x => x.id === targetId) || (D3.properties_brain || [])[0];
   const isRich = targetId === richBase.id;
   const p = isRich ? richBase : synthProperty(summary, richBase);
+
+  // Knowledge sources for THIS property
+  const propSources = (D3.knowledge_sources?.by_property?.[targetId]) || [];
+  const propCoverage = D3.scenario_coverage?.by_property?.[targetId];
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(true);
 
   // Hold facts in local state so edits persist within the session
   const [factGroups, setFactGroups] = useState(p.fact_groups);
@@ -399,6 +545,81 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
         </div>
       </div>
 
+      {/* SCENARIO COVERAGE — what hospitality situations Cendra can handle here */}
+      {propCoverage && (
+        <div style={{
+          background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 14,
+          padding: '20px 24px', marginBottom: 24,
+        }}>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 14, marginBottom: 10, flexWrap: 'wrap'}}>
+            <div>
+              <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--ink)', textTransform:'uppercase', fontWeight: 600, marginBottom: 4}}>
+                Scenario coverage
+              </div>
+              <div style={{fontSize: 13, color:'var(--muted)'}}>
+                Cendra knows how to handle <b style={{color:'var(--ink)'}}>{propCoverage.covered} of {D3.scenario_coverage.portfolio_total}</b> hospitality scenarios for this property.
+                {propCoverage.top_gaps && propCoverage.top_gaps.length > 0 && <> Import more knowledge to close the gaps below.</>}
+              </div>
+            </div>
+            <button onClick={() => setImportOpen(true)} style={{
+              all: 'unset', cursor: 'pointer',
+              padding: '7px 14px', borderRadius: 999,
+              border: '1px solid var(--ink)', background: '#ffffff',
+              fontSize: 12.5, fontWeight: 500, color: 'var(--ink)',
+            }}>+ Add source</button>
+          </div>
+          {propCoverage.top_gaps && propCoverage.top_gaps.length > 0 && (
+            <div style={{marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--hair-soft)'}}>
+              <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>
+                Top gaps · scenarios Cendra is unsure about
+              </div>
+              <div style={{display: 'grid', gap: 8}}>
+                {propCoverage.top_gaps.map(g => (
+                  <div key={g.id} style={{
+                    display:'grid', gridTemplateColumns:'140px 1fr auto', gap: 14, alignItems:'center',
+                    padding:'10px 14px', borderRadius: 8,
+                    background: 'var(--paper-2)',
+                  }}>
+                    <span className="mono" style={{fontSize: 10, letterSpacing:'.10em', color:'var(--warn)', fontWeight: 600, textTransform:'uppercase'}}>
+                      {g.stage}
+                    </span>
+                    <div>
+                      <div style={{fontSize: 13, color:'var(--ink)', fontWeight: 500, marginBottom: 2}}>{g.scenario}</div>
+                      <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em'}}>{g.why}</div>
+                    </div>
+                    <Btn size="sm" kind="ghost">Resolve →</Btn>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* KNOWLEDGE SOURCES — files PMs fed Cendra to learn this property */}
+      <CollapsibleStep
+        eyebrow={`Knowledge sources · ${propSources.length}`}
+        sub="Everything Cendra read to build this brain. Click a source to see what came out."
+        open={sourcesOpen}
+        onToggle={() => setSourcesOpen(o => !o)}
+      >
+        <div style={{marginTop: 14, display: 'grid', gap: 10}}>
+          {propSources.map(s => <KnowledgeSourceCard key={s.id} source={s} />)}
+          <button onClick={() => setImportOpen(true)} style={{
+            all: 'unset', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            padding: '14px 20px', borderRadius: 12,
+            border: '1px dashed var(--hair)', background: 'transparent',
+            fontSize: 13, color: 'var(--muted)', fontWeight: 500,
+            transition: 'border-color .12s, color .12s, background .12s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ink)'; e.currentTarget.style.color = 'var(--ink)'; e.currentTarget.style.background = 'var(--paper-2)'; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hair)'; e.currentTarget.style.color = 'var(--muted)'; e.currentTarget.style.background = 'transparent'; }}>
+            ↓ Drop a file or click to add knowledge for {p.name}
+          </button>
+        </div>
+      </CollapsibleStep>
+
       {/* OWNER & PROPERTY RULES — collapsible, editable */}
       <CollapsibleStep
         eyebrow={`Active rules · ${rules.length}`}
@@ -514,6 +735,8 @@ function PropertyDetailScreen({ onOpen, arg, focus }) {
           </div>
         </div>
       </CollapsibleStep>
+
+      {importOpen && <ImportModal scope="property" propertyName={p.name} onClose={() => setImportOpen(false)} />}
     </div>
   );
 }
@@ -624,8 +847,19 @@ function EditableFactRow({ fact, onUpdate, isLast }) {
         transition: 'background .1s',
       }}>
       <div style={{fontSize: 13, fontWeight: 500, color:'var(--ink)'}}>{fact.fact}</div>
-      <div style={{fontSize: 13, color: isMissing ? 'var(--muted)' : 'var(--ink-mid)', fontStyle: isMissing ? 'italic' : 'normal', lineHeight: 1.45}}>
-        {fact.value}
+      <div style={{minWidth: 0}}>
+        <div style={{fontSize: 13, color: isMissing ? 'var(--muted)' : 'var(--ink-mid)', fontStyle: isMissing ? 'italic' : 'normal', lineHeight: 1.45}}>
+          {fact.value}
+        </div>
+        {fact.source_file && fact.source_file !== '—' && (
+          <div className="mono" style={{
+            fontSize: 10, color:'var(--muted)', letterSpacing:'.04em', marginTop: 4,
+            display:'inline-flex', alignItems:'center', gap: 4,
+          }}>
+            <span style={{fontSize: 9, opacity:.6}}>↪</span>
+            <span style={{textDecoration:'underline', textUnderlineOffset: 2}}>{fact.source_file}</span>
+          </div>
+        )}
       </div>
       <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', lineHeight: 1.4}}>
         {fact.source}<br />
@@ -1417,6 +1651,520 @@ function IntegrationsScreen({ onOpen }) {
       ))}
     </div>
   );
+}
+
+// ───────────────────────────────────────────────────────────────────
+// KNOWLEDGE INGESTION — drop zone, source cards, extraction preview
+// PM feeds Cendra any kind of file (PDF, image, audio, video, email,
+// CSV, web URL). Cendra parses → extracts facts/rules/scenarios/
+// playbook candidates → PM reviews & accepts → lands in property brain
+// with provenance. unstructured.io-style format coverage.
+// ───────────────────────────────────────────────────────────────────
+
+const SOURCE_TYPES = {
+  pdf:   { color: "#B92929", label: "PDF",   icon: "PDF" },
+  docx:  { color: "#0A6CD6", label: "DOCX",  icon: "DOC" },
+  xlsx:  { color: "#008A05", label: "XLSX",  icon: "XLS" },
+  csv:   { color: "#008A05", label: "CSV",   icon: "CSV" },
+  pptx:  { color: "#FC642D", label: "PPTX",  icon: "PPT" },
+  image: { color: "#5E6AD2", label: "IMAGE", icon: "IMG" },
+  audio: { color: "#FF385C", label: "AUDIO", icon: "♪♪" },
+  video: { color: "#4A154B", label: "VIDEO", icon: "▶" },
+  email: { color: "#5E6AD2", label: "EMAIL", icon: "@" },
+  web:   { color: "var(--ink-mid)", label: "WEB", icon: "↗" },
+  json:  { color: "var(--muted)", label: "JSON", icon: "{}" },
+  txt:   { color: "var(--muted)", label: "TXT",  icon: "TXT" },
+};
+
+const SUPPORTED_FORMATS = [
+  { group: "Documents", items: "PDF · DOCX · PPTX · XLSX · TXT · MD · HTML · EPUB" },
+  { group: "Images",    items: "PNG · JPG · WEBP · HEIC · TIFF — OCR + vision" },
+  { group: "Audio",     items: "MP3 · WAV · M4A · OGG — transcription" },
+  { group: "Video",     items: "MP4 · MOV · WEBM — frames + transcript" },
+  { group: "Email",     items: "EML · MSG — threaded conversation memory" },
+  { group: "Structured",items: "CSV · JSON · XML — bulk imports" },
+  { group: "Web",       items: "URL paste — listings, owner microsites" },
+];
+
+function SourceTypeBadge({ type, size = "md" }) {
+  const m = SOURCE_TYPES[type] || SOURCE_TYPES.txt;
+  const sz = size === "sm" ? 22 : 32;
+  return (
+    <span style={{
+      width: sz, height: sz, borderRadius: 6,
+      background: m.color, color: "#ffffff",
+      display: "grid", placeItems: "center",
+      fontFamily: "var(--mono)", fontSize: size === "sm" ? 9 : 10,
+      fontWeight: 700, letterSpacing: 0,
+      flexShrink: 0,
+    }}>{m.icon}</span>
+  );
+}
+
+function KnowledgeSourceCard({ source, compact, onOpen }) {
+  const e = source.extracted || {};
+  const extractedParts = [];
+  if (e.facts)     extractedParts.push(`${e.facts} fact${e.facts === 1 ? "" : "s"}`);
+  if (e.rules)     extractedParts.push(`${e.rules} rule${e.rules === 1 ? "" : "s"}`);
+  if (e.scenarios) extractedParts.push(`${e.scenarios} scenario${e.scenarios === 1 ? "" : "s"}`);
+  if (e.playbooks) extractedParts.push(`${e.playbooks} playbook${e.playbooks === 1 ? "" : "s"}`);
+  if (e.amenities) extractedParts.push(`${e.amenities} amenit${e.amenities === 1 ? "y" : "ies"}`);
+  if (e.photos)    extractedParts.push(`${e.photos} photo${e.photos === 1 ? "" : "s"}`);
+  if (e.vendors)   extractedParts.push(`${e.vendors} vendor${e.vendors === 1 ? "" : "s"}`);
+
+  return (
+    <button onClick={onOpen} style={{
+      all: "unset", cursor: "pointer", display: "grid",
+      gridTemplateColumns: compact ? "32px 1fr auto" : "44px 1fr auto",
+      gap: 14, alignItems: "center",
+      padding: compact ? "12px 16px" : "16px 20px",
+      background: "#ffffff", border: "1px solid var(--hair)", borderRadius: 12,
+      transition: "border-color .12s, box-shadow .12s",
+    }}
+    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--stone)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.04)"; }}
+    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--hair)"; e.currentTarget.style.boxShadow = "none"; }}>
+      <SourceTypeBadge type={source.type} size={compact ? "sm" : "md"} />
+      <div style={{minWidth: 0}}>
+        <div style={{
+          fontSize: compact ? 13 : 14, fontWeight: 500, color: "var(--ink)",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>{source.filename}</div>
+        <div className="mono" style={{
+          fontSize: 10.5, color: "var(--muted)", letterSpacing: ".04em", marginTop: 3,
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>
+          {source.pages ? `${source.pages}p · ` : ""}
+          {source.duration ? `${source.duration} · ` : ""}
+          {source.size ? `${source.size} · ` : ""}
+          {source.uploaded} · {source.by}
+        </div>
+        {!compact && extractedParts.length > 0 && (
+          <div style={{fontSize: 12, color: "var(--ink-mid)", marginTop: 6}}>
+            <span className="mono" style={{fontSize: 9.5, letterSpacing: ".14em", color: "var(--ok)", marginRight: 8, fontWeight: 600}}>EXTRACTED</span>
+            {extractedParts.join(" · ")}
+          </div>
+        )}
+      </div>
+      <span className="mono" style={{fontSize: 10.5, color: "var(--muted)", letterSpacing: ".06em", fontWeight: 500}}>
+        OPEN →
+      </span>
+    </button>
+  );
+}
+
+// IMPORT MODAL — drop zone + supported formats + analysis flow + preview
+function ImportModal({ scope, propertyName, onClose, onImported }) {
+  const [stage, setStage] = useState("dropzone"); // dropzone → parsing → extracting → matching → review
+  const [filename, setFilename] = useState("");
+  const [filetype, setFiletype] = useState("pdf");
+  const [accepted, setAccepted] = useState({});
+
+  // Simulated extraction result (the "magic moment" payload)
+  const extraction = useMemo(() => ({
+    facts: [
+      { id: "ef1", label: "Quiet hours · 23:00 → 08:00", confidence: 0.94, page: "page 4", group: "Guest-facing" },
+      { id: "ef2", label: "Pet policy · Not allowed (deposit option €150)", confidence: 0.91, page: "page 7", group: "Guest-facing" },
+      { id: "ef3", label: "Smoking · Balcony only", confidence: 0.97, page: "page 7", group: "Guest-facing" },
+      { id: "ef4", label: "Trash pickup · Tuesday & Friday 06:00", confidence: 0.89, page: "page 12", group: "Guest-facing" },
+      { id: "ef5", label: "Hot water reset · Breaker panel · left side", confidence: 0.83, page: "page 18", group: "Internal" },
+      { id: "ef6", label: "Building gate code · rotates monthly", confidence: 0.78, page: "page 5", group: "Internal" },
+    ],
+    rules: [
+      { id: "er1", label: "Never offer late checkout if same-day turnover", confidence: 0.96, page: "page 11" },
+      { id: "er2", label: "Pet deposit €150 required at check-in if applicable", confidence: 0.88, page: "page 8" },
+      { id: "er3", label: "Emergency contact within 15 min for safety issues", confidence: 0.93, page: "page 22" },
+    ],
+    scenarios: [
+      { id: "es1", label: "Same-night booking after 22:00 from zero-review guest", stage: "Pre-booking", confidence: 0.81 },
+      { id: "es2", label: "Pet deposit dispute mid-stay", stage: "During stay", confidence: 0.74 },
+      { id: "es3", label: "Late check-in after lockbox cutoff", stage: "Check-in", confidence: 0.86 },
+      { id: "es4", label: "Trash schedule confusion", stage: "During stay", confidence: 0.79 },
+      { id: "es5", label: "Building gate failure", stage: "Check-in", confidence: 0.71 },
+    ],
+    playbooks: [
+      { id: "ep1", label: "Pre-arrival trash schedule reminder", est_value: "Sentiment +6 · 0% guest message volume on trash", confidence: 0.83 },
+      { id: "ep2", label: "Pet deposit collection flow", est_value: "€120 · per pet stay · 7 detected eligible bookings", confidence: 0.76 },
+    ],
+  }), []);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const f = e.dataTransfer?.files?.[0];
+    if (f) startAnalysis(f.name, getTypeFromExt(f.name));
+  };
+  const handleSelect = (e) => {
+    const f = e.target.files?.[0];
+    if (f) startAnalysis(f.name, getTypeFromExt(f.name));
+  };
+  const handleUseDemo = () => startAnalysis("kara12_owner_handbook.pdf", "pdf");
+
+  const startAnalysis = (name, type) => {
+    setFilename(name);
+    setFiletype(type);
+    setStage("parsing");
+    setTimeout(() => setStage("extracting"), 900);
+    setTimeout(() => setStage("matching"), 1900);
+    setTimeout(() => setStage("review"), 2900);
+  };
+
+  const totalItems = extraction.facts.length + extraction.rules.length + extraction.scenarios.length + extraction.playbooks.length;
+  const acceptedCount = Object.values(accepted).filter(Boolean).length;
+  const highConfidenceCount = [
+    ...extraction.facts, ...extraction.rules, ...extraction.scenarios, ...extraction.playbooks
+  ].filter(i => i.confidence >= 0.85).length;
+
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 50,
+      background: "rgba(0,0,0,0.40)",
+      display: "grid", placeItems: "center",
+      padding: 32,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: "min(880px, 100%)", maxHeight: "calc(100vh - 64px)",
+        background: "var(--paper)", borderRadius: 16,
+        boxShadow: "0 24px 64px rgba(0,0,0,0.20)",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: "20px 28px", borderBottom: "1px solid var(--hair-soft)",
+          display: "flex", alignItems: "center", gap: 16, background: "#ffffff",
+        }}>
+          <div className="mono" style={{
+            fontSize: 10.5, letterSpacing: ".18em", color: "var(--muted)",
+            display: "flex", gap: 12, alignItems: "center", flex: 1,
+          }}>
+            <span>IMPORT KNOWLEDGE</span>
+            <span style={{width: 3, height: 3, borderRadius: "50%", background: "var(--muted-2)"}} />
+            <span>{scope === "portfolio" ? "PORTFOLIO-WIDE" : (propertyName || "PROPERTY").toUpperCase()}</span>
+          </div>
+          <button onClick={onClose} style={{
+            all: "unset", cursor: "pointer",
+            width: 28, height: 28, borderRadius: "50%",
+            display: "grid", placeItems: "center",
+            color: "var(--muted)", fontSize: 16,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--muted)"; }}>×</button>
+        </div>
+
+        {/* Body */}
+        <div style={{flex: 1, overflowY: "auto", padding: "24px 28px"}}>
+
+          {/* Stage 1 — drop zone + format catalog */}
+          {stage === "dropzone" && (
+            <>
+              <h2 className="serif-display" style={{
+                fontSize: 30, lineHeight: 1.12, margin: "0 0 12px", color: "var(--ink)",
+                letterSpacing: "-.018em",
+              }}>
+                Drop a file. Cendra will read it.
+              </h2>
+              <p style={{margin: "0 0 24px", fontSize: 14.5, color: "var(--ink-mid)", lineHeight: 1.55, maxWidth: 640}}>
+                Photos, voice notes, owner contracts, SOPs, vendor lists, listing pages, emails — anything you have. Cendra parses it, extracts facts and rules, matches against the {window.CENDRA_DATA2.scenario_coverage.portfolio_total} hospitality scenario catalog, and only writes to the property brain after you approve.
+              </p>
+
+              {/* Drop zone */}
+              <label
+                htmlFor="import-file"
+                onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--ink)"; e.currentTarget.style.background = "#ffffff"; }}
+                onDragLeave={e => { e.currentTarget.style.borderColor = "var(--hair)"; e.currentTarget.style.background = "var(--paper-2)"; }}
+                onDrop={handleDrop}
+                style={{
+                  display: "block", padding: "40px 28px",
+                  border: "2px dashed var(--hair)", borderRadius: 14,
+                  background: "var(--paper-2)", textAlign: "center",
+                  cursor: "pointer", transition: "border-color .15s, background .15s",
+                  marginBottom: 18,
+                }}
+              >
+                <div style={{fontSize: 36, lineHeight: 1, marginBottom: 14}}>↓</div>
+                <div style={{fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 4}}>
+                  Drag files here or click to select
+                </div>
+                <div style={{fontSize: 13, color: "var(--muted)"}}>
+                  Up to 200 MB per file · multiple files OK
+                </div>
+                <input id="import-file" type="file" onChange={handleSelect} style={{display: "none"}} />
+              </label>
+
+              <div style={{display: "flex", alignItems: "center", gap: 10, marginBottom: 24}}>
+                <button onClick={handleUseDemo} style={{
+                  all: "unset", cursor: "pointer",
+                  fontSize: 12.5, color: "var(--ink-mid)", fontWeight: 500,
+                  padding: "6px 12px", borderRadius: 8,
+                  background: "#ffffff", border: "1px solid var(--hair)",
+                }}>
+                  📄 Try with demo: kara12_owner_handbook.pdf
+                </button>
+                <span style={{flex: 1}} />
+                <button style={{
+                  all: "unset", cursor: "pointer",
+                  fontSize: 12.5, color: "var(--ink-mid)", fontWeight: 500,
+                }}>🔗 Paste URL instead</button>
+              </div>
+
+              {/* Supported formats */}
+              <div className="mono" style={{
+                fontSize: 10, letterSpacing: ".14em", color: "var(--muted)",
+                textTransform: "uppercase", marginBottom: 12, fontWeight: 500,
+              }}>What Cendra accepts</div>
+              <div style={{display: "grid", gap: 8}}>
+                {SUPPORTED_FORMATS.map(f => (
+                  <div key={f.group} style={{
+                    display: "grid", gridTemplateColumns: "110px 1fr",
+                    gap: 14, padding: "8px 12px", borderRadius: 8,
+                    background: "#ffffff", border: "1px solid var(--hair)",
+                    fontSize: 12.5,
+                  }}>
+                    <span className="mono" style={{fontSize: 10.5, color: "var(--ink)", letterSpacing: ".06em", fontWeight: 600}}>{f.group}</span>
+                    <span style={{color: "var(--muted)"}}>{f.items}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Stage 2 / 3 / 4 — agentic processing */}
+          {(stage === "parsing" || stage === "extracting" || stage === "matching") && (
+            <div style={{padding: "32px 0"}}>
+              <div style={{display: "flex", alignItems: "center", gap: 14, marginBottom: 24}}>
+                <SourceTypeBadge type={filetype} />
+                <div>
+                  <div style={{fontSize: 15, fontWeight: 600, color: "var(--ink)"}}>{filename}</div>
+                  <div className="mono" style={{fontSize: 10.5, color: "var(--muted)", letterSpacing: ".04em", marginTop: 3}}>
+                    {filetype.toUpperCase()} · ANALYZING
+                  </div>
+                </div>
+              </div>
+
+              <h2 className="serif-display" style={{
+                fontSize: 28, lineHeight: 1.18, margin: "0 0 24px", color: "var(--ink)",
+                fontVariationSettings: '"opsz" 72, "SOFT" 50',
+              }}>
+                {stage === "parsing"    && "Reading the document…"}
+                {stage === "extracting" && "Pulling out facts, rules, and scenarios…"}
+                {stage === "matching"   && "Matching against the hospitality knowledge base…"}
+              </h2>
+
+              <ProgressSteps active={stage} />
+            </div>
+          )}
+
+          {/* Stage 5 — review extraction */}
+          {stage === "review" && (
+            <>
+              <div style={{display: "flex", alignItems: "center", gap: 14, marginBottom: 22}}>
+                <SourceTypeBadge type={filetype} />
+                <div style={{flex: 1, minWidth: 0}}>
+                  <div style={{fontSize: 15, fontWeight: 600, color: "var(--ink)"}}>{filename}</div>
+                  <div className="mono" style={{fontSize: 10.5, color: "var(--muted)", letterSpacing: ".04em", marginTop: 3}}>
+                    {filetype.toUpperCase()} · READY
+                  </div>
+                </div>
+                <span className="mono" style={{
+                  fontSize: 10, letterSpacing: ".14em", color: "var(--ok)",
+                  padding: "4px 10px", borderRadius: 5, background: "var(--ok-soft)",
+                  fontWeight: 600, textTransform: "uppercase",
+                }}>EXTRACTION COMPLETE</span>
+              </div>
+
+              <h2 className="serif-display" style={{
+                fontSize: 26, lineHeight: 1.22, margin: "0 0 6px", color: "var(--ink)",
+              }}>
+                Cendra found <b>{totalItems} items</b>. <span style={{color: "var(--muted)"}}>{highConfidenceCount} are high confidence.</span>
+              </h2>
+              <p style={{margin: "0 0 22px", fontSize: 13.5, color: "var(--ink-mid)", lineHeight: 1.5, maxWidth: 660}}>
+                Review each one. Anything you accept lands in the property brain with a link back to <span className="mono" style={{fontSize: 11.5}}>{filename}</span>.
+              </p>
+
+              {/* Quick action band */}
+              <div style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "12px 16px", marginBottom: 22,
+                background: "#ffffff", border: "1px solid var(--hair)", borderRadius: 10,
+              }}>
+                <button onClick={() => {
+                  const next = {};
+                  [...extraction.facts, ...extraction.rules, ...extraction.scenarios, ...extraction.playbooks].forEach(i => {
+                    if (i.confidence >= 0.85) next[i.id] = true;
+                  });
+                  setAccepted(next);
+                }} style={{
+                  all: "unset", cursor: "pointer",
+                  background: "var(--ink)", color: "#ffffff",
+                  padding: "8px 16px", borderRadius: 8,
+                  fontSize: 13, fontWeight: 600,
+                }}>Accept all {highConfidenceCount} high-confidence</button>
+                <Btn size="sm" kind="ghost" onClick={() => setAccepted({})}>Reset</Btn>
+                <span style={{flex: 1}} />
+                <span className="mono" style={{fontSize: 11, color: "var(--muted)", letterSpacing: ".06em"}}>
+                  {acceptedCount} / {totalItems} ACCEPTED
+                </span>
+              </div>
+
+              {/* Extraction groups */}
+              <ExtractionGroup
+                label="Facts"
+                items={extraction.facts}
+                accepted={accepted}
+                onToggle={(id) => setAccepted(a => ({...a, [id]: !a[id]}))}
+                renderMeta={(f) => `${f.group} · ${f.page}`}
+              />
+              <ExtractionGroup
+                label="Rule candidates"
+                items={extraction.rules}
+                accepted={accepted}
+                onToggle={(id) => setAccepted(a => ({...a, [id]: !a[id]}))}
+                renderMeta={(r) => `Will simulate on past cases · ${r.page}`}
+              />
+              <ExtractionGroup
+                label="Scenario coverage"
+                items={extraction.scenarios}
+                accepted={accepted}
+                onToggle={(id) => setAccepted(a => ({...a, [id]: !a[id]}))}
+                renderMeta={(s) => `Stage · ${s.stage}`}
+              />
+              <ExtractionGroup
+                label="Playbook candidates"
+                items={extraction.playbooks}
+                accepted={accepted}
+                onToggle={(id) => setAccepted(a => ({...a, [id]: !a[id]}))}
+                renderMeta={(p) => p.est_value}
+              />
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        {stage === "review" && (
+          <div style={{
+            padding: "16px 28px", borderTop: "1px solid var(--hair-soft)",
+            display: "flex", alignItems: "center", gap: 12,
+            background: "#ffffff",
+          }}>
+            <span className="mono" style={{fontSize: 10.5, letterSpacing: ".10em", color: "var(--muted)"}}>
+              Cendra will write to the property brain with provenance back to <span style={{color: "var(--ink)"}}>{filename}</span>
+            </span>
+            <span style={{flex: 1}} />
+            <Btn kind="ghost" onClick={onClose}>Cancel</Btn>
+            <button onClick={() => { onImported && onImported(filename, acceptedCount); onClose(); }} style={{
+              all: "unset", cursor: acceptedCount > 0 ? "pointer" : "not-allowed",
+              background: acceptedCount > 0 ? "var(--ink)" : "var(--hair)",
+              color: acceptedCount > 0 ? "#ffffff" : "var(--muted)",
+              padding: "10px 20px", borderRadius: 10,
+              fontSize: 13.5, fontWeight: 600,
+              display: "inline-flex", alignItems: "center", gap: 8,
+            }}>
+              Apply {acceptedCount} items
+              <span style={{fontFamily: "var(--mono)", fontSize: 12, opacity: .8}}>↵</span>
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProgressSteps({ active }) {
+  const steps = [
+    { id: "parsing",    label: "Parsing document"   },
+    { id: "extracting", label: "Extracting entities" },
+    { id: "matching",   label: "Matching scenario catalog (469)" },
+    { id: "review",     label: "Ready for review"   },
+  ];
+  const idx = steps.findIndex(s => s.id === active);
+  return (
+    <div style={{display: "grid", gap: 10, maxWidth: 480}}>
+      {steps.map((s, i) => {
+        const done = i < idx;
+        const current = i === idx;
+        return (
+          <div key={s.id} style={{display: "flex", alignItems: "center", gap: 12}}>
+            <span style={{
+              width: 18, height: 18, borderRadius: "50%",
+              border: "1.5px solid " + (done ? "var(--ok)" : current ? "var(--ink)" : "var(--hair)"),
+              background: done ? "var(--ok)" : "transparent",
+              display: "grid", placeItems: "center",
+              color: "#ffffff", fontSize: 10, fontWeight: 700,
+              animation: current ? "cendra-pulse 1.4s ease-in-out infinite" : "none",
+            }}>{done ? "✓" : ""}</span>
+            <span style={{
+              fontSize: 13.5,
+              color: done ? "var(--ink-mid)" : current ? "var(--ink)" : "var(--muted)",
+              fontWeight: current ? 600 : 400,
+            }}>{s.label}</span>
+            {current && (
+              <span className="mono" style={{fontSize: 10, color: "var(--muted)", letterSpacing: ".10em"}}>RUNNING…</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ExtractionGroup({ label, items, accepted, onToggle, renderMeta }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div style={{marginBottom: 24}}>
+      <div className="mono" style={{
+        fontSize: 10, letterSpacing: ".14em", color: "var(--muted)",
+        textTransform: "uppercase", marginBottom: 10, fontWeight: 500,
+      }}>{label} · {items.length}</div>
+      <div style={{display: "grid", gap: 1, background: "var(--hair)", border: "1px solid var(--hair)", borderRadius: 10, overflow: "hidden"}}>
+        {items.map(item => {
+          const isAccepted = accepted[item.id];
+          const confColor = item.confidence >= 0.85 ? "var(--ok)" : item.confidence >= 0.70 ? "var(--warn)" : "var(--muted)";
+          return (
+            <div key={item.id} style={{
+              display: "grid", gridTemplateColumns: "24px 1fr 60px auto",
+              gap: 14, padding: "12px 16px", alignItems: "center",
+              background: isAccepted ? "var(--ok-soft)" : "#ffffff",
+              transition: "background .12s",
+            }}>
+              <button onClick={() => onToggle(item.id)} style={{
+                all: "unset", cursor: "pointer",
+                width: 18, height: 18, borderRadius: 5,
+                border: "1.5px solid " + (isAccepted ? "var(--ok)" : "var(--hair)"),
+                background: isAccepted ? "var(--ok)" : "#ffffff",
+                display: "grid", placeItems: "center",
+                color: "#ffffff", fontSize: 11, fontWeight: 700,
+              }}>{isAccepted ? "✓" : ""}</button>
+              <div>
+                <div style={{fontSize: 13.5, color: "var(--ink)", lineHeight: 1.45}}>{item.label}</div>
+                <div className="mono" style={{fontSize: 10.5, color: "var(--muted)", letterSpacing: ".04em", marginTop: 3}}>
+                  {renderMeta && renderMeta(item)}
+                </div>
+              </div>
+              <span className="mono" style={{
+                fontSize: 11, color: confColor, fontWeight: 600,
+                letterSpacing: ".04em", textAlign: "right",
+              }}>{Math.round(item.confidence * 100)}%</span>
+              <Btn size="sm" kind="ghost">Edit</Btn>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function getTypeFromExt(name) {
+  const ext = name.split(".").pop().toLowerCase();
+  if (["pdf"].includes(ext)) return "pdf";
+  if (["docx", "doc"].includes(ext)) return "docx";
+  if (["xlsx", "xls"].includes(ext)) return "xlsx";
+  if (["pptx", "ppt"].includes(ext)) return "pptx";
+  if (["csv"].includes(ext)) return "csv";
+  if (["png", "jpg", "jpeg", "webp", "heic", "tiff"].includes(ext)) return "image";
+  if (["mp3", "wav", "m4a", "ogg"].includes(ext)) return "audio";
+  if (["mp4", "mov", "webm"].includes(ext)) return "video";
+  if (["eml", "msg"].includes(ext)) return "email";
+  if (["html", "htm"].includes(ext)) return "web";
+  if (["json", "xml"].includes(ext)) return "json";
+  return "txt";
 }
 
 window.CendraScreens3 = {

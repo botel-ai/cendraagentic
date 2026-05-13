@@ -221,17 +221,17 @@ window.CENDRA_DATA2 = {
     risks: ["Same-day turnovers cluster Fri/Sat", "Smart-lock pairing failed once · 60d ago"],
     fact_groups: [
       { label: "Guest-facing facts", facts: [
-        { fact: "Wi-Fi",            value: "KK12-Guest / sapphire-otter-9821", source: "Smart-lock auto", fresh: "12d", visible: "guest", state: "verified", used_in: ["wf_wifi"] },
-        { fact: "Quiet hours",      value: "23:00 → 08:00",                    source: "Building rule",   fresh: "60d", visible: "guest", state: "verified", used_in: ["wf_wifi","wf_check"] },
-        { fact: "Pets",             value: "Not allowed",                      source: "Owner rule",      fresh: "120d",visible: "guest", state: "verified", used_in: ["wf_wifi"] },
-        { fact: "Bedroom",          value: "1 king + 1 sofa-bed",              source: "Cleaner photo · listing says 1 queen", fresh: "live", visible: "internal", state: "conflict", used_in: ["wf_wifi"] },
+        { fact: "Wi-Fi",            value: "KK12-Guest / sapphire-otter-9821", source: "Smart-lock auto", source_file: "PMS · Yale Connect", fresh: "12d", visible: "guest", state: "verified", used_in: ["wf_wifi"] },
+        { fact: "Quiet hours",      value: "23:00 → 08:00",                    source: "Building rule",   source_file: "kara12_owner_handbook.pdf · p.4", fresh: "60d", visible: "guest", state: "verified", used_in: ["wf_wifi","wf_check"] },
+        { fact: "Pets",             value: "Not allowed",                      source: "Owner rule",      source_file: "kara12_owner_handbook.pdf · p.7", fresh: "120d",visible: "guest", state: "verified", used_in: ["wf_wifi"] },
+        { fact: "Bedroom",          value: "1 king + 1 sofa-bed",              source: "Cleaner photo · listing says 1 queen", source_file: "kara12_walkthrough.mp4 · 02:14 + Airbnb listing", fresh: "live", visible: "internal", state: "conflict", used_in: ["wf_wifi"] },
       ]},
       { label: "Internal notes",    facts: [
-        { fact: "Cleaner notes",    value: "Hot water heater needs flush every 30 days",       source: "Marta C.",   fresh: "8d",  visible: "internal", state: "verified", used_in: ["wf_maint"] },
-        { fact: "Owner preference", value: "Never offer late checkout if same-day turnover",   source: "Owner rule", fresh: "32d", visible: "internal", state: "verified", used_in: ["wf_late"] },
+        { fact: "Cleaner notes",    value: "Hot water heater needs flush every 30 days",       source: "Marta C.",   source_file: "kara12_cleaner_notes.mp3 · 00:42", fresh: "8d",  visible: "internal", state: "verified", used_in: ["wf_maint"] },
+        { fact: "Owner preference", value: "Never offer late checkout if same-day turnover",   source: "Owner rule", source_file: "kara12_owner_handbook.pdf · p.11", fresh: "32d", visible: "internal", state: "verified", used_in: ["wf_late"] },
       ]},
       { label: "Missing",           facts: [
-        { fact: "Heating type",     value: "—", source: "—", fresh: "—", visible: "—", state: "missing", used_in: [] },
+        { fact: "Heating type",     value: "—", source: "—", source_file: null, fresh: "—", visible: "—", state: "missing", used_in: [] },
       ]},
     ],
   },
@@ -344,6 +344,111 @@ window.CENDRA_DATA2 = {
     { kind: "No vendor available",    what_happened: "All 3 plumbers declined within 8 minutes.", did: "Cendra escalated to backup list and notified you.", action: "Approve backup vendor or call directly.", consequence: "If unanswered, leak persists." },
     { kind: "Guest threatens review", what_happened: "Sentiment turned at 06:38, lexical match: 'bad review'.", did: "Cendra paused outbound, drafted apology, escalated.", action: "Take over thread.", consequence: "Cendra will not message until you intervene." },
     { kind: "Autopilot demoted",      what_happened: "Late checkout offer hit 1 incident threshold.", did: "Auto-demoted to semi-auto · 5-min hold.", action: "Review demotion or accept.", consequence: "Revenue automation slows by ~12%." },
+  ],
+
+  // ──────────────────────────────────────────────────────────────────
+  // KNOWLEDGE SOURCES — every file PMs feed Cendra. Cendra parses,
+  // extracts facts/rules/scenarios/playbook candidates, then lands
+  // them in the property brain with provenance back to the source.
+  // ──────────────────────────────────────────────────────────────────
+  knowledge_sources: {
+    portfolio: [
+      { id: "src_p1", filename: "portfolio_sop_v3.pdf",        type: "pdf",   size: "2.4 MB",  pages: 32, uploaded: "60d ago", by: "Maya L.",  scope: "all properties",     extracted: { facts: 14, rules: 6,  scenarios: 9, playbooks: 2 }, confidence: 0.91, status: "applied" },
+      { id: "src_p2", filename: "vendor_directory_2026.xlsx",  type: "xlsx",  size: "84 KB",   rows: 47,  uploaded: "42d ago", by: "Maya L.",  scope: "all properties",     extracted: { facts: 0,  rules: 0,  scenarios: 0, playbooks: 0, vendors: 47 }, confidence: 0.98, status: "applied" },
+      { id: "src_p3", filename: "emergency_procedures.docx",   type: "docx",  size: "412 KB",  pages: 8,  uploaded: "120d ago",by: "Maya L.",  scope: "all properties",     extracted: { facts: 4,  rules: 3,  scenarios: 12, playbooks: 1 }, confidence: 0.88, status: "applied" },
+      { id: "src_p4", filename: "owner_contract_template.pdf", type: "pdf",   size: "186 KB",  pages: 6,  uploaded: "180d ago",by: "Maya L.",  scope: "all properties",     extracted: { facts: 0,  rules: 8,  scenarios: 0, playbooks: 0 }, confidence: 0.93, status: "applied" },
+      { id: "src_p5", filename: "guest_complaints_2025.csv",   type: "csv",   size: "1.1 MB",  rows: 312, uploaded: "21d ago", by: "Henrik S.",scope: "all properties",     extracted: { facts: 0,  rules: 0,  scenarios: 18, playbooks: 5 }, confidence: 0.84, status: "applied" },
+    ],
+    by_property: {
+      p_kara12: [
+        { id: "src_k1", filename: "kara12_owner_handbook.pdf", type: "pdf",   size: "1.2 MB",  pages: 14, uploaded: "60d ago", by: "Maya L.",  extracted: { facts: 8, rules: 3, scenarios: 5 }, confidence: 0.92, status: "applied" },
+        { id: "src_k2", filename: "kara12_walkthrough.mp4",     type: "video", size: "184 MB",  duration: "4:32", uploaded: "32d ago", by: "Marta C.", extracted: { facts: 5, photos: 2, scenarios: 2 }, confidence: 0.86, status: "applied" },
+        { id: "src_k3", filename: "kara12_cleaner_notes.mp3",   type: "audio", size: "4.2 MB",  duration: "1:24", uploaded: "8d ago",  by: "Marta C.", extracted: { facts: 3, rules: 1 }, confidence: 0.81, status: "applied" },
+        { id: "src_k4", filename: "kara12_kitchen.jpg",         type: "image", size: "2.4 MB",  uploaded: "90d ago", by: "Maya L.",   extracted: { amenities: 12, facts: 4 }, confidence: 0.88, status: "applied" },
+        { id: "src_k5", filename: "kara12_listing_airbnb.html", type: "web",   size: "—",       uploaded: "180d ago",by: "auto-sync", extracted: { facts: 11, rules: 0, scenarios: 3 }, confidence: 0.95, status: "applied" },
+      ],
+      p_bos: [
+        { id: "src_b1", filename: "bosphorus_owner_briefing.pdf", type: "pdf", size: "880 KB", pages: 9, uploaded: "45d ago", by: "Maya L.", extracted: { facts: 6, rules: 4, scenarios: 3 }, confidence: 0.89, status: "applied" },
+        { id: "src_b2", filename: "bos_leak_history.eml",         type: "email", size: "32 KB", uploaded: "9d ago",  by: "Maya L.", extracted: { facts: 2, scenarios: 4 }, confidence: 0.78, status: "applied" },
+      ],
+      p_studgal: [
+        { id: "src_s1", filename: "studio_galata_listing.html", type: "web", size: "—", uploaded: "200d ago", by: "auto-sync", extracted: { facts: 9, rules: 0, scenarios: 2 }, confidence: 0.94, status: "applied" },
+      ],
+    },
+  },
+
+  // SCENARIO COVERAGE — how many of the 469 hospitality scenarios
+  // Cendra is confident handling for each property (extracted from
+  // PM data + uploaded knowledge sources).
+  scenario_coverage: {
+    portfolio_total: 469,
+    portfolio_covered: 187,
+    stages: [
+      { id: "s1", label: "Pre-booking",        total: 50, covered: 24 },
+      { id: "s2", label: "Booking confirmation", total: 40, covered: 22 },
+      { id: "s3", label: "Pre-arrival",        total: 61, covered: 38 },
+      { id: "s4", label: "Check-in day",       total: 61, covered: 44 },
+      { id: "s5", label: "During stay",        total: 84, covered: 32 },
+      { id: "s6", label: "Upsell / Revenue",   total: 41, covered: 9  },
+      { id: "s7", label: "Check-out",          total: 40, covered: 10 },
+      { id: "s8", label: "Post-stay",          total: 40, covered: 6  },
+      { id: "s9", label: "Internal / Vendor",  total: 52, covered: 2  },
+    ],
+    by_property: {
+      p_kara12: {
+        covered: 75,
+        top_gaps: [
+          { id: "g1", scenario: "Pet deposit dispute mid-stay",   stage: "During stay",  why: "No documented pet deposit policy" },
+          { id: "g2", scenario: "Off-channel payment refusal",    stage: "Pre-booking",  why: "Cendra has no PM stance on file" },
+          { id: "g3", scenario: "Late check-in after lockbox cutoff", stage: "Check-in day", why: "No lockbox cutoff rule defined" },
+        ],
+      },
+      p_bos: {
+        covered: 42,
+        top_gaps: [
+          { id: "g1", scenario: "Recurring leak attribution dispute", stage: "During stay", why: "Source-of-truth gap" },
+          { id: "g2", scenario: "Vendor delay → guest comp",          stage: "During stay", why: "No threshold defined" },
+        ],
+      },
+    },
+  },
+
+  // PROACTIVE PLAYBOOK CANDIDATES — patterns Cendra detected from
+  // PM data that look like worth automating as a playbook.
+  playbook_candidates: [
+    {
+      id: "pc_orphan",
+      name: "Orphan night stay extension offer",
+      detected_from: "12 events · last 90 days",
+      historic_accept_rate: "45%",
+      est_revenue_per_property_30d: "€280",
+      confidence: 0.86,
+      stage: "Pre-arrival",
+      sample_trigger: "Departure leaves a 1-night gap before next booking, no same-day arrival",
+      properties_affected: 23,
+    },
+    {
+      id: "pc_pet",
+      name: "Pet-friendly upsell · case-by-case",
+      detected_from: "7 PM approvals · 3 properties",
+      historic_accept_rate: "67%",
+      est_revenue_per_property_30d: "€120",
+      confidence: 0.74,
+      stage: "Pre-booking",
+      sample_trigger: "Guest discloses pet at inquiry, property not flagged pet-friendly",
+      properties_affected: 6,
+    },
+    {
+      id: "pc_gate",
+      name: "Building gate confusion preempt",
+      detected_from: "9 first-night messages · 1 property",
+      historic_accept_rate: "—",
+      est_revenue_per_property_30d: "€0 · sentiment +14",
+      confidence: 0.81,
+      stage: "Pre-arrival",
+      sample_trigger: "Cihangir House guests ask about gate operation in first 2 hours, 9× in 30 days",
+      properties_affected: 1,
+    },
   ],
 
   // ──────────────────────────────────────────────────────────────────
