@@ -152,38 +152,7 @@ function TodayScreen({ onOpen, tweaks }) {
         </div>
       </div>
 
-      {/* COMPOSER — sticky entry to Cendra */}
-      <div style={{
-        position:'sticky', bottom: 20, marginTop: 80, zIndex: 5,
-        background: 'linear-gradient(to bottom, transparent 0%, var(--paper) 40px)',
-        paddingTop: 40, paddingBottom: 4,
-      }}>
-        <div style={{
-          display:'flex', alignItems:'center', gap: 12,
-          border: '1px solid var(--hair)', background: '#ffffff',
-          borderRadius: 14, padding: '12px 18px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04)',
-        }}>
-          <span className="mono" style={{fontSize:11, letterSpacing:'.14em', color: 'var(--muted)', whiteSpace:'nowrap'}}>▸ ASK CENDRA</span>
-          <input
-            ref={composerRef}
-            placeholder="What's the late checkout offer accepting at right now?"
-            style={{
-              flex:1, border:0, outline:0, background:'transparent',
-              fontSize: 14.5, fontFamily:'var(--sans)', color:'var(--ink)',
-            }}
-          />
-          <button title="Voice mode" style={{
-            all:'unset', cursor:'pointer',
-            width: 28, height: 28, borderRadius:'50%',
-            border:'1.5px solid var(--ink)',
-            display:'grid', placeItems:'center',
-          }}>
-            <span style={{width:6, height:6, borderRadius:'50%', background:'var(--ink)'}} />
-          </button>
-          <span className="kbd">↵</span>
-        </div>
-      </div>
+      {/* In-screen composer removed — global CendraBar lives in app shell */}
     </div>
   );
 }
@@ -1192,44 +1161,7 @@ function WorkDetailScreen({ onOpen, tweaks }) {
             </div>
           )}
 
-          {/* Sticky composer */}
-          <div style={{
-            position:'sticky', bottom: 0,
-            marginTop: 32, marginBottom: 24,
-            paddingTop: 10,
-            background: 'linear-gradient(to bottom, transparent 0, var(--paper) 14px)',
-          }}>
-            <div style={{
-              display:'flex', alignItems:'center', gap: 10,
-              border:'1px solid var(--hair)', background:'var(--card)',
-              borderRadius: 4, padding:'10px 14px',
-            }}>
-              <span className="mono dim" style={{fontSize:11, letterSpacing:'.14em', whiteSpace:'nowrap'}}>▸ ASK CENDRA</span>
-              <input
-                ref={composerRef}
-                value={composer}
-                onChange={e => setComposer(e.target.value)}
-                placeholder={`Ask about ${g.name.split(' ')[0]}, or just talk…`}
-                style={{
-                  flex:1, border:0, outline:0, background:'transparent',
-                  fontSize:14, fontFamily:'var(--sans)',
-                  color:'var(--ink)',
-                }}
-              />
-              <button title="Voice mode" style={{
-                all:'unset', cursor:'pointer',
-                width: 22, height: 22, borderRadius:'50%',
-                border:'1.5px solid var(--ink)',
-                display:'grid', placeItems:'center',
-              }}>
-                <span style={{width:6, height:6, borderRadius:'50%', background:'var(--ink)'}} />
-              </button>
-              <span className="kbd" style={{border:'1px solid var(--hair)', padding:'1px 7px', borderRadius:3, fontFamily:'var(--mono)', fontSize:10}}>↵</span>
-            </div>
-            <div className="mono dim mt-1" style={{fontSize:9.5, letterSpacing:'.14em'}}>
-              EVERYTHING HERE IS A CONVERSATION WITH CENDRA · GUEST-FACING SENDS HAPPEN ONLY FROM ACTION CARDS
-            </div>
-          </div>
+          {/* Guest-scoped composer removed — global CendraBar lives in app shell */}
         </div>
 
         {/* RIGHT — slim static facts panel */}

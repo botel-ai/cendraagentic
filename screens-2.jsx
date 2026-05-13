@@ -690,7 +690,7 @@ function PlaybookScreen() {
 
       {/* PUBLISH BAR — sticky bottom */}
       <div style={{
-        position:'sticky', bottom: 20, marginTop: 72, zIndex: 5,
+        position:'sticky', bottom: 100, marginTop: 72, zIndex: 5,
         background: 'linear-gradient(to bottom, transparent 0%, var(--paper) 40px)',
         paddingTop: 40, paddingBottom: 4,
       }}>

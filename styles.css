@@ -1015,3 +1015,12 @@ input, textarea { font-family: inherit; color: inherit; }
 }
 
 /* .gx is now an alias of the global Airbnb theme — kept for backwards-compat. */
+
+/* Global CendraBar — slide-up animation for the answered panel */
+@keyframes cendra-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Give every stage room above the fixed CendraBar */
+.stage { padding-bottom: 140px !important; }

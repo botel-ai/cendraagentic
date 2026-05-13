@@ -55,6 +55,7 @@ function App() {
           <Routes route={route} goto={goto} tweaks={tweaks} />
         </div>
       </div>
+      <CendraBar route={route} goto={goto} />
       {palette && <CommandPalette onClose={() => setPalette(false)} goto={goto} />}
 
       <TweaksPanel title="Tweaks">
@@ -119,6 +120,290 @@ function App() {
           <TweakButton label="Mobile · approval-first" onClick={() => goto("mobile")} secondary />
         </TweakSection>
       </TweaksPanel>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────
+// CENDRA BAR — global ask composer + answered panel
+// Always sticky at bottom across every page. On submit, slides up a
+// panel with Cendra's serif answer + an inline InsightCard +
+// follow-up chips. Static demo answer for prototype.
+// ───────────────────────────────────────────────────────────────────
+function CendraBar({ route, goto }) {
+  const [text, setText] = useState("");
+  const [submitted, setSubmitted] = useState(null);
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef(null);
+
+  // Hotkey · "/" focuses (when not in another input)
+  useEffect(() => {
+    const onKey = (e) => {
+      const inField = document.activeElement && ["INPUT","TEXTAREA"].includes(document.activeElement.tagName);
+      if (e.key === "Escape") {
+        setSubmitted(null);
+        inputRef.current?.blur();
+      }
+      if (e.key === "/" && !inField) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const submit = (q) => {
+    const v = (q ?? text).trim();
+    if (!v) return;
+    setSubmitted(v);
+    setText("");
+    inputRef.current?.blur();
+  };
+
+  // Rotating placeholder
+  const placeholders = useMemo(() => [
+    "Ask Cendra anything — \"why is automation down this week?\"",
+    "\"Which property had the most refund asks last month?\"",
+    "\"Draft a polite hold message for tonight's late arrivals.\"",
+    "\"What did Cendra do overnight while I was sleeping?\"",
+  ], []);
+  const [phIdx, setPhIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setPhIdx(i => (i + 1) % placeholders.length), 5500);
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 20,
+      left: 240,           // nav width 220 + gap
+      right: 24,
+      zIndex: 30,
+      pointerEvents: 'none',
+    }}>
+      {submitted && (
+        <CendraAnswerPanel
+          question={submitted}
+          onClose={() => setSubmitted(null)}
+          onFollowUp={(q) => submit(q)}
+          onOpen={goto}
+        />
+      )}
+
+      <div
+        onClick={() => inputRef.current?.focus()}
+        style={{
+          pointerEvents: 'auto',
+          display: 'flex', alignItems: 'center', gap: 12,
+          border: '1px solid ' + (focused ? 'var(--ink)' : 'var(--hair)'),
+          background: '#ffffff',
+          borderRadius: 14, padding: '12px 18px',
+          boxShadow: focused
+            ? '0 12px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04)'
+            : '0 8px 24px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.03)',
+          transition: 'border-color .12s, box-shadow .15s',
+          cursor: 'text',
+        }}
+      >
+        <span style={{
+          fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.14em',
+          color: 'var(--muted)', whiteSpace: 'nowrap', fontWeight: 500,
+        }}>▸ ASK CENDRA</span>
+        <input
+          ref={inputRef}
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholders[phIdx]}
+          style={{
+            flex: 1, border: 0, outline: 0, background: 'transparent',
+            fontSize: 14.5, fontFamily: 'var(--sans)', color: 'var(--ink)',
+            minWidth: 0,
+          }}
+        />
+        <button title="Voice mode" style={{
+          all: 'unset', cursor: 'pointer',
+          width: 28, height: 28, borderRadius: '50%',
+          border: '1.5px solid var(--ink)',
+          display: 'grid', placeItems: 'center',
+        }}>
+          <span style={{width:6, height:6, borderRadius:'50%', background:'var(--ink)'}} />
+        </button>
+        <span style={{
+          fontFamily: 'var(--mono)', fontSize: 10, padding:'2px 7px',
+          border: '1px solid var(--hair)', borderBottomWidth: 2,
+          borderRadius: 4, background:'#ffffff', color:'var(--ink-mid)',
+        }}>{text.trim() ? '↵' : '/'}</span>
+      </div>
+    </div>
+  );
+}
+
+// ANSWERED PANEL — slides up above the bar with serif answer + InsightCard
+function CendraAnswerPanel({ question, onClose, onFollowUp, onOpen }) {
+  return (
+    <div style={{
+      pointerEvents: 'auto',
+      marginBottom: 14,
+      background: '#ffffff',
+      border: '1px solid var(--hair)',
+      borderRadius: 16,
+      boxShadow: '0 24px 48px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.06)',
+      maxHeight: 'min(560px, calc(100vh - 200px))',
+      overflowY: 'auto',
+      animation: 'cendra-slide-up .2s ease-out',
+    }}>
+      {/* HEADER — user question + close */}
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: 14,
+        padding: '18px 24px 14px',
+        borderBottom: '1px solid var(--hair-soft)',
+      }}>
+        <span style={{
+          fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.14em',
+          color: 'var(--muted)', textTransform: 'uppercase', fontWeight: 500,
+          paddingTop: 4, flexShrink: 0,
+        }}>YOU ASKED</span>
+        <div style={{flex: 1, minWidth: 0, fontSize: 15, color: 'var(--ink)', lineHeight: 1.45}}>
+          "{question}"
+        </div>
+        <button onClick={onClose} style={{
+          all: 'unset', cursor: 'pointer',
+          width: 24, height: 24, borderRadius: '50%',
+          display: 'grid', placeItems: 'center',
+          color: 'var(--muted)',
+          fontSize: 14, flexShrink: 0,
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'var(--paper)'; e.currentTarget.style.color = 'var(--ink)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--muted)'; }}
+        >×</button>
+      </div>
+
+      {/* CENDRA'S ANSWER */}
+      <div style={{padding: '22px 24px 8px'}}>
+        <div style={{display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14}}>
+          <span style={{
+            width: 22, height: 22, borderRadius: 6,
+            background: 'var(--ink)', color: '#ffffff',
+            display:'grid', placeItems:'center',
+            fontFamily:'var(--mono)', fontSize: 11, fontWeight: 600,
+          }}>C</span>
+          <span style={{fontFamily:'var(--mono)', fontSize: 10.5, letterSpacing:'.14em', color:'var(--ink)', fontWeight: 600}}>CENDRA</span>
+          <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)'}}>·</span>
+          <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)', letterSpacing:'.12em'}}>BRIEFING · CONF 0.91</span>
+        </div>
+
+        <p className="serif-display" style={{
+          fontSize: 22, lineHeight: 1.4, margin: 0, color:'var(--ink)',
+          fontVariationSettings: '"opsz" 72, "SOFT" 50, "WONK" 0',
+          maxWidth: 760,
+        }}>
+          Late checkout offers are accepting at <b>47%</b> this week — up 6 points from last. Across the portfolio there are <b>11 eligible departures</b> in the next 7 days where Cendra is ready to send the standard €25 offer.
+        </p>
+        <p style={{
+          margin: '14px 0 0', fontSize: 14, lineHeight: 1.55,
+          color: 'var(--ink-mid)', maxWidth: 760,
+        }}>
+          The strongest accept rate is on returning Karaköy guests (67%). Cihangir House underperforms on this offer (29% accept) — likely worth a separate strategy.
+        </p>
+      </div>
+
+      {/* INLINE GENERATIVE COMPONENT — InsightCard */}
+      <div style={{padding: '20px 24px'}}>
+        <div style={{
+          background: '#ffffff',
+          border: '1px solid var(--hair)',
+          borderRadius: 12,
+          padding: '20px 22px',
+          position: 'relative', overflow: 'hidden',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+        }}>
+          <div style={{position:'absolute', top:0, left:0, width:4, height:'100%', background:'var(--ok)'}} />
+          <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 14}}>
+            <span style={{fontFamily:'var(--mono)', fontSize: 10, letterSpacing: '.18em', color: 'var(--ok)', fontWeight: 600}}>OPPORTUNITY</span>
+            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+            <span style={{fontFamily:'var(--mono)', fontSize:10, letterSpacing:'.12em', color:'var(--muted)'}}>LATE CHECKOUT · NEXT 7 DAYS</span>
+          </div>
+
+          {/* Stats grid */}
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))', gap: 22, marginBottom: 18}}>
+            <InsightStat value="11" label="eligible departures" />
+            <InsightStat value="47%" label="accept rate · 7d" tone="ok" />
+            <InsightStat value="+6pp" label="vs. last week" tone="ok" />
+            <InsightStat value="€275" label="est. revenue" />
+          </div>
+
+          <div style={{display:'flex', alignItems:'center', gap: 10, flexWrap:'wrap'}}>
+            <button style={{
+              all:'unset', cursor:'pointer',
+              background:'var(--ink)', color:'#ffffff',
+              padding:'10px 18px', borderRadius: 10,
+              fontSize: 13.5, fontWeight: 600,
+              display:'inline-flex', alignItems:'center', gap: 8,
+            }}>
+              Send batch offer · €275 est.
+              <span style={{fontFamily:'var(--mono)', fontSize:12, opacity:.8}}>↵</span>
+            </button>
+            <button onClick={() => onOpen('work')} style={{
+              all:'unset', cursor:'pointer',
+              padding:'10px 16px', borderRadius: 10,
+              fontSize: 13.5, fontWeight: 500, color:'var(--ink-mid)',
+              border:'1px solid var(--hair)', background:'#ffffff',
+            }}>
+              View 11 eligible guests →
+            </button>
+            <span style={{flex:1}} />
+            <span style={{fontFamily:'var(--mono)', fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em'}}>
+              REVERSIBLE · SEMI-AUTO
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* FOLLOW-UP CHIPS */}
+      <div style={{padding: '4px 24px 22px'}}>
+        <div style={{fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>ASK A FOLLOW-UP</div>
+        <div style={{display:'flex', flexWrap:'wrap', gap: 8}}>
+          {[
+            "Why does Cihangir House underperform?",
+            "Show me last week's late checkout drafts",
+            "Increase the offer to €30 for one stay",
+            "Which guests are most likely to accept?",
+          ].map(q => (
+            <button key={q} onClick={() => onFollowUp(q)} style={{
+              all:'unset', cursor:'pointer',
+              padding:'7px 14px', borderRadius: 999,
+              border:'1px solid var(--hair)', background:'#ffffff',
+              fontSize: 12.5, fontWeight: 500, color:'var(--ink-mid)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--paper)'; e.currentTarget.style.color = 'var(--ink)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = 'var(--ink-mid)'; }}>
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InsightStat({ value, label, tone }) {
+  const color = tone === 'ok' ? 'var(--ok)' : tone === 'warn' ? 'var(--warn)' : tone === 'risk' ? 'var(--risk)' : 'var(--ink)';
+  return (
+    <div>
+      <div style={{
+        fontFamily:'var(--sans)', fontSize: 24, fontWeight: 500,
+        color, lineHeight: 1.1, letterSpacing:'-.018em',
+        fontVariantNumeric:'tabular-nums',
+      }}>{value}</div>
+      <div style={{
+        fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.12em',
+        color:'var(--muted)', textTransform:'uppercase', marginTop: 4, fontWeight: 500,
+      }}>{label}</div>
     </div>
   );
 }
