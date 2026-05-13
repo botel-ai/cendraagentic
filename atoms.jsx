@@ -211,7 +211,7 @@ function DecisionCard({ decision, variant = "telegram", compact = false, onWhy, 
   );
 }
 
-// --- Why drawer ---
+// --- Why drawer — polished to match detail-page pattern ---
 function WhyDrawer({ open, onClose, decision }) {
   if (!open) return null;
   const evidence = decision.evidence || [
@@ -225,40 +225,122 @@ function WhyDrawer({ open, onClose, decision }) {
   return (
     <>
       <div className="drawer-backdrop" onClick={onClose} />
-      <aside className="drawer">
-        <div style={{padding:'20px 24px', borderBottom:'1px solid var(--hair)'}}>
-          <div className="eyebrow">Why this decision</div>
-          <h2 className="h2 mt-2">{decision.title}</h2>
-          <p className="lead">Cendra walked through hard rules, active risks, safety checks, learned behaviors and owner preferences — in that order.</p>
-        </div>
-
-        <div style={{padding:'20px 24px'}}>
-          <div className="eyebrow mb-3">Beams of evidence</div>
-          <div className="col gap-3">
-            {evidence.map((e, i) => (
-              <EvidenceBeam key={i} idx={i+1} {...e} />
-            ))}
+      <aside style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: 'min(620px, 94vw)',
+        background: 'var(--paper)',
+        borderLeft: '1px solid var(--hair)',
+        boxShadow: '0 -8px 32px rgba(0,0,0,.12), -2px 0 8px rgba(0,0,0,.04)',
+        overflowY: 'auto', zIndex: 40,
+        display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Quiet header */}
+        <div style={{
+          position: 'sticky', top: 0, background: 'var(--paper)',
+          padding: '24px 32px 16px', zIndex: 2,
+          borderBottom: '1px solid var(--hair-soft)',
+        }}>
+          <div style={{
+            fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '.18em',
+            color: 'var(--muted)', display: 'flex', gap: 16, alignItems: 'center',
+          }}>
+            <button onClick={onClose} style={{
+              all: 'unset', cursor: 'pointer', letterSpacing: '.14em', color: 'var(--muted)',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--ink)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}>
+              ← CLOSE
+            </button>
+            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+            <span>WHY THIS DECISION</span>
           </div>
         </div>
 
-        <div style={{padding:'20px 24px', borderTop:'1px solid var(--hair-soft)'}}>
-          <div className="eyebrow mb-2">Trust footer</div>
-          <div className="col gap-2 mono dim" style={{fontSize:11.5}}>
-            <div>autonomy = <b style={{color:'var(--ink)'}}>{decision.autonomy}</b></div>
-            <div>risk = <b style={{color:'var(--ink)'}}>{decision.risk}</b></div>
-            <div>reversibility = <b style={{color:'var(--ink)'}}>{decision.reversibility}</b></div>
-            <div>blocker_check = <b style={{color:'var(--ink)'}}>passed</b></div>
-            <div>confidence = <b style={{color:'var(--ink)'}}>0.91</b> · <i>shown for transparency only</i></div>
+        <div style={{padding: '24px 32px', flex: 1}}>
+          {/* Hero */}
+          <h2 className="serif-display" style={{
+            fontSize: 32, lineHeight: 1.1, margin: 0,
+            color: 'var(--ink)', letterSpacing: '-.018em',
+            marginBottom: 14,
+          }}>
+            {decision.title}
+          </h2>
+          <p style={{
+            margin: 0, fontSize: 15, lineHeight: 1.55,
+            color: 'var(--ink-mid)', maxWidth: 540,
+            fontFamily: 'var(--sans)',
+          }}>
+            Cendra walked through hard rules, active risks, safety checks, learned behaviors and owner preferences — in that order.
+          </p>
+
+          {/* Evidence beams */}
+          <div style={{marginTop: 32}}>
+            <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 18, fontWeight: 500}}>
+              Beams of evidence · {evidence.length} sources
+            </div>
+            <div style={{
+              background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 12,
+              padding: '6px 0',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+            }}>
+              {evidence.map((e, i) => (
+                <div key={i} style={{
+                  padding: '16px 20px',
+                  borderBottom: i < evidence.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+                }}>
+                  <EvidenceBeam idx={i + 1} {...e} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Trust footer micro band */}
+          <div style={{
+            marginTop: 32, paddingTop: 24,
+            borderTop: '1px solid var(--hair-soft)',
+            display: 'flex', gap: 28, flexWrap: 'wrap',
+          }}>
+            <TrustStat label="autonomy" value={decision.autonomy} />
+            <TrustStat label="risk" value={decision.risk} tone={decision.risk === 'high' ? 'risk' : decision.risk === 'medium' ? 'warn' : 'ok'} />
+            <TrustStat label="reversibility" value={decision.reversibility} tone={decision.reversibility === 'red' ? 'risk' : decision.reversibility === 'amber' ? 'warn' : 'ok'} />
+            <TrustStat label="blocker check" value="passed" tone="ok" />
+            <TrustStat label="confidence" value="0.91" />
           </div>
         </div>
 
-        <div style={{padding:'18px 24px', borderTop:'1px solid var(--hair-soft)', display:'flex',gap:8}}>
-          <Btn kind="ghost" size="sm">Open audit trail →</Btn>
-          <span className="grow" />
-          <Btn size="sm" onClick={onClose}>Close</Btn>
+        {/* Sticky footer */}
+        <div style={{
+          position: 'sticky', bottom: 0, background: 'var(--paper)',
+          padding: '18px 32px', borderTop: '1px solid var(--hair-soft)',
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <Btn>Open audit trail →</Btn>
+          <span style={{flex: 1}} />
+          <button onClick={onClose} style={{
+            all: 'unset', cursor: 'pointer',
+            background: 'var(--ink)', color: '#ffffff',
+            padding: '10px 18px', borderRadius: 8,
+            fontSize: 13.5, fontWeight: 600,
+          }}>Close</button>
         </div>
       </aside>
     </>
+  );
+}
+
+function TrustStat({ label, value, tone }) {
+  const color = tone === 'risk' ? 'var(--risk)' : tone === 'warn' ? 'var(--warn)' : tone === 'ok' ? 'var(--ok)' : 'var(--ink)';
+  return (
+    <div>
+      <div style={{
+        fontFamily: 'var(--sans)', fontSize: 16, fontWeight: 600,
+        color, letterSpacing: '-.005em',
+      }}>{value}</div>
+      <div style={{
+        fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '.12em',
+        color: 'var(--muted)', textTransform: 'uppercase', marginTop: 4, fontWeight: 500,
+      }}>{label}</div>
+    </div>
   );
 }
 

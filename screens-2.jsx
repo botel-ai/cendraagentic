@@ -295,62 +295,140 @@ function WorkflowGroup({ group, onPromote }) {
   );
 }
 
-// Change request drawer (promote / demote)
+// Change request drawer (promote / demote) — polished to match detail-page pattern
 function ChangeRequestDrawer({ wf, group, onClose }) {
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{
-        position:'fixed', top:0, right:0, bottom:0, width:'min(560px, 92vw)',
-        background:'var(--card)', borderLeft:'1px solid var(--hair)',
-        boxShadow:'var(--shadow-raised)', overflowY:'auto', padding: 32,
+        position:'fixed', top:0, right:0, bottom:0, width:'min(620px, 94vw)',
+        background:'var(--paper)', borderLeft:'1px solid var(--hair)',
+        boxShadow:'0 -8px 32px rgba(0,0,0,.12), -2px 0 8px rgba(0,0,0,.04)',
+        overflowY:'auto',
+        display: 'flex', flexDirection: 'column',
       }}>
-        <button onClick={onClose} className="mono dim" style={{all:'unset',cursor:'pointer',fontSize:11,marginBottom:18,display:'block'}}>← Close</button>
-        <div className="eyebrow mb-2">CHANGE REQUEST · {group.name.toUpperCase()}</div>
-        <h2 style={{fontFamily:'var(--serif)', fontSize: 28, fontWeight: 400, letterSpacing:'-.005em', margin:'4px 0 18px', lineHeight: 1.15}}>
-          Promote <span style={{fontStyle:'italic'}}>{wf.name}</span> to autopilot?
-        </h2>
-
-        <div className="dcard" style={{padding:'14px 18px', marginBottom:14}}>
-          <div className="eyebrow mb-2">WHAT WILL CHANGE</div>
-          <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <AutonomyPill state={wf.state} /> <span className="mono" style={{fontSize:11, color:'var(--muted)'}}>→</span> <AutonomyPill state="autopilot" />
-          </div>
-          <div className="dim mt-2" style={{fontSize:13}}>{wf.default}. Hold window: 0 min. No human review unless an incident triggers demotion.</div>
-        </div>
-
-        <div className="dcard" style={{padding:'14px 18px', marginBottom:14}}>
-          <div className="eyebrow mb-2">SCOPE</div>
-          <div style={{fontSize:13.5}}>Affected: <b>{wf.scope === "portfolio" ? `${DP.portfolio.properties_count} properties` : wf.scope === "owner" ? `One owner group` : "Single property"}</b></div>
-        </div>
-
-        <div className="dcard" style={{padding:'14px 18px', marginBottom:14}}>
-          <div className="eyebrow mb-2">SIMULATIONS</div>
-          <div className="col gap-2" style={{fontSize:13}}>
-            <div>{wf.samples} historical cases replayed · <span style={{color:'var(--ok)'}}>0 mismatch</span></div>
-            <div>30-day live shadow run · <span style={{color:'var(--ok)'}}>0 incidents</span></div>
-            <div>Override rate stable at {wf.override}</div>
+        {/* Sticky header */}
+        <div style={{
+          position:'sticky', top:0, background:'var(--paper)',
+          padding:'24px 32px 16px', zIndex: 2,
+          borderBottom: '1px solid var(--hair-soft)',
+        }}>
+          <div className="mono" style={{
+            fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+            display:'flex', gap: 16, alignItems:'center', marginBottom: 4,
+          }}>
+            <button onClick={onClose} style={{
+              all:'unset', cursor:'pointer', letterSpacing:'.14em', color:'var(--muted)',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--ink)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}>
+              ← CLOSE
+            </button>
+            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+            <span>CHANGE REQUEST · {group.name.toUpperCase()}</span>
           </div>
         </div>
 
-        <div className="dcard" style={{padding:'14px 18px', marginBottom:14}}>
-          <div className="eyebrow mb-2">REMAINING RISK</div>
-          <p className="dim" style={{margin:0, fontSize:13, fontStyle:'italic'}}>
-            {wf.why}
-          </p>
+        <div style={{padding:'24px 32px 16px', flex: 1}}>
+          {/* Hero */}
+          <h2 className="serif-display" style={{
+            fontSize: 34, lineHeight: 1.1, margin: '0 0 14px',
+            color:'var(--ink)', letterSpacing:'-.018em',
+          }}>
+            Promote <span style={{fontVariationSettings:'"opsz" 144, "SOFT" 50, "WONK" 1'}}>{wf.name}</span> to autopilot?
+          </h2>
+
+          {/* What changes */}
+          <div style={{
+            background:'#ffffff', border:'1px solid var(--hair)', borderRadius: 12,
+            padding:'18px 22px', marginBottom: 14,
+            position:'relative', overflow:'hidden',
+            boxShadow:'0 1px 2px rgba(0,0,0,0.04)',
+          }}>
+            <div style={{position:'absolute', top:0, left:0, width:4, height:'100%', background:'var(--ok)'}} />
+            <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--ok)', textTransform:'uppercase', marginBottom: 12, fontWeight: 600}}>
+              State change
+            </div>
+            <div style={{display:'flex', alignItems:'center', gap: 14, marginBottom: 12}}>
+              <Pill tone={wf.state === 'autopilot' ? 'ok' : wf.state === 'semi' ? 'info' : wf.state === 'approval' ? 'warn' : 'risk'}>
+                {wf.state}
+              </Pill>
+              <span style={{fontFamily:'var(--mono)', fontSize: 13, color:'var(--muted)'}}>→</span>
+              <Pill tone="ok">autopilot</Pill>
+            </div>
+            <p style={{margin: 0, fontSize: 13.5, color:'var(--ink-mid)', lineHeight: 1.55}}>
+              {wf.default}. Hold window: 0 min. No human review unless an incident triggers demotion.
+            </p>
+          </div>
+
+          {/* Micro stat band */}
+          <div style={{
+            display:'flex', gap: 28, flexWrap:'wrap',
+            padding:'18px 0', marginBottom: 18,
+            borderBottom:'1px solid var(--hair-soft)',
+          }}>
+            <MicroStatBlock value={wf.samples} label="historical cases" />
+            <MicroStatBlock value={wf.override} label="override rate" tone="ok" />
+            <MicroStatBlock value="0" label="incidents · 30d" tone="ok" />
+            <MicroStatBlock value="0" label="mismatches" tone="ok" />
+          </div>
+
+          {/* Why & Risk */}
+          <div style={{marginBottom: 18}}>
+            <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 8, fontWeight: 500}}>
+              Why this is ready
+            </div>
+            <p style={{margin: 0, fontFamily:'var(--serif)', fontSize: 15, lineHeight: 1.55, color:'var(--ink)', fontStyle:'italic'}}>
+              "{wf.why}"
+            </p>
+          </div>
+
+          {/* Scope */}
+          <div style={{marginBottom: 18}}>
+            <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 8, fontWeight: 500}}>
+              Scope
+            </div>
+            <div style={{fontSize: 14, color:'var(--ink)'}}>
+              <b>{wf.scope === "portfolio" ? `${DP.portfolio.properties_count} properties` : wf.scope === "owner" ? `One owner group` : "Single property"}</b> affected
+            </div>
+          </div>
+
+          {/* Rollback */}
+          <div style={{
+            background:'var(--paper-2)', borderRadius: 10,
+            padding:'14px 18px', marginBottom: 12,
+          }}>
+            <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 6, fontWeight: 500}}>
+              Auto-rollback
+            </div>
+            <div style={{fontSize: 13, lineHeight: 1.55, color:'var(--ink-mid)'}}>
+              If incident rate exceeds <b style={{color:'var(--ink)'}}>0.5%</b> in 7 days, Cendra auto-demotes back to {wf.state === 'semi' ? 'semi-auto' : wf.state}. You'll be notified.
+            </div>
+          </div>
+
+          <div style={{fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.10em', color:'var(--muted-2)', lineHeight: 1.7, marginTop: 22}}>
+            Cendra writes a DecisionCase entry. Roll back any time from Audit.
+          </div>
         </div>
 
-        <div className="dcard" style={{padding:'14px 18px', marginBottom:24}}>
-          <div className="eyebrow mb-2">ROLLBACK</div>
-          <div style={{fontSize:13}}>If incident rate exceeds 0.5% in 7 days, Cendra auto-demotes back to <b>{wf.state === 'semi' ? 'semi-auto' : wf.state}</b>. You'll be notified.</div>
-        </div>
-
-        <div style={{display:'flex',gap:10}}>
-          <Btn kind="primary" onClick={() => { alert('Promotion scheduled for tonight 02:00.'); onClose(); }}>Schedule promotion</Btn>
+        {/* Sticky footer with Fitts-friendly primary */}
+        <div style={{
+          position:'sticky', bottom: 0, background:'var(--paper)',
+          padding:'18px 32px', borderTop:'1px solid var(--hair-soft)',
+          display:'flex', alignItems:'center', gap: 10,
+        }}>
+          <button onClick={() => { alert('Promotion scheduled for tonight 02:00.'); onClose(); }} style={{
+            all:'unset', cursor:'pointer',
+            background:'var(--ink)', color:'#ffffff',
+            padding:'12px 22px', borderRadius: 10,
+            fontSize: 14, fontWeight: 600,
+            display:'inline-flex', alignItems:'center', gap: 8,
+          }}>
+            Schedule for tonight
+            <span style={{fontFamily:'var(--mono)', fontSize:13, opacity:.8}}>↵</span>
+          </button>
           <Btn>Publish now</Btn>
+          <span style={{flex:1}} />
           <Btn kind="ghost" onClick={onClose}>Cancel</Btn>
-        </div>
-        <div className="mono dim mt-4" style={{fontSize:10.5, lineHeight:1.7}}>
-          Cendra will write a DecisionCase entry. You can roll back any time from Audit.
         </div>
       </div>
     </div>

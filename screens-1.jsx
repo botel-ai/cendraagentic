@@ -852,14 +852,22 @@ function GuestStatusChip({ status, reason, slaMin }) {
   };
   const m = map[status] || map.all_good;
   return (
-    <div style={{display:'flex', alignItems:'center', gap:8, flexWrap:'wrap'}}>
+    <div style={{display:'flex', alignItems:'center', gap: 10, flexWrap:'wrap'}}>
       <Pill tone={m.tone}>{m.label}</Pill>
-      {reason && <span className="dim" style={{fontSize:12}}>· {reason}</span>}
+      {reason && <span style={{fontSize: 13, color:'var(--ink-mid)'}}>{reason}</span>}
       {slaMin != null && slaMin >= 0 && slaMin < 60 && (
-        <span className="mono" style={{fontSize:10.5, color:'var(--warn)'}}>{slaMin}m SLA</span>
+        <span style={{
+          fontFamily:'var(--mono)', fontSize: 10.5, color:'var(--warn)',
+          padding:'3px 8px', borderRadius: 4,
+          background:'var(--warn-soft)', letterSpacing:'.04em',
+        }}>{slaMin}M SLA</span>
       )}
       {slaMin != null && slaMin < 0 && (
-        <span className="mono" style={{fontSize:10.5, color:'var(--risk)'}}>+{Math.abs(slaMin)}m breached</span>
+        <span style={{
+          fontFamily:'var(--mono)', fontSize: 10.5, color:'#ffffff',
+          padding:'3px 8px', borderRadius: 4,
+          background:'var(--risk)', letterSpacing:'.04em',
+        }}>+{Math.abs(slaMin)}M BREACHED</span>
       )}
     </div>
   );
@@ -1082,86 +1090,130 @@ function WorkDetailScreen({ onOpen, tweaks }) {
     : J.checking_out_today.includes(g) ? "CHECKING OUT TODAY"
     : "GUEST";
 
+  const inStay = g.nights_done != null && g.nights_total != null && g.nights_total > 0;
+
   return (
-    <div className="stage" style={{paddingLeft: 0, paddingRight: 0}}>
-      {/* Top bar — back, identity strip, J/K sweep, close */}
-      <div style={{
-        display:'grid', gridTemplateColumns: '1fr auto 1fr', alignItems:'center', gap:16,
-        padding:'14px 28px', borderBottom:'1px solid var(--hair-soft)',
-        marginBottom: 26,
+    <div className="stage" style={{maxWidth: 1100, paddingTop: 40, paddingBottom: 140}}>
+
+      {/* QUIET HEADER — left: back + position, right: conf + facts toggle */}
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 28, display: 'flex', gap: 16, alignItems: 'center',
       }}>
-        <button onClick={() => onOpen('work')} className="mono dim" style={{all:'unset', cursor:'pointer', fontSize:11, letterSpacing:'.14em'}}>← All guests</button>
-
-        <div className="mono dim" style={{fontSize:10.5, letterSpacing:'.16em', textAlign:'center'}}>
-          {stageLabel} · <span style={{color:'var(--ink)'}}>{idx + 1} / {sweep.length}</span>
-          <span className="kbd" style={{marginLeft:10, border:'1px solid var(--hair)', padding:'1px 6px', borderRadius:3, fontFamily:'var(--mono)', fontSize:10}}>J</span>
-          <span style={{margin:'0 6px'}}>next</span>
-          <span className="kbd" style={{border:'1px solid var(--hair)', padding:'1px 6px', borderRadius:3, fontFamily:'var(--mono)', fontSize:10}}>K</span>
-          <span style={{marginLeft:6}}>prev</span>
-        </div>
-
-        <div style={{display:'flex', alignItems:'center', justifyContent:'flex-end', gap:14}}>
-          <span className="mono dim" style={{fontSize:10.5}}>CONF · <span style={{color:'var(--ink)'}}>{g.confidence != null ? g.confidence.toFixed(2) : '—'}</span></span>
-          <Btn size="sm" kind="ghost" onClick={() => setPanelOpen(p => !p)}>
-            {panelOpen ? "Hide facts →" : "← Show facts"}
-          </Btn>
-        </div>
+        <button onClick={() => onOpen('work')} style={{
+          all: 'unset', cursor: 'pointer', letterSpacing: '.14em',
+          color: 'var(--muted)',
+        }}
+        onMouseEnter={e => e.currentTarget.style.color = 'var(--ink)'}
+        onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}>
+          ← ALL GUESTS
+        </button>
+        <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+        <span>{stageLabel} · <span style={{color:'var(--ink)'}}>{idx + 1}/{sweep.length}</span></span>
+        <span className="kbd" style={{
+          fontFamily:'var(--mono)', fontSize: 10, padding:'2px 6px',
+          border:'1px solid var(--hair)', borderBottomWidth: 2, borderRadius: 4,
+          background:'#ffffff', color:'var(--ink-mid)', letterSpacing: 0,
+        }}>J</span>
+        <span style={{letterSpacing:'.08em'}}>NEXT</span>
+        <span className="kbd" style={{
+          fontFamily:'var(--mono)', fontSize: 10, padding:'2px 6px',
+          border:'1px solid var(--hair)', borderBottomWidth: 2, borderRadius: 4,
+          background:'#ffffff', color:'var(--ink-mid)', letterSpacing: 0,
+        }}>K</span>
+        <span style={{letterSpacing:'.08em'}}>PREV</span>
+        <span style={{flex: 1}} />
+        <span>CONF · <span style={{color:'var(--ink)'}}>{g.confidence != null ? g.confidence.toFixed(2) : '—'}</span></span>
+        <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+        <span>LAST CONTACT · {g.last_contact.toUpperCase()}</span>
+        <button onClick={() => setPanelOpen(p => !p)} style={{
+          all:'unset', cursor:'pointer',
+          padding: '4px 10px', borderRadius: 999,
+          border: '1px solid var(--hair)', background:'#ffffff',
+          fontSize: 10.5, color: 'var(--ink-mid)', letterSpacing:'.08em',
+          fontWeight: 500, marginLeft: 6,
+        }}>
+          {panelOpen ? 'HIDE FACTS' : 'SHOW FACTS'}
+        </button>
       </div>
 
       <div style={{
         display:'grid',
         gridTemplateColumns: panelOpen ? 'minmax(0, 1fr) 280px' : '1fr',
-        gap: 28,
-        padding: '0 28px',
+        gap: 40,
         alignItems:'start',
       }}>
-        {/* MAIN — Cendra briefing + cards + follow-ups + composer */}
+        {/* MAIN COLUMN */}
         <div style={{minWidth: 0}}>
           <GuestJourneyHeader g={g} />
-          <CendraBriefing g={g} />
-          <div style={{display:'grid', gap: 14, marginTop: 24}}>
-            {g.cards.map((c, i) => <GenerativeCard key={i} card={c} guest={g} />)}
+
+          {/* MICRO STAT BAND — stay/arrival progress */}
+          <div style={{
+            display:'flex', gap: 36, flexWrap:'wrap',
+            paddingTop: 24, paddingBottom: 24, marginBottom: 32,
+            borderTop:'1px solid var(--hair-soft)',
+            borderBottom:'1px solid var(--hair-soft)',
+          }}>
+            {inStay ? (
+              <>
+                <GuestStat value={`${g.nights_done}/${g.nights_total}`} label="nights" />
+                <GuestStat value={g.checkout_at} label="checkout" />
+              </>
+            ) : g.eta_label ? (
+              <>
+                <GuestStat value={g.eta_label.replace(/^Today · /, '')} label="arrives" />
+                <GuestStat value={g.checkin_official || '15:00'} label="official ci" />
+              </>
+            ) : null}
+            <GuestStat value={g.trips} label="prior trips" />
+            <GuestStat value={g.language} label="language" />
+            <span style={{flex:1}} />
+            <GuestStat value={g.sla_min != null && g.sla_min < 0 ? `+${Math.abs(g.sla_min)}m` : g.sla_min != null ? `${g.sla_min}m` : '—'} label="sla" tone={g.sla_min != null && g.sla_min < 0 ? 'risk' : g.sla_min != null && g.sla_min < 60 ? 'warn' : null} />
           </div>
 
+          {/* CENDRA BRIEFING — big Fraunces display */}
+          <CendraBriefing g={g} />
+
+          {/* GENERATIVE CARDS */}
+          {g.cards.length > 0 && (
+            <div style={{display:'grid', gap: 14, marginTop: 32}}>
+              {g.cards.map((c, i) => <GenerativeCard key={i} card={c} guest={g} />)}
+            </div>
+          )}
+
+          {/* FOLLOW-UP CHIPS */}
           {g.follow_ups && g.follow_ups.length > 0 && (
-            <div style={{marginTop: 28}}>
-              <div className="mono dim" style={{fontSize:10, letterSpacing:'.18em', marginBottom:10}}>ASK CENDRA</div>
+            <div style={{marginTop: 40, paddingTop: 24, borderTop:'1px solid var(--hair-soft)'}}>
+              <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 14, fontWeight: 500}}>
+                Ask follow-up
+              </div>
               <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
-                {g.follow_ups.map((q, i) => (
-                  <button key={i} onClick={() => setComposer(q)} style={{
+                {g.follow_ups.slice(0, 5).map((q, i) => (
+                  <button key={i} onClick={() => {
+                    // Submit to the global CendraBar — find its input and trigger
+                    const bar = Array.from(document.querySelectorAll('div')).find(d => d.style && d.style.position === 'fixed' && d.style.bottom === '20px' && d.style.zIndex === '30');
+                    const input = bar?.querySelector('input');
+                    if (input) {
+                      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                      setter.call(input, q);
+                      input.dispatchEvent(new Event('input', { bubbles: true }));
+                      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+                    }
+                  }} style={{
                     all:'unset', cursor:'pointer',
-                    padding:'7px 14px',
-                    border:'1px solid var(--hair)',
-                    borderRadius: 999,
-                    background:'#ffffff',
-                    fontSize: 13,
-                    color: 'var(--ink-mid)',
-                    fontFamily: 'var(--sans)',
-                    fontWeight: 500,
-                    transition: 'background .12s, border-color .12s, color .12s',
+                    padding:'7px 14px', borderRadius: 999,
+                    border:'1px solid var(--hair)', background:'#ffffff',
+                    fontSize: 12.5, color:'var(--ink-mid)',
+                    fontFamily:'var(--sans)', fontWeight: 500,
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = '#f5f5f4'; e.currentTarget.style.color = 'var(--ink)'; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--paper)'; e.currentTarget.style.color = 'var(--ink)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = 'var(--ink-mid)'; }}>
                     {q}
                   </button>
                 ))}
-                <button onClick={() => composerRef.current?.focus()} style={{
-                  all:'unset', cursor:'pointer',
-                  padding:'7px 14px',
-                  borderRadius: 999,
-                  background:'transparent',
-                  fontSize: 13,
-                  color: 'var(--muted)',
-                  fontFamily: 'var(--sans)',
-                  fontWeight: 500,
-                }}>
-                  ▸ ask anything
-                </button>
               </div>
             </div>
           )}
-
-          {/* Guest-scoped composer removed — global CendraBar lives in app shell */}
         </div>
 
         {/* RIGHT — slim static facts panel */}
@@ -1171,71 +1223,85 @@ function WorkDetailScreen({ onOpen, tweaks }) {
   );
 }
 
-// Guest journey — page header strip
-function GuestJourneyHeader({ g }) {
-  const inStay = g.nights_done != null && g.nights_total != null && g.nights_total > 0;
+// Stat block reused by Guest Journey micro band
+function GuestStat({ value, label, tone }) {
+  const color = tone === 'risk' ? 'var(--rausch)' : tone === 'warn' ? 'var(--warn)' : tone === 'ok' ? 'var(--ok)' : 'var(--ink)';
   return (
-    <div style={{display:'flex', alignItems:'flex-start', gap: 18, marginBottom: 26}}>
+    <div>
       <div style={{
-        width: 56, height: 56, borderRadius:'50%',
-        background: 'var(--ink)', color: 'var(--paper)',
+        fontFamily:'var(--sans)', fontSize: 22, fontWeight: 500,
+        color, lineHeight: 1.1, letterSpacing:'-.018em',
+        fontVariantNumeric:'tabular-nums',
+      }}>{value}</div>
+      <div style={{
+        fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.12em',
+        color:'var(--muted)', textTransform:'uppercase', marginTop: 4, fontWeight: 500,
+      }}>{label}</div>
+    </div>
+  );
+}
+
+// Guest journey — hero zone: avatar + Fraunces name + sentiment + status chip
+function GuestJourneyHeader({ g }) {
+  const firstName = g.name.split(' ')[0];
+  const rest = g.name.split(' ').slice(1).join(' ');
+  return (
+    <div style={{display:'flex', alignItems:'center', gap: 22, marginBottom: 8}}>
+      <div style={{
+        width: 64, height: 64, borderRadius:'50%',
+        background: 'var(--ink)', color: '#ffffff',
         display:'grid', placeItems:'center',
-        fontFamily:'var(--serif)', fontStyle:'italic', fontSize: 26,
-        flexShrink: 0,
+        fontFamily:'var(--sans)', fontWeight: 600, fontSize: 24,
+        flexShrink: 0, letterSpacing: 0,
       }}>{g.initial}</div>
       <div style={{minWidth: 0, flex:1}}>
-        <div className="mono dim" style={{fontSize:10, letterSpacing:'.18em', marginBottom:4}}>
-          {g.property} · {g.channel} · {g.language}
-          {g.trips > 0 && <> · {g.trips} PRIOR TRIPS</>}
+        <div className="mono" style={{fontSize: 10.5, letterSpacing:'.18em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 8, fontWeight: 500}}>
+          {g.property} · {g.owner} · {g.channel}
         </div>
-        <h1 style={{fontFamily:'var(--serif)', fontSize: 32, lineHeight:1.05, margin:0, fontWeight:400, letterSpacing:'-.015em'}}>
-          {g.name}
+        <h1 className="serif-display" style={{
+          fontSize: 52, lineHeight: 1.04, margin: 0, color:'var(--ink)',
+          letterSpacing: '-.022em',
+        }}>
+          <span style={{fontVariationSettings:'"opsz" 144, "SOFT" 70, "WONK" 1'}}>{firstName}</span>
+          {rest ? <> {rest}</> : null}
         </h1>
-        <div className="dim mt-2" style={{fontSize: 13.5, fontStyle:'italic'}}>{g.sentiment}</div>
-        <div style={{display:'flex', alignItems:'center', gap: 14, marginTop: 10, flexWrap:'wrap'}}>
+        <div style={{fontSize: 14, color: 'var(--muted)', marginTop: 10, fontStyle: 'italic', fontFamily: 'var(--serif)'}}>
+          {g.sentiment}
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap: 10, marginTop: 14, flexWrap:'wrap'}}>
           <GuestStatusChip status={g.status} reason={g.status_reason} slaMin={g.sla_min} />
-          {inStay && (
-            <span className="mono dim" style={{fontSize:11}}>
-              NIGHT <b style={{color:'var(--ink)'}}>{g.nights_done}/{g.nights_total}</b> · CO {g.checkout_at}
-            </span>
-          )}
-          {g.eta_label && !inStay && (
-            <span className="mono dim" style={{fontSize:11}}>ETA · <b style={{color:'var(--ink)'}}>{g.eta_label}</b></span>
-          )}
-          <span className="mono dim" style={{fontSize:11}}>LAST CONTACT · {g.last_contact}</span>
         </div>
       </div>
     </div>
   );
 }
 
-// Cendra's serif briefing — the "voice" of the brain on this guest
+// Cendra's serif briefing — Fraunces display, matches Morning Brief
 function CendraBriefing({ g }) {
   return (
     <div>
-      <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 14}}>
+      <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 16}}>
         <span style={{
           width: 22, height: 22, borderRadius: 6,
           background: 'var(--ink)', color: '#ffffff',
           display:'grid', placeItems:'center',
           fontFamily:'var(--mono)', fontSize: 11, fontWeight: 600,
         }}>C</span>
-        <span className="mono" style={{fontSize:10.5, letterSpacing:'.14em', color:'var(--ink)'}}>CENDRA</span>
-        <span className="mono dim" style={{fontSize:10}}>·</span>
-        <span className="mono dim" style={{fontSize:10}}>BRIEFING</span>
-        <span className="mono dim" style={{fontSize:10}}>·</span>
-        <span className="mono dim" style={{fontSize:10}}>CONF {g.confidence != null ? g.confidence.toFixed(2) : '—'}</span>
+        <span className="mono" style={{fontSize: 10.5, letterSpacing:'.14em', color:'var(--ink)', fontWeight: 600}}>CENDRA</span>
+        <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)'}}>·</span>
+        <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)', letterSpacing:'.12em'}}>BRIEFING</span>
+        <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)'}}>·</span>
+        <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)', letterSpacing:'.12em'}}>CONF {g.confidence != null ? g.confidence.toFixed(2) : '—'}</span>
       </div>
-      <p style={{
-        fontFamily: 'var(--serif)', fontSize: 24, lineHeight: 1.4,
-        margin: 0, color: 'var(--ink)',
-        letterSpacing: '-.01em', maxWidth: 740,
-        fontWeight: 400,
+      <p className="serif-display" style={{
+        fontSize: 26, lineHeight: 1.36, margin: 0, color:'var(--ink)',
+        letterSpacing:'-.008em', maxWidth: 780,
+        fontVariationSettings: '"opsz" 72, "SOFT" 50, "WONK" 0',
       }}>
         {g.cendra_take}
       </p>
       {g.status === "needs_you" && (
-        <div style={{fontSize: 14, color: 'var(--muted)', marginTop: 12}}>
+        <div style={{fontSize: 14.5, color:'var(--muted)', marginTop: 14, fontFamily:'var(--serif)'}}>
           That's why I'm bringing it to you.
         </div>
       )}
