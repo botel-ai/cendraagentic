@@ -399,7 +399,7 @@ function WhyDrawer({ open, onClose, decision }) {
             <TrustStat label="risk" value={decision.risk} tone={decision.risk === 'high' ? 'risk' : decision.risk === 'medium' ? 'warn' : 'ok'} />
             <TrustStat label="reversibility" value={decision.reversibility} tone={decision.reversibility === 'red' ? 'risk' : decision.reversibility === 'amber' ? 'warn' : 'ok'} />
             <TrustStat label="binding tier" value={PRIORITY_CHAIN[bindingIdx]?.label.toLowerCase() || '—'} tone={bindingId === 'blocker' ? 'risk' : bindingId === 'safety' ? 'warn' : 'ok'} />
-            <TrustStat label="confidence" value="0.91" />
+            <TrustStat label="confidence" value="High" tone="ok" />
           </div>
         </div>
 
@@ -503,8 +503,18 @@ function QuietState({ kind = "default", title, body, mono }) {
   );
 }
 
+// Confidence band — never expose decimals.
+// Audit §8.3 #2 ("never shown") + §3.24 (differential confidence formula).
+function confidenceBand(c) {
+  if (c == null || isNaN(c)) return { label: 'unknown',   tone: 'muted', range: '—'        };
+  if (c >= 0.90)              return { label: 'High',     tone: 'ok',    range: '≥ 90%'    };
+  if (c >= 0.75)              return { label: 'Medium',   tone: 'ink',   range: '75–89%'   };
+  if (c >= 0.60)              return { label: 'Low',      tone: 'warn',  range: '60–74%'   };
+  return                             { label: 'Very low', tone: 'risk',  range: '< 60%'    };
+}
+
 window.CendraAtoms = {
   cls, Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar,
   DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState,
-  PRIORITY_CHAIN, tierForKind,
+  PRIORITY_CHAIN, tierForKind, confidenceBand,
 };

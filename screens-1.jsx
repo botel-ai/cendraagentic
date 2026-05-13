@@ -1,5 +1,5 @@
 // Cendra screens: Today, Work, Work Detail, Approval
-const { Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar, DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState } = window.CendraAtoms;
+const { Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar, DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState, confidenceBand } = window.CendraAtoms;
 const { StayHealthBadge, deriveStayHealth, deriveStayHealthSignals } = window.CendraAtoms2;
 const D = window.CENDRA_DATA;
 const DP = window.CENDRA_DATA2;
@@ -1126,7 +1126,7 @@ function WorkDetailScreen({ onOpen, tweaks }) {
         }}>K</span>
         <span style={{letterSpacing:'.08em'}}>PREV</span>
         <span style={{flex: 1}} />
-        <span>CONF · <span style={{color:'var(--ink)'}}>{g.confidence != null ? g.confidence.toFixed(2) : '—'}</span></span>
+        <span>CONFIDENCE · <span style={{color: g.confidence != null ? (confidenceBand(g.confidence).tone === 'ok' ? 'var(--ok)' : confidenceBand(g.confidence).tone === 'warn' ? 'var(--warn)' : confidenceBand(g.confidence).tone === 'risk' ? 'var(--risk)' : 'var(--ink)') : 'var(--muted)'}}>{g.confidence != null ? confidenceBand(g.confidence).label.toUpperCase() : '—'}</span></span>
         <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
         <span>LAST CONTACT · {g.last_contact.toUpperCase()}</span>
         <button onClick={() => setPanelOpen(p => !p)} style={{
@@ -1298,7 +1298,7 @@ function CendraBriefing({ g }) {
         <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)'}}>·</span>
         <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)', letterSpacing:'.12em'}}>BRIEFING</span>
         <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)'}}>·</span>
-        <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)', letterSpacing:'.12em'}}>CONF {g.confidence != null ? g.confidence.toFixed(2) : '—'}</span>
+        <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)', letterSpacing:'.12em'}}>CONFIDENCE · {g.confidence != null ? confidenceBand(g.confidence).label.toUpperCase() : '—'}</span>
       </div>
       <p className="serif-display" style={{
         fontSize: 26, lineHeight: 1.36, margin: 0, color:'var(--ink)',
@@ -2303,15 +2303,16 @@ function ActivityFeed({ guest }) {
     );
   }
   const kindMeta = {
-    intake:  { dot: 'var(--info)', label: 'intake'  },
-    ai:      { dot: 'var(--ink)',  label: 'ai'      },
-    check:   { dot: 'var(--info)', label: 'check'   },
-    rule:    { dot: 'var(--warn)', label: 'rule'    },
-    auto:    { dot: 'var(--ok)',   label: 'auto'    },
-    vendor:  { dot: '#4A154B',     label: 'vendor'  },
-    owner:   { dot: 'var(--info)', label: 'owner'   },
-    wait:    { dot: 'var(--muted)',label: 'wait'    },
-    pending: { dot: 'var(--warn)', label: 'pending' },
+    intake:    { dot: 'var(--info)', label: 'intake'    },
+    ai:        { dot: 'var(--ink)',  label: 'reasoning' },  // legacy alias
+    reasoning: { dot: 'var(--ink)',  label: 'reasoning' },
+    check:     { dot: 'var(--info)', label: 'check'     },
+    rule:      { dot: 'var(--warn)', label: 'rule'      },
+    auto:      { dot: 'var(--ok)',   label: 'auto'      },
+    vendor:    { dot: '#4A154B',     label: 'vendor'    },
+    owner:     { dot: 'var(--info)', label: 'owner'     },
+    wait:      { dot: 'var(--muted)',label: 'wait'      },
+    pending:   { dot: 'var(--warn)', label: 'pending'   },
   };
 
   return (
@@ -2471,7 +2472,7 @@ function MessageBubble({ msg, guest, isVendor }) {
   );
 }
 
-// System event row — centered dotted line for AI thoughts / rule applications
+// System event row — centered dotted line for Cendra reasoning / rule applications
 function SystemEventRow({ event }) {
   const color = event.tone === 'warn' ? 'var(--warn)' : event.tone === 'info' ? 'var(--info)' : event.tone === 'ok' ? 'var(--ok)' : 'var(--muted)';
   return (

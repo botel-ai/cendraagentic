@@ -1531,7 +1531,7 @@ function InsightsScreen({ onOpen }) {
       {answered && q === I.answer_demo.question && (
         <section style={{marginBottom: 48}}>
           <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>
-            CENDRA'S ANSWER · 0.94 CONFIDENCE
+            CENDRA'S ANSWER · HIGH CONFIDENCE
           </div>
           <div className="dcard" style={{padding: '26px 30px'}}>
             <h2 className="serif-display" style={{fontSize: 28, lineHeight: 1.22, fontWeight: 400, margin:'0 0 14px', color:'var(--ink)'}}>
@@ -1697,9 +1697,51 @@ function TrustScreen({ onOpen }) {
         ))}
       </div>
 
-      {/* SAFETY — Hard rules + Permissions stacked */}
+      {/* SAFETY — Hard rules + NEVER_AUTO_LEARN floor + Permissions stacked */}
       {tab === "safety" && (
         <div style={{display:'grid', gap: 48}}>
+          {/* NEVER_AUTO floor — structural guarantee, not configurable */}
+          <div style={{
+            padding:'20px 24px', borderRadius: 14,
+            background: 'rgba(255,56,92,.04)',
+            border:'1px solid rgba(255,56,92,.20)',
+          }}>
+            <div style={{display:'flex', alignItems:'center', gap: 12, marginBottom: 12}}>
+              <span style={{
+                width: 30, height: 30, borderRadius: 7,
+                background:'#FF385C', color:'#ffffff',
+                display:'grid', placeItems:'center',
+                fontFamily:'var(--mono)', fontWeight: 800, fontSize: 16,
+              }}>∅</span>
+              <div>
+                <div className="mono" style={{fontSize: 10, letterSpacing:'.16em', color:'#FF385C', fontWeight: 700, textTransform:'uppercase'}}>
+                  Never-auto floor · structural · not configurable
+                </div>
+                <div style={{fontFamily:'var(--serif)', fontSize: 18, lineHeight: 1.3, marginTop: 4, color:'var(--ink)'}}>
+                  17 scenarios + 4 categories Cendra is never allowed to automate.
+                </div>
+              </div>
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 12}}>
+              <div style={{padding:'10px 12px', borderRadius: 8, background:'#ffffff', border:'1px solid var(--hair-soft)'}}>
+                <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 600, marginBottom: 4}}>
+                  Never-auto categories · 4
+                </div>
+                <div style={{fontSize: 12.5, color:'var(--ink)', lineHeight: 1.55}}>
+                  Damage claims · Refunds &gt; €100 to natural persons · Booking cancellations · Permanent guest bans.
+                </div>
+              </div>
+              <div style={{padding:'10px 12px', borderRadius: 8, background:'#ffffff', border:'1px solid var(--hair-soft)'}}>
+                <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 600, marginBottom: 4}}>
+                  Never-auto-learn scenarios · 17
+                </div>
+                <div style={{fontSize: 12.5, color:'var(--ink-mid)', lineHeight: 1.55}}>
+                  Sensitive scenarios are pinned and cannot be auto-promoted by pattern mining — including legal disputes, owner-rule overrides, ID/passport handling, dispute escalations.
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div>
             <SectionLabel2 eyebrow={`${D3.hard_rules.length} hard rules · never auto`} sub="Cendra will not act on these without you, ever." />
             <div className="dcard" style={{padding: 0, overflow: 'hidden', marginTop: 14}}>
@@ -2630,7 +2672,7 @@ function ResolveConflictModal({ fact, propertyName, onClose, onResolve }) {
             }}>C</span>
             <span className="mono" style={{fontSize: 10.5, letterSpacing: ".14em", color: "var(--ink)", fontWeight: 600}}>CENDRA</span>
             <span className="mono" style={{fontSize: 10, color: "var(--muted)"}}>·</span>
-            <span className="mono" style={{fontSize: 10, color: "var(--muted)", letterSpacing: ".12em"}}>CONFLICT DETECTED · CONF {Math.max(...sources.map(s => s.confidence)).toFixed(2)}</span>
+            <span className="mono" style={{fontSize: 10, color: "var(--muted)", letterSpacing: ".12em"}}>CONFLICT DETECTED · BEST SOURCE · {window.CendraAtoms.confidenceBand(Math.max(...sources.map(s => s.confidence))).label.toUpperCase()}</span>
           </div>
 
           <h2 className="serif-display" style={{
