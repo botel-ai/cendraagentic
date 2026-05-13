@@ -787,49 +787,113 @@ function IntegrationsScreen({ onOpen }) {
     return g;
   }, []);
 
-  const degraded = D3.integrations.filter(i => i.status !== 'connected');
+  const connected = D3.integrations.filter(i => i.status === 'connected');
+  const degraded = D3.integrations.filter(i => i.status === 'degraded');
+  const broken = D3.integrations.filter(i => i.status === 'broken');
   const open = D3.integrations.filter(i => i.open_incident);
+  const affectedProps = degraded.reduce((s, i) => s + i.affects_props, 0);
+  const allHealthy = degraded.length === 0 && broken.length === 0;
 
   return (
-    <div className="stage">
-      <PageHeader
-        eyebrow="TRUST · INTEGRATION HEALTH"
-        title="Where Cendra is reading from right now."
-        lead={<>{D3.integrations.length} live connections across PMS, channels, ops, payments. When one degrades, Cendra <b style={{color:'var(--ink)'}}>automatically demotes the affected workflows</b> and tells you what fell back.</>}
-      />
+    <div className="stage" style={{maxWidth: 1080, paddingTop: 56, paddingBottom: 120}}>
 
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 28, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>TRUST · INTEGRATION HEALTH</span>
+        <span style={{flex:1}} />
+        <span style={{display:'inline-flex', alignItems:'center', gap:6, color: allHealthy ? 'var(--ok)' : 'var(--warn)'}}>
+          <span style={{width:6, height:6, borderRadius:'50%', background: allHealthy ? 'var(--ok)' : 'var(--warn)'}} />
+          {allHealthy ? 'ALL HEALTHY' : `${degraded.length} DEGRADED`}
+        </span>
+      </div>
+
+      {/* HERO — Cendra speaks on data sources */}
+      <div style={{marginBottom: 48}}>
+        <h1 className="serif-display" style={{
+          fontSize: 46, lineHeight: 1.05, margin: 0, color: 'var(--ink)',
+        }}>
+          {allHealthy
+            ? <>Every source is live.</>
+            : <>{degraded.length} source{degraded.length > 1 ? 's' : ''} need{degraded.length === 1 ? 's' : ''} attention.</>
+          }
+        </h1>
+        <p style={{
+          fontSize: 16.5, lineHeight: 1.55, margin: '18px 0 0',
+          color: 'var(--ink-mid)', maxWidth: 720, fontFamily: 'var(--sans)',
+        }}>
+          {allHealthy
+            ? <>{D3.integrations.length} connections across PMS, channels, ops, payments. Cendra is reading clean data everywhere.</>
+            : <><b style={{color:'var(--ink)'}}>{open[0]?.name || degraded[0].name}</b> degraded — {affectedProps} properties affected, workflows auto-demoted. Cendra falls back, then tells you what stopped.</>
+          }
+        </p>
+      </div>
+
+      {/* OPEN INCIDENT HERO CARD — only when an incident is open */}
       {open.length > 0 && (
         <div style={{
-          padding:'14px 18px', marginBottom: 22,
-          background:'var(--warn-soft)', border:'1px solid color-mix(in oklab, var(--warn), white 70%)',
-          borderRadius:4,
+          background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 16,
+          padding: '28px 32px', marginBottom: 48,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+          position: 'relative', overflow: 'hidden',
         }}>
-          <div className="mono" style={{fontSize:9.5, letterSpacing:'.18em', color:'var(--warn)', marginBottom:6}}>OPEN INCIDENT</div>
-          <div style={{fontSize:14, fontWeight:500, marginBottom:4}}>{open[0].name} · {open[0].status}</div>
-          <div style={{fontSize:12.5, color:'var(--ink-mid)'}}>{open[0].fallback}</div>
-          <div style={{display:'flex', gap:8, marginTop:10}}>
-            <Btn size="sm" kind="primary">Reconnect now</Btn>
-            <Btn size="sm">Pause affected workflows</Btn>
-            <Btn size="sm" kind="ghost">View affected guests →</Btn>
+          <div style={{position:'absolute', top:0, left:0, width:4, height:'100%', background:'var(--rausch)'}} />
+          <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 14}}>
+            <span className="mono" style={{fontSize: 10, letterSpacing: '.18em', color: 'var(--rausch)', fontWeight: 600}}>OPEN INCIDENT</span>
+            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+            <span className="mono" style={{fontSize:10, letterSpacing:'.12em', color:'var(--muted)'}}>{open[0].category.toUpperCase()} · LAST SYNC {open[0].last_sync.toUpperCase()}</span>
+            <span style={{flex:1}} />
+            <Pill tone="warn">{open[0].status}</Pill>
+          </div>
+          <h2 className="serif-display" style={{fontSize: 30, lineHeight: 1.12, margin: 0, color:'var(--ink)', marginBottom: 14}}>
+            {open[0].name}
+          </h2>
+          <p style={{margin: 0, fontSize: 14.5, lineHeight: 1.55, color:'var(--ink-mid)', maxWidth: 720, marginBottom: 18}}>
+            {open[0].fallback}
+          </p>
+          <div style={{display:'flex', gap: 28, flexWrap:'wrap', marginBottom: 20}}>
+            <MicroStatBlock2 value={open[0].affects_props} label="properties affected" tone="warn" />
+            <MicroStatBlock2 value={open[0].affects_workflows.length === 1 && open[0].affects_workflows[0] === 'all' ? 'All' : open[0].affects_workflows.length} label="workflows demoted" tone="warn" />
+          </div>
+          <div style={{display:'flex', alignItems:'center', gap: 14, flexWrap:'wrap'}}>
+            <button style={{
+              all:'unset', cursor:'pointer',
+              background:'var(--ink)', color:'#ffffff',
+              padding:'12px 22px', borderRadius: 10,
+              fontSize: 14.5, fontWeight: 600,
+              display:'inline-flex', alignItems:'center', gap: 8,
+            }}>
+              Reconnect now
+              <span style={{fontFamily:'var(--mono)', fontSize:13, opacity:.8}}>↵</span>
+            </button>
+            <Btn kind="ghost">Pause affected workflows</Btn>
+            <Btn kind="ghost">View affected guests →</Btn>
           </div>
         </div>
       )}
 
-      <SignalStrip items={[
-        { label: "Connected", value: D3.integrations.filter(i=>i.status==='connected').length.toString(), tone:"ok" },
-        { label: "Degraded", value: degraded.length.toString(), tone: degraded.length > 0 ? "warn" : "ok" },
-        { label: "Broken", value: "0", tone:"ok" },
-        { label: "Workflows demoted", value: degraded.length > 0 ? "2" : "0", tone: degraded.length > 0 ? "warn" : "ok" },
-        { label: "Affected properties", value: degraded.reduce((s, i) => s + i.affects_props, 0).toString() },
-        { label: "Last full sync", value: "live", tone: "ok" },
-      ]} />
+      {/* MICRO STAT BAND */}
+      <div style={{
+        display:'flex', gap: 36, flexWrap:'wrap',
+        paddingBottom: 24, marginBottom: 24, borderBottom:'1px solid var(--hair-soft)',
+      }}>
+        <MicroStatBlock2 value={connected.length} label="connected" tone="ok" />
+        <MicroStatBlock2 value={degraded.length} label="degraded" tone={degraded.length > 0 ? "warn" : "ok"} />
+        <MicroStatBlock2 value={broken.length} label="broken" tone={broken.length > 0 ? "risk" : "ok"} />
+        <MicroStatBlock2 value={affectedProps} label="properties affected" tone={affectedProps > 0 ? "warn" : "ok"} />
+        <span style={{flex:1}} />
+        <MicroStatBlock2 value="live" label="last full sync" tone="ok" />
+      </div>
 
-      <div style={{height:24}} />
-
+      {/* GROUPED INTEGRATION CARDS */}
       {Object.entries(groups).map(([cat, items]) => (
-        <section key={cat} style={{marginBottom: 28}}>
-          <SectionHead eyebrow={cat.toUpperCase()} title={cat + " connections"} count={items.length} />
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14}}>
+        <section key={cat} style={{marginBottom: 36}}>
+          <div className="mono" style={{
+            fontSize: 11, letterSpacing:'.14em', color:'var(--ink)',
+            fontWeight: 600, textTransform:'uppercase', marginBottom: 12,
+          }}>{cat} · {items.length}</div>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap: 14}}>
             {items.map(i => <IntegrationHealthCard key={i.id} i={i} onOpen={onOpen} />)}
           </div>
         </section>

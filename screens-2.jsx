@@ -539,171 +539,218 @@ function AutonomyVerticalLadder() {
 // PLAYBOOK / SOP Builder
 // ───────────────────────────────────────────────────────────────────
 function PlaybookScreen() {
-  const [step, setStep] = useState(0);
   const [name, setName] = useState("Early check-in handling");
   const [intent, setIntent] = useState("When a guest asks to check in earlier than 15:00, never promise a time before cleaning is confirmed. Send a holding reply, ping the cleaner, and follow up when we have a sharper ETA.");
+  const [scope, setScope] = useState("owner");
+  const [structureOpen, setStructureOpen] = useState(true);
+  const [simOpen, setSimOpen] = useState(true);
+
+  const scopes = [
+    { id: "property", label: "Just this property", desc: "Karaköy · Apartment 12" },
+    { id: "owner",    label: "All properties under owner", desc: "Karaköy LLC · 6 properties" },
+    { id: "brand",    label: "All properties under this brand", desc: "Cendra Hospitality · 47 properties" },
+    { id: "guest",    label: "This guest only", desc: "Lukas Berger" },
+  ];
 
   return (
-    <div className="stage" style={{maxWidth: 1100}}>
-      <PageHeader
-        eyebrow="PLAYBOOK · BUILDER"
-        title="Teach Cendra in plain English."
-        lead="Describe how you handle a situation. Cendra structures it, simulates it on past cases, and only publishes after you approve."
-      />
+    <div className="stage" style={{maxWidth: 880, paddingTop: 56, paddingBottom: 160}}>
 
-      <div style={{display:'grid', gridTemplateColumns: '230px 1fr', gap: 32}}>
-        <div className="col gap-1">
-          {["Describe", "Structure", "Scope", "Simulate", "Publish"].map((s, i) => (
-            <button key={s} onClick={() => setStep(i)} style={{
-              all:'unset', cursor:'pointer',
-              display:'flex', alignItems:'center', gap:10,
-              padding:'10px 12px', borderRadius: 4,
-              background: i === step ? 'var(--ink)' : 'transparent',
-              color: i === step ? 'var(--paper)' : 'var(--ink-mid)',
-              fontSize: 13.5,
-            }}>
-              <span className="mono" style={{fontSize:10, opacity: .7}}>{String(i+1).padStart(2,'0')}</span>
-              {s}
-            </button>
-          ))}
-          <hr className="hairline mt-4 mb-4" />
-          <div className="eyebrow mb-2">SCOPE</div>
-          <Pill>Owner · Karaköy LLC</Pill>
-        </div>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 28, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>PLAYBOOK · BUILDER</span>
+        <span style={{flex:1}} />
+        <span>TEACH CENDRA IN PLAIN ENGLISH</span>
+      </div>
 
-        <div>
-          {step === 0 && (
-            <div>
-              <div className="eyebrow mb-2">PLAYBOOK NAME</div>
-              <input
-                value={name}
-                onChange={e => setName(e.target.value)}
-                style={{
-                  fontFamily:'var(--serif)', fontSize:30, fontWeight:400,
-                  border:0, outline:0, background:'transparent',
-                  width:'100%', borderBottom: '1px solid var(--hair)',
-                  padding:'4px 0 8px',
-                }}
-              />
-              <div className="eyebrow mt-6 mb-2">DESCRIBE THE SITUATION</div>
-              <textarea
-                value={intent}
-                onChange={e => setIntent(e.target.value)}
-                style={{
-                  width:'100%', minHeight: 180,
-                  border:'1px solid var(--hair)', borderRadius:6,
-                  padding:'14px 16px', fontFamily:'var(--serif)', fontSize:16,
-                  lineHeight: 1.55, resize:'vertical',
-                  background:'var(--card)',
-                }}
-              />
-              <div className="mt-4" style={{display:'flex',gap:8}}>
-                <Btn kind="primary" onClick={() => setStep(1)}>Structure with Cendra →</Btn>
-                <Btn kind="ghost">Upload SOP doc</Btn>
-              </div>
-            </div>
-          )}
+      {/* HERO — name input as the title itself */}
+      <div style={{marginBottom: 14}}>
+        <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>PLAYBOOK NAME</div>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          className="serif-display"
+          style={{
+            fontSize: 40, lineHeight: 1.1, fontWeight: 400, color: 'var(--ink)',
+            border: 0, outline: 0, background:'transparent',
+            width: '100%', padding: 0, letterSpacing: '-0.02em',
+            fontFamily: 'var(--serif)',
+            fontVariationSettings: '"opsz" 96, "SOFT" 30, "WONK" 0',
+          }}
+        />
+      </div>
 
-          {step === 1 && (
-            <div>
-              <div className="eyebrow mb-2">CENDRA'S STRUCTURED PLAYBOOK</div>
-              <div className="dcard" style={{padding:'18px 22px'}}>
-                <RuleRow label="TRIGGER" value="Guest message contains early-check-in intent (parsed)" />
-                <RuleRow label="CHECKS" value="cleaning_status · same_day_turnover · property_rules · last_3_decisions" />
-                <RuleRow label="ALLOWED" value="Send holding reply · Ping cleaner · Promise check-in time IF cleaning_status = 'confirmed' AND ETA < requested_time" />
-                <RuleRow label="APPROVAL" value="If proposed_time differs from standard 15:00 by &gt; 1h" />
-                <RuleRow label="NEVER" value="Promise an early check-in time when cleaning is unconfirmed" tone="risk" />
-                <RuleRow label="HOLD" value="0 minutes (operates as approval-required)" />
-              </div>
-              <div className="mt-4" style={{display:'flex',gap:8}}>
-                <Btn onClick={() => setStep(0)}>← Back</Btn>
-                <Btn kind="primary" onClick={() => setStep(2)}>Set scope →</Btn>
-                <Btn kind="ghost">Edit structure</Btn>
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div>
-              <div className="eyebrow mb-2">WHERE SHOULD THIS APPLY?</div>
-              <div className="col gap-2">
-                {[
-                  { label: "Just this property", desc: "Karaköy · Apartment 12" },
-                  { label: "All properties under owner", desc: "Karaköy LLC · 6 properties", active: true },
-                  { label: "All properties under this brand", desc: "Cendra Hospitality · 47 properties" },
-                  { label: "This guest only", desc: "Lukas Berger" },
-                ].map((s, i) => (
-                  <label key={i} style={{
-                    display:'block', cursor:'pointer',
-                    border: '1px solid var(--hair)',
-                    background: s.active ? 'var(--paper-2)' : 'var(--card)',
-                    borderColor: s.active ? 'var(--ink)' : 'var(--hair)',
-                    borderRadius: 6, padding: '14px 18px',
-                  }}>
-                    <input type="radio" name="scope" defaultChecked={s.active} style={{marginRight:10}} />
-                    <b>{s.label}</b>
-                    <div className="dim" style={{marginLeft:24, fontSize:12.5}}>{s.desc}</div>
-                  </label>
-                ))}
-              </div>
-              <div className="mt-4" style={{display:'flex',gap:8}}>
-                <Btn onClick={() => setStep(1)}>← Back</Btn>
-                <Btn kind="primary" onClick={() => setStep(3)}>Simulate on history →</Btn>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div>
-              <div className="eyebrow mb-2">SIMULATION · LAST 30 DAYS · 11 CASES</div>
-              <div className="dcard" style={{padding:'18px 22px'}}>
-                <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:24}}>
-                  <SimStat label="Would route to approval" value="11" />
-                  <SimStat label="Would change outcome" value="3" tone="warn" />
-                  <SimStat label="Would have prevented incident" value="1" tone="ok" />
-                  <SimStat label="Failed simulations" value="0" tone="ok" />
-                </div>
-              </div>
-              <div className="mt-4 dcard" style={{padding:'18px 22px'}}>
-                <div className="eyebrow mb-3">EXAMPLE CASE · 11d AGO · BKG-44012</div>
-                <p style={{margin:0, fontFamily:'var(--serif)', fontSize:15, lineHeight:1.5, fontStyle:'italic'}}>
-                  Guest asked to check in at 13:30. Cendra (old behavior) promised 13:00. Cleaning slipped to 14:15. Resulted in mild complaint.
-                </p>
-                <div className="mono dim mt-3" style={{fontSize:11.5}}>
-                  WITH NEW PLAYBOOK → Cendra would have routed this to approval. You would have seen the cleaning ETA mismatch and held the line at 15:00.
-                </div>
-              </div>
-              <div className="mt-4" style={{display:'flex',gap:8}}>
-                <Btn onClick={() => setStep(2)}>← Back</Btn>
-                <Btn kind="primary" onClick={() => setStep(4)}>Review &amp; publish →</Btn>
-              </div>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div>
-              <div className="eyebrow mb-2">READY TO PUBLISH</div>
-              <div className="dcard" style={{padding:'22px 26px'}}>
-                <h2 className="h2">{name}</h2>
-                <p className="lead">Cendra will start using this playbook on the next matching guest message.</p>
-                <hr className="hairline mt-4 mb-4" />
-                <div className="col gap-2 mono" style={{fontSize:11.5, color:'var(--ink-mid)'}}>
-                  <div>SCOPE · Karaköy LLC · 6 properties</div>
-                  <div>MODE · Approval required</div>
-                  <div>SIMULATION · 11/11 passed · 1 incident prevented</div>
-                  <div>HARD RULE · Never promise early check-in unless cleaning is confirmed</div>
-                </div>
-                <div className="actionbar" style={{marginTop:18, marginLeft:-26, marginRight:-26, marginBottom:-22}}>
-                  <Btn kind="primary">Publish playbook</Btn>
-                  <Btn>Save as draft</Btn>
-                  <span className="grow" />
-                  <Btn kind="ghost" size="sm">Schedule review in 30d</Btn>
-                </div>
-              </div>
-            </div>
-          )}
+      {/* INTENT — situation in plain English */}
+      <div style={{marginBottom: 40}}>
+        <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 12, fontWeight: 500, marginTop: 32}}>SITUATION</div>
+        <textarea
+          value={intent}
+          onChange={e => setIntent(e.target.value)}
+          style={{
+            width: '100%', minHeight: 140,
+            border: '1px solid var(--hair)', borderRadius: 10,
+            padding: '18px 20px',
+            fontFamily: 'var(--serif)', fontSize: 18, lineHeight: 1.55,
+            background: '#ffffff', color: 'var(--ink)', resize: 'vertical',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+          }}
+        />
+        <div className="mono" style={{fontSize: 10.5, color: 'var(--muted-2)', letterSpacing:'.06em', marginTop: 8}}>
+          ↓ CENDRA STRUCTURES THIS AUTOMATICALLY · SCROLL TO REVIEW
         </div>
       </div>
+
+      {/* STRUCTURE — Cendra's interpretation, collapsible */}
+      <CollapsibleStep
+        eyebrow="STRUCTURED PLAYBOOK"
+        sub="Cendra parsed your situation into rules. Review and edit if needed."
+        open={structureOpen}
+        onToggle={() => setStructureOpen(o => !o)}
+      >
+        <div className="dcard" style={{padding:'18px 22px', marginTop: 14}}>
+          <RuleRow label="TRIGGER" value="Guest message contains early-check-in intent (parsed)" />
+          <RuleRow label="CHECKS" value="cleaning_status · same_day_turnover · property_rules · last_3_decisions" />
+          <RuleRow label="ALLOWED" value="Send holding reply · Ping cleaner · Promise check-in time IF cleaning_status = 'confirmed' AND ETA < requested_time" />
+          <RuleRow label="APPROVAL" value="If proposed_time differs from standard 15:00 by &gt; 1h" />
+          <RuleRow label="NEVER" value="Promise an early check-in time when cleaning is unconfirmed" tone="risk" />
+          <RuleRow label="HOLD" value="0 minutes (operates as approval-required)" />
+        </div>
+      </CollapsibleStep>
+
+      {/* SCOPE — where it applies */}
+      <div style={{marginTop: 40}}>
+        <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 4, fontWeight: 500}}>SCOPE</div>
+        <div style={{fontSize: 13, color:'var(--muted)', marginBottom: 14}}>Where should this apply?</div>
+        <div style={{display:'grid', gap: 8}}>
+          {scopes.map(s => (
+            <button key={s.id} onClick={() => setScope(s.id)} style={{
+              all:'unset', cursor:'pointer',
+              display:'grid', gridTemplateColumns:'24px 1fr', gap: 12, alignItems:'center',
+              padding:'14px 18px', borderRadius: 10,
+              background: scope === s.id ? '#ffffff' : 'transparent',
+              border: '1px solid ' + (scope === s.id ? 'var(--ink)' : 'var(--hair)'),
+              boxShadow: scope === s.id ? '0 1px 2px rgba(0,0,0,0.04)' : 'none',
+            }}>
+              <span style={{
+                width: 16, height: 16, borderRadius: '50%',
+                border: '1.5px solid ' + (scope === s.id ? 'var(--ink)' : 'var(--hair)'),
+                background: scope === s.id ? 'var(--ink)' : 'transparent',
+                boxShadow: scope === s.id ? 'inset 0 0 0 3px white' : 'none',
+              }} />
+              <div>
+                <div style={{fontSize: 14, fontWeight: 500, color:'var(--ink)'}}>{s.label}</div>
+                <div style={{fontSize: 12.5, color:'var(--muted)', marginTop: 2}}>{s.desc}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* SIMULATION HERO — the moment of truth */}
+      <CollapsibleStep
+        eyebrow="SIMULATION · LAST 30 DAYS · 11 CASES"
+        sub="Cendra replayed past guest messages with this playbook. Here's the diff."
+        open={simOpen}
+        onToggle={() => setSimOpen(o => !o)}
+        marginTop={48}
+      >
+        <div style={{
+          background:'#ffffff', border:'1px solid var(--hair)', borderRadius: 16,
+          padding:'28px 32px', marginTop: 14,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
+          position:'relative', overflow:'hidden',
+        }}>
+          <div style={{position:'absolute', top:0, left:0, width:4, height:'100%', background:'var(--ok)'}} />
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap: 28, marginBottom: 24}}>
+            <BigSimStat value="11" label="would route to approval" />
+            <BigSimStat value="3" label="would change outcome" tone="warn" />
+            <BigSimStat value="1" label="incident prevented" tone="ok" />
+            <BigSimStat value="0" label="failed simulations" tone="ok" />
+          </div>
+          <div style={{borderTop:'1px solid var(--hair-soft)', paddingTop: 18}}>
+            <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', marginBottom: 10}}>EXAMPLE · 11d AGO · BKG-44012</div>
+            <p style={{
+              margin: 0, fontFamily:'var(--serif)', fontSize: 17, lineHeight: 1.5,
+              color: 'var(--ink)', fontStyle:'italic',
+            }}>
+              "Guest asked to check in at 13:30. Cendra (old behavior) promised 13:00. Cleaning slipped to 14:15. Resulted in mild complaint."
+            </p>
+            <div style={{
+              marginTop: 14, padding:'12px 16px', borderRadius: 8,
+              background:'var(--ok-soft)', border:'1px solid color-mix(in oklab, var(--ok), white 75%)',
+              fontSize: 13, lineHeight: 1.5, color:'var(--ink)',
+            }}>
+              <span className="mono" style={{fontSize: 10, color:'var(--ok)', letterSpacing:'.14em', marginRight: 8, fontWeight: 600}}>WITH NEW PLAYBOOK</span>
+              Cendra would have routed this to approval. You would have seen the cleaning ETA mismatch and held the line at 15:00.
+            </div>
+          </div>
+        </div>
+      </CollapsibleStep>
+
+      {/* PUBLISH BAR — sticky bottom */}
+      <div style={{
+        position:'sticky', bottom: 20, marginTop: 72, zIndex: 5,
+        background: 'linear-gradient(to bottom, transparent 0%, var(--paper) 40px)',
+        paddingTop: 40, paddingBottom: 4,
+      }}>
+        <div style={{
+          display:'flex', alignItems:'center', gap: 16,
+          border: '1px solid var(--hair)', background:'#ffffff',
+          borderRadius: 14, padding: '14px 20px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04)',
+        }}>
+          <div style={{flex:1, minWidth: 0}}>
+            <div style={{fontSize: 14, fontWeight: 600, color:'var(--ink)', marginBottom: 2}}>Ready to publish</div>
+            <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em'}}>
+              {scopes.find(s => s.id === scope).desc.toUpperCase()} · APPROVAL MODE · 11/11 SIMS PASSED
+            </div>
+          </div>
+          <Btn kind="ghost" size="sm">Save as draft</Btn>
+          <button style={{
+            all:'unset', cursor:'pointer',
+            background:'var(--ink)', color:'#ffffff',
+            padding:'12px 22px', borderRadius: 10,
+            fontSize: 14, fontWeight: 600,
+            display:'inline-flex', alignItems:'center', gap: 8,
+          }}>
+            Publish playbook
+            <span style={{fontFamily:'var(--mono)', fontSize:13, opacity:.8}}>↵</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CollapsibleStep({ eyebrow, sub, open, onToggle, children, marginTop }) {
+  return (
+    <div style={{marginTop: marginTop || 40}}>
+      <button onClick={onToggle} style={{
+        all:'unset', cursor:'pointer', display:'flex',
+        alignItems:'flex-start', gap: 12, width: '100%',
+      }}>
+        <div style={{flex:1, minWidth:0, textAlign:'left'}}>
+          <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 4, fontWeight: 500}}>{eyebrow}</div>
+          {sub && <div style={{fontSize: 13, color:'var(--muted)'}}>{sub}</div>}
+        </div>
+        <span style={{
+          fontFamily:'var(--mono)', fontSize: 16, color:'var(--ink-mid)',
+          transform: open ? 'rotate(90deg)' : 'rotate(0)',
+          transition: 'transform .15s',
+        }}>›</span>
+      </button>
+      {open && children}
+    </div>
+  );
+}
+
+function BigSimStat({ value, label, tone }) {
+  const color = tone === 'ok' ? 'var(--ok)' : tone === 'warn' ? 'var(--warn)' : tone === 'risk' ? 'var(--rausch)' : 'var(--ink)';
+  return (
+    <div>
+      <div style={{fontFamily:'var(--sans)', fontSize: 36, fontWeight: 500, color, lineHeight: 1.05, letterSpacing:'-.02em', fontVariantNumeric:'tabular-nums'}}>{value}</div>
+      <div className="mono" style={{fontSize: 10.5, letterSpacing:'.10em', color:'var(--muted)', textTransform:'uppercase', marginTop: 6, fontWeight: 500, lineHeight:1.3}}>{label}</div>
     </div>
   );
 }
@@ -996,25 +1043,60 @@ function StatCard({ label, value, sub, tone }) {
 }
 
 // ───────────────────────────────────────────────────────────────────
-// MOBILE — Approval-first
+// MOBILE — Approval-first, thumb-friendly
+// 6 tabs → 2 (Approval / Activity). Flow states preserved as a
+// "Preview state" cycle for the prototype demo.
 // ───────────────────────────────────────────────────────────────────
 function MobileScreen({ onOpen }) {
-  const [view, setView] = useState("push");
+  const [view, setView] = useState("approval");
   const v2 = window.CENDRA_DATA.mobile_v2;
   const q = v2.quick_card;
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+
+  // Two-tab toggle replaces 6 tabs
+  const tabs = [
+    { id: "approval", label: "Approval" },
+    { id: "activity", label: "Activity" },
+  ];
+
+  // For prototype demo: cycle through flow states inside the phone
+  const previewStates = [
+    { id: "push", label: "Push" },
+    { id: "approval", label: "Open" },
+    { id: "evidence", label: "Evidence" },
+    { id: "takeover", label: "Takeover" },
+    { id: "paused", label: "Paused" },
+  ];
+
+  // Map: which view to render given selected tab + preview state
+  const tab = view === "activity" ? "activity" : "approval";
 
   return (
     <div className="mobile-stage">
-      <div className="mobile-tabbar">
-        {[
-          ["push", "Push"],
-          ["today", "Today"],
-          ["approval", "Approval"],
-          ["evidence", "Evidence"],
-          ["takeover", "Takeover"],
-          ["paused", "Paused"],
-        ].map(([k, l]) => (
-          <button key={k} onClick={() => setView(k)} className={CendraAtoms.cls("mtab", view === k && "is-on")}>{l}</button>
+      <div className="mobile-tabbar" style={{display:'flex', gap: 8, justifyContent:'center', paddingBottom: 8}}>
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setView(t.id)} style={{
+            all:'unset', cursor:'pointer',
+            padding:'8px 18px', borderRadius: 999,
+            border:'1px solid ' + (view === t.id || (tab === t.id && view !== "activity") ? 'var(--ink)' : 'var(--hair)'),
+            background: (view === t.id || (tab === t.id && view !== "activity")) ? 'var(--ink)' : '#ffffff',
+            color: (view === t.id || (tab === t.id && view !== "activity")) ? '#ffffff' : 'var(--ink-mid)',
+            fontSize: 13, fontWeight: 500,
+          }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div style={{display:'flex', gap: 4, justifyContent:'center', flexWrap:'wrap', padding:'0 20px 14px', maxWidth: 460, margin:'0 auto'}}>
+        <span className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted-2)', alignSelf:'center', marginRight: 6}}>PREVIEW STATE ·</span>
+        {previewStates.map(s => (
+          <button key={s.id} onClick={() => setView(s.id)} style={{
+            all:'unset', cursor:'pointer',
+            padding:'3px 9px', fontSize: 10.5, fontFamily:'var(--mono)',
+            color: view === s.id ? 'var(--ink)' : 'var(--muted)',
+            borderBottom: '1px solid ' + (view === s.id ? 'var(--ink)' : 'transparent'),
+            letterSpacing:'.04em',
+          }}>{s.label}</button>
         ))}
       </div>
 
@@ -1157,7 +1239,7 @@ function MobileScreen({ onOpen }) {
 
         {view === "paused" && (
           <div className="phone-body">
-            <button className="link-btn back-link" onClick={() => setView("today")}>← Today</button>
+            <button className="link-btn back-link" onClick={() => setView("approval")}>← Approval</button>
             <div className="paused-card">
               <div className="mono" style={{fontSize:10, letterSpacing:'.18em', color:'var(--ink)'}}>CENDRA PAUSED · APT12 · LUKAS B.</div>
               <h1 className="phone-h1" style={{marginTop:6}}>Cendra is quiet on this thread.</h1>
@@ -1171,6 +1253,39 @@ function MobileScreen({ onOpen }) {
                 <Btn kind="primary">Hand back to Cendra</Btn>
                 <Btn>Open thread</Btn>
               </div>
+            </div>
+          </div>
+        )}
+
+        {view === "activity" && (
+          <div className="phone-body">
+            <div className="eyebrow mt-1">RECENT · LAST 12H</div>
+            <h1 className="phone-h1">What you did.</h1>
+            <p className="phone-lead">Every decision on this phone, in order. Tap to revisit.</p>
+            <div style={{display:'grid', gap: 10, marginTop: 18}}>
+              {[
+                { time: "06:14", actor: "You", action: "Approved", target: "Safer alternative · Aiyana C.", tone: "ok" },
+                { time: "Yest. 21:02", actor: "You", action: "Published rule", target: "Never promise early check-in", tone: "ok" },
+                { time: "Yest. 18:31", actor: "Cendra", action: "Auto-paused", target: "Late checkout offer · 24h", tone: "warn" },
+                { time: "2d ago", actor: "You", action: "Took over", target: "Thread with Rafael S.", tone: "info" },
+              ].map((a, i) => (
+                <div key={i} style={{
+                  padding:'14px 16px', borderRadius: 10,
+                  background:'#ffffff', border:'1px solid var(--hair)',
+                }}>
+                  <div className="mono" style={{fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', marginBottom: 6}}>
+                    {a.time.toUpperCase()} · {a.actor.toUpperCase()}
+                  </div>
+                  <div style={{display:'flex', alignItems:'center', gap: 8, marginBottom: 4}}>
+                    <span style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: a.tone === 'ok' ? 'var(--ok)' : a.tone === 'warn' ? 'var(--warn)' : 'var(--info)',
+                    }} />
+                    <span style={{fontSize: 14, fontWeight: 500, color:'var(--ink)'}}>{a.action}</span>
+                  </div>
+                  <div style={{fontSize: 13, color:'var(--ink-mid)', lineHeight: 1.45, paddingLeft: 16}}>{a.target}</div>
+                </div>
+              ))}
             </div>
           </div>
         )}
