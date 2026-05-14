@@ -599,6 +599,7 @@ function Nav({ route, goto }) {
     { id: "today",      label: "Today",      count: 37 },
     { id: "work",       label: "Stays",      count: 10 },
     { id: "work_queue", label: "Work",       count: 14 },
+    { id: "vendors",    label: "Vendors",    count: 6  },
     { id: "properties", label: "Properties", count: 47 },
     { id: "brain",      label: "Brain",      count: null },
   ];
@@ -633,6 +634,7 @@ function Routes({ route, goto, tweaks }) {
     case "today":            return <TodayScreen onOpen={onOpen} tweaks={tweaks} />;
     case "work":             return <WorkScreen onOpen={onOpen} />;  /* Stays */
     case "work_queue":       return <WorkQueueScreen onOpen={onOpen} arg={route.arg} />;
+    case "vendors":          return <VendorsScreen onOpen={onOpen} />;
     case "brain":            return <BrainShell onOpen={onOpen} tweaks={tweaks} arg={route.arg} />;
     case "work_detail":      return <WorkDetailScreen onOpen={onOpen} tweaks={tweaks} />;
     case "autopilot":        return <AutopilotScreen tweaks={tweaks} />;
@@ -1216,6 +1218,172 @@ function DailyBrainReport({ onOpen }) {
                     );
                   })}
                 </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// VendorsScreen — vendors as first-class operational citizens.
+// Audit §6: vendors have queues, ETAs, completion times. They exist only
+// inside Stay Detail's threads today; this is the top-level slice.
+function VendorsScreen({ onOpen }) {
+  const vendors = window.CENDRA_DATA2.vendors || [];
+  const [filter, setFilter] = useState("all");
+
+  const statusLabel = {
+    on_site:   "On site",
+    en_route:  "En route",
+    promised:  "Promised",
+    scheduled: "Scheduled",
+    standby:   "Standby",
+    overdue:   "Overdue",
+  };
+  const statusColor = {
+    on_site:   '#00A699',
+    en_route:  '#FFB400',
+    promised:  '#5E6AD2',
+    scheduled: '#0891B2',
+    standby:   '#9CA3AF',
+    overdue:   '#FF385C',
+  };
+
+  const filterDefs = [
+    { id: "all",      label: "All",       test: () => true },
+    { id: "in_flight",label: "In flight", test: v => v.status === "on_site" || v.status === "en_route" },
+    { id: "overdue",  label: "Overdue",   test: v => v.status === "overdue" || v.overdue > 0 },
+    { id: "promised", label: "Promised",  test: v => v.status === "promised" || v.status === "scheduled" },
+    { id: "standby",  label: "Standby",   test: v => v.status === "standby" },
+  ];
+  const shown = vendors.filter(filterDefs.find(f => f.id === filter).test);
+
+  const overdueCount = vendors.filter(v => v.status === "overdue" || v.overdue > 0).length;
+  const onSiteCount  = vendors.filter(v => v.status === "on_site").length;
+  const enRouteCount = vendors.filter(v => v.status === "en_route").length;
+
+  return (
+    <div className="stage" style={{maxWidth: 1100, paddingTop: 56, paddingBottom: 120}}>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
+        marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
+      }}>
+        <span>VENDORS · OPERATIONAL ACTORS</span>
+        <span style={{flex:1}} />
+        <span>{vendors.length} VENDORS · {onSiteCount + enRouteCount} IN FLIGHT · {overdueCount} OVERDUE</span>
+      </div>
+
+      <div style={{marginBottom: 32}}>
+        <h1 className="serif-display" style={{
+          fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)',
+        }}>
+          {overdueCount > 0 ? <>{overdueCount} vendor{overdueCount === 1 ? '' : 's'} missed an ETA.</>
+                            : <>Your vendors, by what they're doing right now.</>}
+        </h1>
+        <p style={{fontSize: 16, lineHeight: 1.55, margin:'18px 0 0', color:'var(--ink-mid)', maxWidth: 720}}>
+          {overdueCount > 0
+            ? <>Start with the overdue ones. Cendra has tried to reach them through their preferred channel; you decide whether to nudge harder or reassign.</>
+            : <><b style={{color:'var(--ink)'}}>{onSiteCount} on site</b> · {enRouteCount} en route · the rest are standby or promised. Click any vendor to see their thread and current job.</>
+          }
+        </p>
+      </div>
+
+      {/* Filter pills */}
+      <div style={{display:'flex', gap: 8, flexWrap:'wrap', marginBottom: 20}}>
+        {filterDefs.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            all:'unset', cursor:'pointer',
+            padding:'7px 14px', borderRadius: 999,
+            border:'1px solid ' + (filter === f.id ? 'var(--ink)' : 'var(--hair)'),
+            background: filter === f.id ? 'var(--ink)' : '#ffffff',
+            color: filter === f.id ? '#ffffff' : 'var(--ink-mid)',
+            fontSize: 12.5, fontWeight: 500, fontFamily: 'var(--sans)',
+          }}>
+            {f.label}
+            <span style={{marginLeft: 8, opacity: filter === f.id ? .7 : .5, fontFamily:'var(--mono)', fontSize: 11}}>
+              {vendors.filter(f.test).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Vendor cards */}
+      <div style={{display:'grid', gap: 12}}>
+        {shown.map(v => {
+          const c = statusColor[v.status] || 'var(--ink)';
+          return (
+            <div key={v.id} style={{
+              display:'grid', gridTemplateColumns: '52px 1fr 200px 130px 110px',
+              gap: 16, padding:'16px 20px',
+              background:'#ffffff', border:'1px solid var(--hair)',
+              borderLeft: `4px solid ${c}`,
+              borderRadius: 8,
+              alignItems:'center',
+            }}>
+              {/* Avatar/initial */}
+              <div style={{
+                width: 44, height: 44, borderRadius:'50%',
+                background:'var(--ink)', color:'#ffffff',
+                display:'grid', placeItems:'center',
+                fontFamily:'var(--serif)', fontStyle:'italic', fontSize: 18,
+              }}>{v.name.split(' ').map(x => x[0]).slice(0, 2).join('')}</div>
+
+              {/* Identity + trade + coverage */}
+              <div style={{minWidth: 0}}>
+                <div style={{display:'flex', alignItems:'baseline', gap: 10, flexWrap:'wrap', marginBottom: 4}}>
+                  <span style={{fontSize: 15.5, color:'var(--ink)', fontWeight: 600}}>{v.name}</span>
+                  <span className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase'}}>{v.trade}</span>
+                  <span className="mono" style={{
+                    fontSize: 10, letterSpacing:'.10em', color: c, fontWeight: 700, textTransform:'uppercase',
+                    padding:'2px 7px', borderRadius: 4,
+                    background: `${c}14`, border:`1px solid ${c}30`,
+                  }}>● {statusLabel[v.status] || v.status}</span>
+                </div>
+                {v.current_job ? (
+                  <div style={{fontSize: 13, color:'var(--ink-mid)', lineHeight: 1.4}}>
+                    <b style={{color:'var(--ink)'}}>{v.current_job.property}</b> · {v.current_job.scope}
+                    <span className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'.04em', marginLeft: 8}}>
+                      ETA {v.current_job.eta} · since {v.current_job.since}
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{fontSize: 13, color:'var(--muted)', fontStyle:'italic'}}>No active job · {v.last_touch}</div>
+                )}
+                <div className="mono" style={{fontSize: 10, color:'var(--muted-2)', letterSpacing:'.04em', marginTop: 4, textTransform:'uppercase'}}>
+                  Coverage · {v.coverage.join(' · ')} · via {v.channels.join(' / ')}
+                </div>
+              </div>
+
+              {/* Performance — last 30d */}
+              <div>
+                <div className="mono" style={{fontSize: 9.5, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 4}}>Last 30d</div>
+                <div style={{fontFamily:'var(--mono)', fontSize: 12, color:'var(--ink)', lineHeight: 1.55}}>
+                  {v.jobs_30d} jobs · {(v.success_rate * 100).toFixed(0)}% ok · ★{v.rating}
+                </div>
+                <div className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.04em', marginTop: 2}}>
+                  Avg response {v.avg_response_min < 60 ? `${v.avg_response_min}m` : `${(v.avg_response_min/60).toFixed(1)}h`}
+                </div>
+              </div>
+
+              {/* Last touch */}
+              <div className="mono" style={{fontSize: 11, color: v.status === 'overdue' ? 'var(--risk)' : 'var(--ink-mid)', letterSpacing:'.02em', lineHeight: 1.5}}>
+                {v.last_touch}
+              </div>
+
+              {/* Action */}
+              <div style={{display:'flex', flexDirection:'column', gap: 6, alignItems:'flex-end'}}>
+                {v.status === 'overdue' ? (
+                  <Btn size="sm" kind="primary">Nudge</Btn>
+                ) : v.status === 'on_site' || v.status === 'en_route' ? (
+                  <Btn size="sm" kind="ghost">Open thread →</Btn>
+                ) : (
+                  <Btn size="sm" kind="ghost">Reassign</Btn>
+                )}
+                <span className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.08em'}}>
+                  {v.open_jobs} open
+                </span>
               </div>
             </div>
           );

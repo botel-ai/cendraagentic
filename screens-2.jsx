@@ -9,13 +9,20 @@ const DP = window.CENDRA_DATA2;
 // Cryptographic, not paper.
 function CertBadge({ wf }) {
   const [open, setOpen] = useState(false);
-  if (wf.state !== 'autopilot' && wf.state !== 'semi') return null;
-  // Synthesise cert details from workflow id + state
-  const tier = wf.state === 'autopilot' ? 'T4 · auto-act-with-disclosure' : 'T3 · semi-with-pm-co-sign';
-  const expires = wf.state === 'autopilot' ? '7d' : '24h';
+  if (!['autopilot', 'recall', 'draft_hold', 'semi', 'suggest'].includes(wf.state)) return null;
+  // Synthesise cert details from workflow id + state. T5 = full autonomy;
+  // T4 = recall-window auto-send; T3 = draft-hold for PM; T2 = suggest only.
+  const tier = wf.state === 'autopilot' ? 'T5 · full autonomy'
+             : wf.state === 'recall'    ? 'T4 · auto-send with recall'
+             : wf.state === 'draft_hold'? 'T3 · auto-draft, hold for PM'
+             :                            'T2 · suggest only';
+  const expires = wf.state === 'autopilot' ? '7d' : wf.state === 'recall' ? '3d' : '24h';
   const digest = wf.cert_digest || ((wf.id || 'wf') + '_03b1' + (wf.samples || 0)).slice(0, 16) + '…';
   // Inline tier visible by default; click expands the full cert details.
-  const tierShort = wf.state === 'autopilot' ? 'T4' : 'T3';
+  const tierShort = wf.state === 'autopilot' ? 'T5'
+                  : wf.state === 'recall'    ? 'T4'
+                  : wf.state === 'draft_hold'? 'T3'
+                  :                            'T2';
   return (
     <span style={{position:'relative', display:'inline-block', marginLeft: 4}}>
       <button onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }} style={{
@@ -84,33 +91,42 @@ function AutopilotScreen({ tweaks }) {
     g.workflows.map(w => ({ ...w, groupId: g.id, groupName: g.name }))
   );
 
+  // 5-tier autonomy ladder — Observe → Suggest → Draft-hold → Send-with-recall → Autopilot
   const stats = {
-    autopilot: allWfs.filter(w => w.state === "autopilot").length,
-    semi:      allWfs.filter(w => w.state === "semi").length,
-    approval:  allWfs.filter(w => w.state === "approval").length,
-    observe:   allWfs.filter(w => w.state === "observe").length,
-    never:     allWfs.filter(w => w.state === "never").length,
-    ready:     allWfs.filter(w => w.ready).length,
+    autopilot:  allWfs.filter(w => w.state === "autopilot").length,
+    recall:     allWfs.filter(w => w.state === "recall").length,
+    draft_hold: allWfs.filter(w => w.state === "draft_hold").length,
+    suggest:    allWfs.filter(w => w.state === "suggest" || w.state === "semi").length,
+    approval:   allWfs.filter(w => w.state === "approval").length,
+    observe:    allWfs.filter(w => w.state === "observe").length,
+    never:      allWfs.filter(w => w.state === "never").length,
+    ready:      allWfs.filter(w => w.ready).length,
+    live:       allWfs.filter(w => ["autopilot", "recall", "draft_hold", "suggest", "semi"].includes(w.state)).length,
   };
   const readyList = allWfs.filter(w => w.ready);
   const firstReady = readyList[0];
 
-  // Filter pills — Hick's Law: small set, single-select
+  // Filter pills — Hick's Law: keep 6 pills, ladder runs top-down
   const filterDefs = [
-    { id: "all",      label: "All",         test: () => true },
-    { id: "ready",    label: "Ready to promote", test: w => w.ready },
-    { id: "live",     label: "Live",        test: w => w.state === "autopilot" || w.state === "semi" },
-    { id: "approval", label: "Approval",    test: w => w.state === "approval" },
-    { id: "never",    label: "Never auto",  test: w => w.state === "never" },
+    { id: "all",        label: "All",                test: () => true },
+    { id: "ready",      label: "Ready to promote",   test: w => w.ready },
+    { id: "autopilot",  label: "Autopilot",          test: w => w.state === "autopilot" },
+    { id: "recall",     label: "Send · recall",      test: w => w.state === "recall" },
+    { id: "draft_hold", label: "Draft · hold",       test: w => w.state === "draft_hold" },
+    { id: "approval",   label: "Approval",           test: w => w.state === "approval" },
+    { id: "never",      label: "Never auto",         test: w => w.state === "never" },
   ];
   const shown = allWfs.filter(filterDefs.find(f => f.id === filter).test);
 
   const stateMeta = {
-    autopilot: { tone: "ok",   label: "Autopilot" },
-    semi:      { tone: "info", label: "Semi-auto" },
-    approval:  { tone: "warn", label: "Approval" },
-    observe:   { tone: "info", label: "Observe" },
-    never:     { tone: "risk", label: "Never auto" },
+    observe:    { tone: "info", label: "Observe"            },
+    suggest:    { tone: "info", label: "Suggest"            },
+    draft_hold: { tone: "warn", label: "Draft · hold"       },
+    recall:     { tone: "ok",   label: "Send · recall"      },
+    autopilot:  { tone: "ok",   label: "Autopilot"          },
+    approval:   { tone: "warn", label: "Approval"           },
+    semi:       { tone: "info", label: "Suggest"            },  // legacy alias
+    never:      { tone: "risk", label: "Never auto"         },
   };
 
   return (
@@ -192,13 +208,15 @@ function AutopilotScreen({ tweaks }) {
         display:'flex', gap: 36, flexWrap:'wrap',
         paddingBottom: 24, marginBottom: 24, borderBottom:'1px solid var(--hair-soft)',
       }}>
-        <MicroStatBlock value={stats.autopilot} label="autopilot" tone="ok" />
-        <MicroStatBlock value={stats.semi}      label="semi-auto" tone="info" />
-        <MicroStatBlock value={stats.approval}  label="approval"  tone="warn" />
-        <MicroStatBlock value={stats.observe}   label="observe" />
-        <MicroStatBlock value={stats.never}     label="never auto" tone="risk" />
+        {/* 5-tier ladder · top to bottom */}
+        <MicroStatBlock value={stats.autopilot}  label="autopilot"      tone="ok"   />
+        <MicroStatBlock value={stats.recall}     label="send · recall"  tone="ok"   />
+        <MicroStatBlock value={stats.draft_hold} label="draft · hold"   tone="warn" />
+        <MicroStatBlock value={stats.suggest}    label="suggest"        tone="info" />
+        <MicroStatBlock value={stats.approval}   label="approval"       tone="warn" />
+        <MicroStatBlock value={stats.never}      label="never auto"     tone="risk" />
         <span style={{flex:1}} />
-        <MicroStatBlock value={stats.ready}     label="ready" tone="ok" />
+        <MicroStatBlock value={stats.ready}      label="ready"          tone="ok"   />
       </div>
 
       {/* FILTER PILLS — Hick's Law: 5 max */}

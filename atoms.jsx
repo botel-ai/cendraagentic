@@ -13,13 +13,20 @@ function Pill({ tone, dot = true, children, ...rest }) {
   );
 }
 
-function AutonomyPill({ state }) {
+// 5-tier autonomy ladder — Observe / Suggest / Draft-hold-Nmin /
+// Send-with-recall / Autopilot. Replaces the 3-tier (Observe/Semi/Autopilot)
+// model which hid three operational stances inside "Semi".
+// Legacy aliases preserved (semi → suggest, approval → approval).
+function AutonomyPill({ state, hold_min, recall_sec }) {
   const map = {
-    observe:  { tone: "info", label: "Observe" },
-    approval: { tone: "warn", label: "Approval required" },
-    semi:     { tone: "info", label: "Semi-auto" },
-    autopilot:{ tone: "ok",   label: "Autopilot" },
-    never:    { tone: "risk", label: "Never auto" },
+    observe:   { tone: "info", label: "Observe"            },                   // watches only, never drafts
+    suggest:   { tone: "info", label: "Suggest"            },                   // drafts inline, no auto-send
+    draft_hold:{ tone: "warn", label: `Draft · hold ${hold_min || 5}m` },        // drafts and holds for review window
+    recall:    { tone: "ok",   label: `Send · recall ${recall_sec || 60}s` },    // auto-sends with pull-back window
+    autopilot: { tone: "ok",   label: "Autopilot"          },                   // unconstrained
+    approval:  { tone: "warn", label: "Approval required"  },                   // every action gated by PM
+    semi:      { tone: "info", label: "Suggest"            },                   // legacy alias
+    never:     { tone: "risk", label: "Never auto"         },                   // structural floor
   };
   const m = map[state] || map.observe;
   return <Pill tone={m.tone}>{m.label}</Pill>;
