@@ -530,10 +530,15 @@ function CommandBar({ onPalette }) {
 }
 
 // Cendra current activity peek — click the "on watch" indicator to see what
-// Cendra is currently processing. Surfaces drafting / waiting / monitoring counts.
+// Cendra is currently processing AND what Cendra plans to do next.
+// Audit §7 trust gap: "prospective replay — if I step away, here's what Cendra
+// will do" is the move that converts trust into autonomy adoption.
 function CendraStatusPeek() {
   const [open, setOpen] = useState(false);
+  const [forecastOpen, setForecastOpen] = useState(false);
   const status = window.CENDRA_DATA2.cendra_status || {};
+  const plan = window.CENDRA_DATA2.cendra_plan_4h || { items: [], summary: '', auto_count: 0, draft_count: 0, hold_count: 0 };
+
   return (
     <span style={{position:'relative', display:'inline-block'}}>
       <button onClick={() => setOpen(o => !o)} style={{
@@ -550,13 +555,14 @@ function CendraStatusPeek() {
       {open && (
         <div style={{
           position:'absolute', top:'calc(100% + 10px)', right: 0,
-          minWidth: 320,
+          minWidth: 380, maxWidth: 420,
           background:'#ffffff',
           border:'1px solid var(--hair)', borderRadius: 12,
           boxShadow:'0 12px 36px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.06)',
           padding:'14px 16px', zIndex: 50,
           color:'var(--ink)',
         }}>
+          {/* Current state */}
           <div className="mono" style={{fontSize: 10, letterSpacing:'.16em', color:'var(--muted)', marginBottom: 10, textTransform:'uppercase', fontWeight: 600}}>
             Cendra · currently
           </div>
@@ -572,13 +578,104 @@ function CendraStatusPeek() {
               padding:'8px 10px', borderRadius: 8,
               background:'var(--paper-2)', border:'1px solid var(--hair-soft)',
               fontSize: 12, color:'var(--ink-mid)', lineHeight: 1.45,
+              marginBottom: 12,
             }}>
               <span className="mono" style={{fontSize: 9, letterSpacing:'.14em', color:'var(--muted)', marginRight: 6, textTransform:'uppercase'}}>Right now</span>
               {status.last_thinking_event}
             </div>
           )}
+
+          {/* Forward simulation — "if you step away..." */}
+          <div style={{borderTop:'1px solid var(--hair-soft)', paddingTop: 10, marginTop: 4}}>
+            <button onClick={() => setForecastOpen(o => !o)} style={{
+              all:'unset', cursor:'pointer',
+              display:'flex', alignItems:'center', gap: 8, width:'100%',
+            }}>
+              <span className="mono" style={{fontSize: 10, letterSpacing:'.16em', color:'var(--ink)', fontWeight: 700, textTransform:'uppercase'}}>
+                ↻ If you step away · {plan.window_label}
+              </span>
+              <span style={{flex: 1}} />
+              <span className="mono" style={{fontSize: 10, color:'var(--ink-mid)', letterSpacing:'.10em'}}>
+                {forecastOpen ? '↑' : '↓'}
+              </span>
+            </button>
+            <div style={{fontSize: 12, color:'var(--ink-mid)', lineHeight: 1.5, marginTop: 6}}>
+              {plan.summary}
+            </div>
+            {!forecastOpen && (
+              <div style={{display:'flex', gap: 6, marginTop: 8, flexWrap:'wrap'}}>
+                <ForecastChip color="#00A699" label={`${plan.auto_count} auto`} />
+                <ForecastChip color="#FFB400" label={`${plan.draft_count} drafts to review`} />
+                <ForecastChip color="#FF385C" label={`${plan.hold_count} hold for you`} />
+              </div>
+            )}
+            {forecastOpen && (
+              <div style={{
+                marginTop: 10, maxHeight: 280, overflowY: 'auto',
+                border:'1px solid var(--hair-soft)', borderRadius: 8,
+              }}>
+                {plan.items.map((it, i) => {
+                  const c = it.mode === 'auto' ? '#00A699' : it.mode === 'draft' ? '#FFB400' : '#FF385C';
+                  return (
+                    <div key={it.id} style={{
+                      padding:'8px 10px',
+                      borderBottom: i < plan.items.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+                    }}>
+                      <div style={{display:'flex', alignItems:'baseline', gap: 8, marginBottom: 2}}>
+                        <span className="mono" style={{fontSize: 9.5, color:'var(--muted)', letterSpacing:'.04em', minWidth: 38}}>{it.time}</span>
+                        <span className="mono" style={{fontSize: 9, letterSpacing:'.10em', color: c, fontWeight: 700, textTransform:'uppercase'}}>
+                          ● {it.mode} · {it.tier}
+                        </span>
+                        <span style={{flex: 1}} />
+                        <span className="mono" style={{fontSize: 9, color:'var(--muted-2)', letterSpacing:'.04em'}}>{it.property}</span>
+                      </div>
+                      <div style={{fontSize: 11.5, color:'var(--ink)', lineHeight: 1.4}}>{it.action}</div>
+                      {it.reason && (
+                        <div style={{fontSize: 10.5, color:'var(--muted)', lineHeight: 1.45, marginTop: 2, fontStyle:'italic'}}>{it.reason}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{display:'flex', gap: 6, marginTop: 10, alignItems:'center'}}>
+              <button style={{
+                all:'unset', cursor:'pointer',
+                padding:'6px 12px', borderRadius: 8,
+                background:'var(--ink)', color:'#ffffff',
+                fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.08em',
+                fontWeight: 700, textTransform:'uppercase',
+              }}>
+                Looks good · step away →
+              </button>
+              <button style={{
+                all:'unset', cursor:'pointer',
+                padding:'6px 12px', borderRadius: 8,
+                color:'var(--ink-mid)', border:'1px solid var(--hair)',
+                fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.08em',
+                fontWeight: 600, textTransform:'uppercase',
+              }}>
+                Tighter mode
+              </button>
+            </div>
+          </div>
         </div>
       )}
+    </span>
+  );
+}
+
+function ForecastChip({ color, label }) {
+  return (
+    <span style={{
+      display:'inline-flex', alignItems:'center', gap: 5,
+      padding:'2px 8px', borderRadius: 999,
+      background: `${color}14`, border: `1px solid ${color}30`,
+      fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.06em',
+      color, fontWeight: 600, textTransform:'uppercase',
+    }}>
+      <span style={{width: 5, height: 5, borderRadius: 999, background: color}} />
+      {label}
     </span>
   );
 }

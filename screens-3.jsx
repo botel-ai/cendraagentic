@@ -148,6 +148,9 @@ function PropertiesScreen({ onOpen }) {
         <MicroStatBlock2 value={totalStale} label="stale (>60d)" tone={totalStale > 0 ? "warn" : "ok"} />
       </div>
 
+      {/* OWNERS PULSE — stakeholders, not labels */}
+      <OwnersPulseStrip owners={D3.owners_pulse || []} />
+
       {/* KNOWLEDGE SOURCES STRIP — portfolio sources Cendra has ingested */}
       <KnowledgeSourcesStrip
         sources={D3.knowledge_sources.portfolio}
@@ -237,6 +240,92 @@ function PropertiesScreen({ onOpen }) {
 }
 
 // Portfolio knowledge sources strip — horizontal carousel of latest imports
+// OwnersPulseStrip — surfaces owners as stakeholders.
+// Audit §6: "Owner is a stakeholder, not a label." Per-owner response time +
+// open approvals + sentiment + last interaction. Trust-of-trust signal.
+function OwnersPulseStrip({ owners }) {
+  if (!owners.length) return null;
+  const needsAttention = owners.filter(o => o.health === 'needs_attention' || o.health === 'at_risk');
+  return (
+    <div style={{marginBottom: 32}}>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing:'.18em', color:'var(--muted)',
+        marginBottom: 12, fontWeight: 500, display:'flex', alignItems:'center', gap: 10,
+      }}>
+        <span>OWNERS · PULSE</span>
+        {needsAttention.length > 0 && (
+          <span className="mono" style={{fontSize: 9.5, letterSpacing:'.12em', color:'var(--warn)', fontWeight: 700}}>
+            · {needsAttention.length} NEED{needsAttention.length === 1 ? 'S' : ''} WARMTH
+          </span>
+        )}
+        <span style={{flex: 1}} />
+        <span className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.06em'}}>
+          {owners.reduce((s, o) => s + o.open_approvals, 0)} open approvals across {owners.length} owners
+        </span>
+      </div>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap: 10}}>
+        {owners.map(o => {
+          const c = o.health === 'at_risk' ? 'var(--risk)' : o.health === 'needs_attention' ? 'var(--warn)' : 'var(--ok)';
+          const sTone = o.sentiment_30d === 'warm' ? 'var(--ok)' : o.sentiment_30d === 'concerned' ? 'var(--warn)' : o.sentiment_30d === 'tense' ? 'var(--risk)' : 'var(--ink-mid)';
+          const responseSlower = o.avg_response_min > o.typical_response_min;
+          return (
+            <div key={o.id} style={{
+              padding:'12px 14px', borderRadius: 10,
+              background:'#ffffff', border:'1px solid var(--hair)',
+              borderLeft: `3px solid ${c}`,
+            }}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 4}}>
+                <div>
+                  <div style={{fontSize: 13.5, fontWeight: 600, color:'var(--ink)'}}>{o.name}</div>
+                  {o.primary_contact !== '—' && (
+                    <div className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.04em', marginTop: 2}}>
+                      {o.primary_contact}
+                    </div>
+                  )}
+                </div>
+                <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.06em'}}>{o.properties}p</span>
+              </div>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap: 6, marginTop: 8, marginBottom: 8}}>
+                <div>
+                  <div className="mono" style={{fontSize: 9, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase'}}>Response</div>
+                  <div className="mono" style={{fontSize: 11.5, color: responseSlower ? 'var(--warn)' : 'var(--ink)', fontVariantNumeric:'tabular-nums', fontWeight: 600, marginTop: 2}}>
+                    {o.avg_response_min < 60 ? `${o.avg_response_min}m` : `${(o.avg_response_min/60).toFixed(1)}h`}
+                    {responseSlower && <span style={{fontSize: 9, color:'var(--muted)', marginLeft: 4, fontWeight: 400}}>↑</span>}
+                  </div>
+                </div>
+                <div>
+                  <div className="mono" style={{fontSize: 9, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase'}}>Sentiment</div>
+                  <div className="mono" style={{fontSize: 11.5, color: sTone, fontWeight: 600, marginTop: 2, textTransform:'capitalize'}}>
+                    {o.sentiment_30d}
+                  </div>
+                </div>
+              </div>
+              {o.open_approvals > 0 && (
+                <div className="mono" style={{
+                  fontSize: 10, letterSpacing:'.06em', color: c, fontWeight: 600,
+                  padding:'3px 7px', borderRadius: 4,
+                  background: `${c}14`, border: `1px solid ${c}30`,
+                  display:'inline-block', marginBottom: 8, textTransform:'uppercase',
+                }}>
+                  {o.open_approvals} open approval{o.open_approvals === 1 ? '' : 's'}
+                </div>
+              )}
+              <div style={{fontSize: 11.5, color:'var(--ink-mid)', lineHeight: 1.45}}>
+                {o.note}
+              </div>
+              {o.last_interaction !== '—' && (
+                <div className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.04em', marginTop: 6, textTransform:'uppercase'}}>
+                  Last · {o.last_interaction}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function KnowledgeSourcesStrip({ sources, onAdd }) {
   const top = (sources || []).slice(0, 3);
   return (
