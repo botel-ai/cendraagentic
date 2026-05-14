@@ -1324,6 +1324,84 @@ function DailyBrainReport({ onOpen }) {
   );
 }
 
+// CleaningScheduleStrip — today's cleaning queue with gap-to-next overlay.
+// Audit §6 closeout: housekeeping coordination as a first-class operational
+// surface. Each row makes the cleaner→property→next-guest dependency visible.
+function CleaningScheduleStrip({ data }) {
+  if (!data) return null;
+  const tight = data.items.filter(i => i.risk === 'warn' || i.risk === 'risk').length;
+  return (
+    <div style={{marginBottom: 28}}>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing:'.18em', color:'var(--muted)',
+        marginBottom: 12, fontWeight: 500, display:'flex', alignItems:'center', gap: 10,
+      }}>
+        <span>CLEANING SCHEDULE · {data.date_label.toUpperCase()}</span>
+        {tight > 0 && (
+          <span className="mono" style={{fontSize: 9.5, letterSpacing:'.12em', color:'var(--warn)', fontWeight: 700}}>
+            · {tight} TIGHT
+          </span>
+        )}
+        <span style={{flex: 1}} />
+        <span className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.06em'}}>
+          Same-day turnovers · cleaner ETA → next-guest ETA
+        </span>
+      </div>
+      <div className="dcard" style={{padding: 0, overflow:'hidden'}}>
+        {data.items.map((it, i) => {
+          const c = it.risk === 'risk' ? 'var(--risk)' : it.risk === 'warn' ? 'var(--warn)' : 'var(--ok)';
+          const statusLabel = {
+            in_progress:  { color:'#FFB400', label:'IN PROGRESS' },
+            overdue:      { color:'#FF385C', label:'OVERDUE'     },
+            queued:       { color:'#5E6AD2', label:'QUEUED'      },
+            done_earlier: { color:'#9CA3AF', label:'DONE EARLIER'},
+          }[it.status] || { color:'var(--ink)', label: it.status.toUpperCase() };
+          return (
+            <div key={it.id} style={{
+              display:'grid', gridTemplateColumns: '8px 150px 1fr 130px 140px 90px',
+              gap: 14, padding:'12px 22px', alignItems:'center',
+              borderBottom: i < data.items.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+              background: it.status === 'overdue' ? 'rgba(255,56,92,.04)' : '#ffffff',
+            }}>
+              <span style={{width: 8, height: 8, borderRadius:999, background: c}} />
+              <div>
+                <div style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 500}}>{it.cleaner}</div>
+                <div className="mono" style={{fontSize: 9.5, color:'var(--muted)', letterSpacing:'.06em', marginTop: 2, textTransform:'uppercase'}}>{it.property}</div>
+              </div>
+              <div style={{fontSize: 11.5, color:'var(--ink-mid)', lineHeight: 1.45}}>
+                {it.note}
+              </div>
+              <div className="mono" style={{fontSize: 11, color:'var(--ink-mid)', letterSpacing:'.04em'}}>
+                {it.start === '—' ? (
+                  <span style={{color:'var(--muted-2)'}}>—</span>
+                ) : (
+                  <><b style={{color:'var(--ink)'}}>{it.start}</b> → {it.end}
+                    <div style={{fontSize: 10, color:'var(--muted)', marginTop: 2}}>{it.duration_min}m clean</div>
+                  </>
+                )}
+              </div>
+              <div className="mono" style={{fontSize: 10.5, color:'var(--ink-mid)', letterSpacing:'.04em'}}>
+                <div style={{color:'var(--muted)'}}>NEXT</div>
+                <div style={{fontSize: 11.5, color:'var(--ink)', marginTop: 1}}>{it.next_eta}</div>
+                {it.gap_min > 0 && it.gap_min < 1440 && (
+                  <div className="mono" style={{fontSize: 9.5, color: c, marginTop: 1, letterSpacing:'.04em'}}>
+                    {it.gap_min < 60 ? `${it.gap_min}m gap` : `${(it.gap_min/60).toFixed(1)}h gap`}
+                  </div>
+                )}
+              </div>
+              <span style={{
+                fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.10em',
+                color: statusLabel.color, fontWeight: 700, textTransform:'uppercase',
+                textAlign:'right',
+              }}>● {statusLabel.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // VendorsScreen — vendors as first-class operational citizens.
 // Audit §6: vendors have queues, ETAs, completion times. They exist only
 // inside Stay Detail's threads today; this is the top-level slice.
@@ -1386,6 +1464,9 @@ function VendorsScreen({ onOpen }) {
           }
         </p>
       </div>
+
+      {/* CLEANING SCHEDULE — today's queue, audit §6 closeout */}
+      <CleaningScheduleStrip data={window.CENDRA_DATA2.cleaning_schedule} />
 
       {/* Filter pills */}
       <div style={{display:'flex', gap: 8, flexWrap:'wrap', marginBottom: 20}}>

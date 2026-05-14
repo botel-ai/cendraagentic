@@ -223,6 +223,20 @@ window.CENDRA_DATA2 = {
     },
   ],
 
+  // Cleaning schedule · today's queue with cleaner → property → next-guest overlay
+  // Audit §6: "No cleaner / housekeeping coordination surface."
+  cleaning_schedule: {
+    date_label: "Today · Thursday",
+    items: [
+      { id: "cs1", cleaner: "Marta Costa",         property: "Karaköy · Apt 12",    start: "13:00", end: "14:30", duration_min: 90,  next_eta: "Devansh · 17:00", gap_min: 150, risk: "low",  status: "in_progress", note: "Same-day turnover from Lukas · 2.5h slack to Devansh" },
+      { id: "cs2", cleaner: "Bosphorus Cleaners",  property: "Bosphorus Loft",      start: "11:00", end: "12:30", duration_min: 90,  next_eta: "Next stay tomorrow", gap_min: 1440, risk: "risk", status: "overdue",     note: "Cleaner ETA missed · 32m late · plumber on site delaying" },
+      { id: "cs3", cleaner: "Marta Costa",         property: "Karaköy · Apt 9",     start: "15:00", end: "16:00", duration_min: 60,  next_eta: "No same-day guest", gap_min: 1440, risk: "low",  status: "queued",       note: "Standard freshen-up · no incoming guest" },
+      { id: "cs4", cleaner: "Galata Maintenance",  property: "Galata 3",            start: "12:30", end: "14:00", duration_min: 90,  next_eta: "Next stay 15:00",   gap_min: 60,   risk: "warn", status: "queued",       note: "AC verify + standard clean · 60m to next arrival · tight" },
+      { id: "cs5", cleaner: "Studio Galata staff", property: "Studio Galata",       start: "13:30", end: "14:30", duration_min: 60,  next_eta: "Nora · 16:00",     gap_min: 90,   risk: "low",  status: "queued",       note: "Single check-out · standard clean" },
+      { id: "cs6", cleaner: "Beşiktaş cleaning",   property: "Beşiktaş 7",          start: "—",      end: "—",     duration_min: 0,   next_eta: "Hana · 18:30",     gap_min: 0,    risk: "ok",   status: "done_earlier", note: "Already cleaned 2d ago · code releases 16:30" },
+    ],
+  },
+
   // Vendors · first-class operational actors. Audit §6 — vendors are buried
   // inside Stay Detail's threads; should be a top-level slice.
   vendors: [
@@ -1774,6 +1788,17 @@ window.CENDRA_DATA2 = {
           { label: "Upsell fit", value: "Late checkout · 67% accept", tone: "ok" },
         ],
         cards: [
+          {
+            type: "noise_complaint",
+            severity: "major",
+            from: "Mrs. Aksoy · 3F neighbor",
+            time: "Last night · 23:42",
+            complaint: "Loud music and voices from Apt 4 past 23:30. Third time this week. I'll call the building manager next time.",
+            context: "Marc has stayed 5 times before with zero complaints. Quiet hours rule: 23:00-08:00. The neighbor is in a different unit (3F, Marc is ground floor + garden). Cendra confirmed the music was below normal volume from the property's sound sensor (only available in this unit).",
+            proposed_action: "Send a soft acknowledgment to Mrs. Aksoy, plus a friendly quiet-hours nudge to Marc framed as building rule, not complaint. Avoid implying he was reported.",
+            escalation_path: "If continues → building manager → check-out review · last resort hold security deposit",
+            options: ["Send both messages", "Soften nudge to Marc", "Page on-call · Henrik", "Mark as misattributed"],
+          },
           {
             type: "upsell",
             offer: "Late checkout · €25",

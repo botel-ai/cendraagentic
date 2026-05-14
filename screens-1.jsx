@@ -1351,12 +1351,17 @@ function WorkDetailScreen({ onOpen, tweaks }) {
         </div>
       )}
 
-      <div style={{
-        display:'grid',
-        gridTemplateColumns: panelOpen ? 'minmax(0, 1fr) 280px' : '1fr',
-        gap: 40,
-        alignItems:'start',
-      }}>
+      <div
+        key={`stay-${idx}`}
+        style={{
+          display:'grid',
+          gridTemplateColumns: panelOpen ? 'minmax(0, 1fr) 280px' : '1fr',
+          gap: 40,
+          alignItems:'start',
+          animation: 'stayNavSlide 220ms cubic-bezier(.32, 0, .67, 0)',
+        }}
+      >
+        <style>{`@keyframes stayNavSlide { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
         {/* MAIN COLUMN */}
         <div style={{minWidth: 0}}>
           <GuestJourneyHeader g={g} />
@@ -2225,6 +2230,7 @@ function GenerativeCard({ card, guest }) {
     case "promise":         return <PromiseCard card={card} guest={guest} />;
     case "dependency":      return <DependencyCard card={card} />;
     case "abstention":      return <AbstentionCard card={card} guest={guest} />;
+    case "noise_complaint": return <NoiseComplaintCard card={card} guest={guest} />;
     default:                return null;
   }
 }
@@ -2696,6 +2702,66 @@ function AbstentionCard({ card, guest }) {
           )}
           <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
             {(card.options || ['You decide', 'Snooze · ask later', 'Tell Cendra what to do']).map((o, i) => (
+              <Btn key={o} kind={i === 0 ? 'primary' : 'default'} size="sm">{o}</Btn>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// NoiseComplaintCard — neighbor escalation. Audit §8: "No noise complaint /
+// neighbor escalation surface. Real buildings have super-irritated neighbors."
+function NoiseComplaintCard({ card, guest }) {
+  const sevColor = card.severity === 'critical' ? '#FF385C'
+                : card.severity === 'major'    ? '#FFB400'
+                :                                 '#5E6AD2';
+  return (
+    <div className="dcard" style={{padding: 0, overflow:'hidden'}}>
+      <div style={{display:'grid', gridTemplateColumns:'4px 1fr'}}>
+        <div style={{background: sevColor}} />
+        <div style={{padding: '18px 20px'}}>
+          <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 10}}>
+            <span style={{
+              fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.14em',
+              color: sevColor, fontWeight: 700, textTransform:'uppercase',
+            }}>
+              Noise complaint · {card.severity}
+            </span>
+            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
+            <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.10em', textTransform:'uppercase'}}>
+              {card.from.toUpperCase()} · {card.time}
+            </span>
+            <span style={{flex: 1}} />
+            <span className="mono" style={{fontSize: 10, color:'var(--muted-2)', letterSpacing:'.06em'}}>
+              Audit-trail logged
+            </span>
+          </div>
+          <p style={{fontFamily:'var(--serif)', fontSize: 18, lineHeight: 1.4, margin:'0 0 12px', color:'var(--ink)', maxWidth: 620}}>
+            "{card.complaint}"
+          </p>
+          <div style={{fontSize: 12.5, color:'var(--ink-mid)', lineHeight: 1.55, marginBottom: 12}}>
+            <span className="mono" style={{fontSize:10, letterSpacing:'.14em', color:'var(--ink)', marginRight: 6, textTransform:'uppercase'}}>Context</span>
+            {card.context}
+          </div>
+          {card.proposed_action && (
+            <div style={{
+              padding:'10px 14px', borderRadius: 8,
+              background:'var(--paper-2)', border:'1px solid var(--hair-soft)',
+              fontSize: 12.5, color:'var(--ink)', lineHeight: 1.55, marginBottom: 14,
+            }}>
+              <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginRight: 6}}>Cendra suggests</span>
+              {card.proposed_action}
+            </div>
+          )}
+          {card.escalation_path && (
+            <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', marginBottom: 14, textTransform:'uppercase'}}>
+              Escalation path · {card.escalation_path}
+            </div>
+          )}
+          <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
+            {(card.options || ['Send proposed reply', 'Visit the property', 'Page on-call']).map((o, i) => (
               <Btn key={o} kind={i === 0 ? 'primary' : 'default'} size="sm">{o}</Btn>
             ))}
           </div>
