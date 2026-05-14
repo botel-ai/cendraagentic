@@ -21,14 +21,19 @@ function TodayScreen({ onOpen, tweaks }) {
   const stream = DP.activity_stream;
   const hero = DP.today_sections.needs_decision[0];
 
+  // Audit §11: when the operation reaches a calm state, the page should
+  // actively breathe instead of just being empty. Preview toggle for demo.
+  const [calmPreview, setCalmPreview] = useState(false);
+  const isCalm = calmPreview || s.needs_you === 0;
+
   const openItem = (route, arg) => {
     if (!route) return;
     if (route.includes(":")) { const [n,a] = route.split(":"); onOpen(n, a); } else onOpen(route, arg);
   };
 
-  // Cendra's voice — replace "37 things waiting" with a serif paragraph
-  const overnightLine = s.needs_you === 0
-    ? <>Calm so far. Cendra handled <b style={{color:'var(--ink)'}}>{s.actions_total.toLocaleString()}</b> things overnight · zero incidents · nothing waiting on you.</>
+  // Cendra's voice — adapts to the operation's tense
+  const overnightLine = isCalm
+    ? <>The portfolio is steady. Cendra handled <b style={{color:'var(--ink)'}}>{s.actions_total.toLocaleString()}</b> things since you last checked — zero incidents, nothing waiting on you. The next four hours are scheduled and unremarkable.</>
     : <>Cendra handled <b style={{color:'var(--ink)'}}>{s.actions_total.toLocaleString()}</b> things overnight. <b style={{color:'var(--ink)'}}>{s.needs_you}</b> want your judgment, <b style={{color:'var(--ink)'}}>{DP.today_sections.risk_sla.length}</b> are at risk, <b style={{color:'var(--ink)'}}>{DP.today_sections.revenue.length}</b> are revenue. Start with the {hero ? hero.title.split('·')[0].trim().toLowerCase() : 'leak'} — {hero?.sub?.toLowerCase()}.</>;
 
   return (
@@ -42,9 +47,17 @@ function TodayScreen({ onOpen, tweaks }) {
         <span>{dateStr}</span>
         <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
         <span>{now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} · LOCAL</span>
+        <span style={{flex: 1}} />
+        <button onClick={() => setCalmPreview(c => !c)} style={{
+          all:'unset', cursor:'pointer',
+          fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.12em',
+          color: isCalm ? 'var(--ok)' : 'var(--muted-2)', fontWeight: 600, textTransform:'uppercase',
+          padding:'3px 8px', borderRadius: 4,
+          border:'1px solid ' + (isCalm ? 'rgba(0,138,5,.30)' : 'var(--hair)'),
+        }}>{calmPreview ? '◐ Calm preview · on' : '○ Preview calm hour'}</button>
       </div>
 
-      {/* HERO — Cendra speaks (continuous-present voice) */}
+      {/* HERO — Cendra speaks (continuous-present voice; quieter in calm state) */}
       <div style={{marginBottom: 40}}>
         <h1 className="serif-display" style={{
           fontSize: 52, lineHeight: 1.04, margin: 0,
@@ -61,11 +74,18 @@ function TodayScreen({ onOpen, tweaks }) {
         </p>
       </div>
 
-      {/* THREE TIME-TENSE LANES — Mission Control core */}
-      <TimeTenseLanes pulse={pulse} onItem={openItem} hero={hero} />
+      {/* CALM CELEBRATION — when calm state, render a breathing band instead of lanes */}
+      {isCalm ? (
+        <CalmCelebrationBand onPreviewOff={() => setCalmPreview(false)} />
+      ) : (
+        <>
+          {/* THREE TIME-TENSE LANES — Mission Control core */}
+          <TimeTenseLanes pulse={pulse} onItem={openItem} hero={hero} />
 
-      {/* REGION CLUSTER STRIP — portfolio at-glance */}
-      <RegionClusterStrip clusters={clusters} onOpen={onOpen} />
+          {/* REGION CLUSTER STRIP — portfolio at-glance */}
+          <RegionClusterStrip clusters={clusters} onOpen={onOpen} />
+        </>
+      )}
 
       {/* OPEN FULL BACKLOG link — Today doesn't carry digests anymore */}
       <div style={{
@@ -101,6 +121,90 @@ function TodayScreen({ onOpen, tweaks }) {
 }
 
 // HERO priority card — single big Fitts-friendly action
+// CalmCelebrationBand — when the portfolio is steady, the page breathes.
+// Audit §11: "Today's 'no incidents' line is buried; in a calm hour the page
+// should feel actively quiet, not empty."
+function CalmCelebrationBand({ onPreviewOff }) {
+  return (
+    <div style={{
+      marginBottom: 32,
+      padding:'48px 56px',
+      borderRadius: 18,
+      background:'linear-gradient(180deg, #FAFAF7 0%, #F4F6F2 100%)',
+      border:'1px solid #E6EBE3',
+      position:'relative',
+      overflow:'hidden',
+    }}>
+      {/* Soft breathing dot */}
+      <div style={{
+        position:'absolute', top: 24, right: 24,
+        display:'inline-flex', alignItems:'center', gap: 8,
+      }}>
+        <span style={{
+          width: 10, height: 10, borderRadius:999, background:'#00A699',
+          animation:'calmBreathe 5s ease-in-out infinite',
+        }} />
+        <style>{`@keyframes calmBreathe { 0%, 100% { opacity: .5; transform: scale(1); } 50% { opacity: 1; transform: scale(1.4); } }`}</style>
+        <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'#00867E', fontWeight: 600, textTransform:'uppercase'}}>
+          Cendra has the watch
+        </span>
+      </div>
+
+      <div style={{maxWidth: 720}}>
+        <h2 className="serif-display" style={{
+          fontSize: 36, lineHeight: 1.12, margin: 0, color:'var(--ink)',
+          letterSpacing:'-.018em',
+          fontVariationSettings: '"opsz" 96, "SOFT" 80, "WONK" 0',
+        }}>
+          Everyone is where they should be.
+        </h2>
+        <p style={{
+          margin: '14px 0 0', fontSize: 16, lineHeight: 1.55,
+          color:'var(--ink-mid)', fontFamily:'var(--serif)',
+          fontVariationSettings: '"opsz" 32, "SOFT" 30, "WONK" 0',
+          fontStyle:'italic',
+        }}>
+          Cleaners finished. Vendors confirmed. Guests are responsive. Cendra is monitoring 31 active conversations and will page you if anything wobbles. Take a real break.
+        </p>
+        <div style={{display:'flex', gap: 24, marginTop: 28, flexWrap:'wrap'}}>
+          <CalmStat label="incidents · 30d" value="0" />
+          <CalmStat label="promises at risk" value="0" />
+          <CalmStat label="approvals waiting" value="0" />
+          <CalmStat label="vendors overdue" value="0" />
+        </div>
+        {onPreviewOff && (
+          <button onClick={onPreviewOff} style={{
+            all:'unset', cursor:'pointer',
+            marginTop: 24,
+            fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.12em',
+            color:'var(--muted)', fontWeight: 600, textTransform:'uppercase',
+            padding:'5px 10px', borderRadius: 6,
+            border:'1px solid var(--hair)',
+            background:'#ffffff',
+          }}>
+            ← Return to active view
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CalmStat({ label, value }) {
+  return (
+    <div>
+      <div style={{
+        fontFamily:'var(--serif)', fontSize: 32, fontWeight: 400,
+        color:'#00867E', letterSpacing:'-.015em', lineHeight: 1,
+      }}>{value}</div>
+      <div className="mono" style={{
+        fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)',
+        textTransform:'uppercase', marginTop: 6, fontWeight: 500,
+      }}>{label}</div>
+    </div>
+  );
+}
+
 // ─── TimeTenseLanes — three lanes of continuous-present operations ─
 // Just happened (last 4h Cendra closures) · Live in flight (right now) · Coming up (next 4h)
 function TimeTenseLanes({ pulse, onItem, hero }) {

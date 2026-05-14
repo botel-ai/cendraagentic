@@ -343,12 +343,12 @@ window.CENDRA_DATA2 = {
     at_risk_6h: 4,
     breached: 1,
     items: [
-      { id: "p1", to: "Selin Demir",     property: "Bosphorus Loft", channel: "WhatsApp",   commitment: "Plumber on site within the hour, follow up when fixed",      due_in_min: 26,   tone: "warn"  },
-      { id: "p2", to: "Lukas Berger",    property: "Karaköy · Apt 12", channel: "Airbnb",   commitment: "Confirm whether early check-in is possible before 10:30",   due_in_min: 48,   tone: "warn"  },
-      { id: "p3", to: "Thomas Geier",    property: "Galata 3",        channel: "Booking.com",commitment: "Resolution on €120 refund before checkout 11:00",          due_in_min: -94,  tone: "risk"  },
-      { id: "p4", to: "Nora Reinhardt",  property: "Studio Galata",   channel: "Airbnb",    commitment: "Confirm whether parking is available before arrival 16:00", due_in_min: 215,  tone: "info"  },
-      { id: "p5", to: "Marc Henderson",  property: "Cihangir House",  channel: "Direct",    commitment: "Quiet-floor request — will confirm at check-in",            due_in_min: 360,  tone: "info"  },
-      { id: "p6", to: "Hana Park",       property: "Beşiktaş 7",      channel: "Direct",    commitment: "Access code will arrive 2 hours before your check-in",      due_in_min: 90,   tone: "warn"  },
+      { id: "p1", stay_id: "jh_selin",   to: "Selin Demir",     property: "Bosphorus Loft", channel: "WhatsApp",   commitment: "Plumber on site within the hour, follow up when fixed",      due_in_min: 26,   tone: "warn"  },
+      { id: "p2", stay_id: "ji_lukas",   to: "Lukas Berger",    property: "Karaköy · Apt 12", channel: "Airbnb",   commitment: "Confirm whether early check-in is possible before 10:30",   due_in_min: 48,   tone: "warn"  },
+      { id: "p3", stay_id: "jo_thomas",  to: "Thomas Geier",    property: "Galata 3",        channel: "Booking.com",commitment: "Resolution on €120 refund before checkout 11:00",          due_in_min: -94,  tone: "risk"  },
+      { id: "p4", stay_id: "ji_nora",    to: "Nora Reinhardt",  property: "Studio Galata",   channel: "Airbnb",    commitment: "Confirm whether parking is available before arrival 16:00", due_in_min: 215,  tone: "info"  },
+      { id: "p5", stay_id: "jh_marc",    to: "Marc Henderson",  property: "Cihangir House",  channel: "Direct",    commitment: "Quiet-floor request — will confirm at check-in",            due_in_min: 360,  tone: "info"  },
+      { id: "p6", stay_id: "ji_hana",    to: "Hana Park",       property: "Beşiktaş 7",      channel: "Direct",    commitment: "Access code will arrive 2 hours before your check-in",      due_in_min: 90,   tone: "warn"  },
     ],
   },
 

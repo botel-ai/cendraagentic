@@ -277,13 +277,13 @@ window.CENDRA_DATA = {
 
   // Audit trail
   audit: [
-    { id: "au1", time: "Today · 07:42:08", actor: "Cendra", action: "Auto-send", target: "Wi-Fi reply to Lukas Berger", workflow: "info_reply", source: "rule:property-fact", reversible: "green", incident: false },
-    { id: "au2", time: "Today · 06:10:22", actor: "Cendra", action: "Stop & escalate", target: "Damage claim — Bosphorus Loft", workflow: "damage_claim", source: "autonomy:never_auto", reversible: "—", incident: false },
-    { id: "au3", time: "Today · 06:38:14", actor: "Maya Lindqvist", action: "Approve (with edit)", target: "Stay extension offer to Devansh K.", workflow: "extension_offer", source: "approval-card #ax-9921", reversible: "amber", incident: false },
-    { id: "au4", time: "Yest. · 23:14:00", actor: "Cendra", action: "Promote", target: "Wi-Fi & access info → Autopilot", workflow: "promotion_gate", source: "trust-meter", reversible: "—", incident: false },
-    { id: "au5", time: "Yest. · 21:02:55", actor: "Maya Lindqvist", action: "Publish rule", target: "Never promise early check-in if cleaning unconfirmed", workflow: "rule_publish", source: "playbook:check-in", reversible: "green", incident: false },
-    { id: "au6", time: "Yest. · 14:55:02", actor: "Cendra", action: "Vendor dispatch", target: "Plumber to Bosphorus Loft", workflow: "vendor_dispatch", source: "approval-card #ax-9899", reversible: "amber", incident: false },
-    { id: "au7", time: "2d ago · 18:31:40", actor: "Cendra", action: "Pause workflow", target: "Late checkout offer paused for 24h", workflow: "self_demote", source: "incident:price_mismatch", reversible: "—", incident: true },
+    { id: "au1", time: "Today · 07:42:08", actor: "Cendra", action: "Auto-send", target: "Wi-Fi reply to Lukas Berger", workflow: "info_reply", source: "rule:property-fact", reversible: "green", incident: false, stay_id: "ji_lukas", stay_label: "Lukas · Karaköy 12" },
+    { id: "au2", time: "Today · 06:10:22", actor: "Cendra", action: "Stop & escalate", target: "Damage claim — Bosphorus Loft", workflow: "damage_claim", source: "autonomy:never_auto", reversible: "—", incident: false, stay_id: "ji_aiyana", stay_label: "Aiyana · Bosphorus Loft" },
+    { id: "au3", time: "Today · 06:38:14", actor: "Maya Lindqvist", action: "Approve (with edit)", target: "Stay extension offer to Devansh K.", workflow: "extension_offer", source: "approval-card #ax-9921", reversible: "amber", incident: false, stay_id: "ji_devansh", stay_label: "Devansh · Karaköy 12" },
+    { id: "au4", time: "Yest. · 23:14:00", actor: "Cendra", action: "Promote", target: "Wi-Fi & access info → Autopilot", workflow: "promotion_gate", source: "trust-meter", reversible: "—", incident: false, stay_id: null, stay_label: null },
+    { id: "au5", time: "Yest. · 21:02:55", actor: "Maya Lindqvist", action: "Publish rule", target: "Never promise early check-in if cleaning unconfirmed", workflow: "rule_publish", source: "playbook:check-in", reversible: "green", incident: false, stay_id: null, stay_label: null },
+    { id: "au6", time: "Yest. · 14:55:02", actor: "Cendra", action: "Vendor dispatch", target: "Plumber to Bosphorus Loft", workflow: "vendor_dispatch", source: "approval-card #ax-9899", reversible: "amber", incident: false, stay_id: "jh_selin", stay_label: "Selin · Bosphorus Loft" },
+    { id: "au7", time: "2d ago · 18:31:40", actor: "Cendra", action: "Pause workflow", target: "Late checkout offer paused for 24h", workflow: "self_demote", source: "incident:price_mismatch", reversible: "—", incident: true, stay_id: null, stay_label: null },
   ],
 
   // Activity heartbeat for command bar / today widgets

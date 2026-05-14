@@ -1402,7 +1402,20 @@ function AuditTrailPanel() {
     { id: "people",    label: "By people",  test: a => a.actor !== "Cendra" },
     { id: "reversible",label: "Reversible", test: a => a.reversible === "green" || a.reversible === "amber" },
   ];
-  const shown = D2.audit.filter(filterDefs.find(f => f.id === filter).test);
+  // Stay-axis filter — derive distinct stays from audit entries with stay_id.
+  // Audit §15: "Audit log should be filterable by stay."
+  const stayChoices = useMemo(() => {
+    const seen = new Map();
+    D2.audit.forEach(a => {
+      if (a.stay_id && a.stay_label && !seen.has(a.stay_id)) seen.set(a.stay_id, a.stay_label);
+    });
+    return Array.from(seen.entries()).map(([id, label]) => ({ id, label }));
+  }, []);
+  // filter could be a top-level id from filterDefs OR a "stay:<id>" filter.
+  const stayFilterId = filter.startsWith("stay:") ? filter.slice(5) : null;
+  const shown = stayFilterId
+    ? D2.audit.filter(a => a.stay_id === stayFilterId)
+    : D2.audit.filter(filterDefs.find(f => f.id === filter)?.test || (() => true));
 
   return (
     <div>
@@ -1420,8 +1433,8 @@ function AuditTrailPanel() {
       </div>
 
       {/* FILTER BAR */}
-      <div style={{paddingTop: 8, paddingBottom: 16, marginBottom: 4}}>
-        <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
+      <div style={{paddingTop: 8, paddingBottom: 4, marginBottom: 4}}>
+        <div style={{display:'flex', gap: 8, flexWrap:'wrap', alignItems:'center'}}>
           {filterDefs.map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)} style={{
               all:'unset', cursor:'pointer',
@@ -1439,6 +1452,30 @@ function AuditTrailPanel() {
           ))}
         </div>
       </div>
+      {/* STAY-AXIS FILTER ROW */}
+      {stayChoices.length > 0 && (
+        <div style={{display:'flex', gap: 6, flexWrap:'wrap', alignItems:'center', paddingBottom: 16}}>
+          <span className="mono" style={{fontSize: 9.5, letterSpacing:'.16em', color:'var(--muted)', fontWeight: 600, textTransform:'uppercase', marginRight: 4}}>By stay</span>
+          {stayChoices.map(s => {
+            const active = stayFilterId === s.id;
+            return (
+              <button key={s.id} onClick={() => setFilter(active ? "all" : `stay:${s.id}`)} style={{
+                all:'unset', cursor:'pointer',
+                padding:'4px 10px', borderRadius: 999,
+                border:'1px solid ' + (active ? 'var(--ink)' : 'var(--hair)'),
+                background: active ? 'var(--ink)' : '#ffffff',
+                color: active ? '#ffffff' : 'var(--ink-mid)',
+                fontSize: 11, fontWeight: 500, fontFamily: 'var(--sans)',
+              }}>
+                {s.label}
+                <span style={{marginLeft: 6, opacity: active ? .7 : .5, fontFamily:'var(--mono)', fontSize: 10}}>
+                  {D2.audit.filter(a => a.stay_id === s.id).length}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* SINGLE-LINE ROWS · click to expand */}
       <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
