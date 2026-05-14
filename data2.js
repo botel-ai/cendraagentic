@@ -352,6 +352,108 @@ window.CENDRA_DATA2 = {
     ],
   },
 
+  // Check-in window timeline · next 90 minutes
+  // Audit §8: PMs live by 14:30-15:30 windows. Visualize cleaner ETA +
+  // guest ETA overlay so tight collisions are pre-empted.
+  checkin_windows: {
+    window_start_min: 0,      // minutes from "now"
+    window_end_min: 240,      // 4-hour window
+    now_min: 30,              // current "now" position
+    properties: [
+      {
+        id: "p_kara12",
+        property: "Karaköy · Apt 12",
+        guest: "Lukas Berger",
+        events: [
+          { id: "e1", kind: "depart",   t: 0,    label: "Lukas asked noon",            tone: "warn" },
+          { id: "e2", kind: "clean_in", t: 90,   label: "Marta starts cleaning",        tone: "info" },
+          { id: "e3", kind: "clean_out",t: 150,  label: "Marta done",                    tone: "ok" },
+          { id: "e4", kind: "arrive",   t: 180,  label: "Devansh check-in 17:00",        tone: "ok" },
+        ],
+        risk: "high",
+        note: "Tight · Lukas asked noon but cleaner is 90m out. Need to hold him.",
+      },
+      {
+        id: "p_galata3",
+        property: "Galata 3",
+        guest: "Thomas Geier → next",
+        events: [
+          { id: "e1", kind: "depart",   t: 0,   label: "Thomas departs 11:00",  tone: "info" },
+          { id: "e2", kind: "clean_in", t: 75,  label: "Galata cleaning",       tone: "info" },
+          { id: "e3", kind: "clean_out",t: 165, label: "Cleaner done",          tone: "ok"   },
+          { id: "e4", kind: "arrive",   t: 240, label: "Next arrival 15:00",    tone: "ok"   },
+        ],
+        risk: "low",
+        note: "Comfortable buffer · 75 min slack",
+      },
+      {
+        id: "p_studgal",
+        property: "Studio Galata",
+        guest: "Nora Reinhardt",
+        events: [
+          { id: "e1", kind: "clean_in",  t: 30,  label: "Cleaning starts",      tone: "info" },
+          { id: "e2", kind: "clean_out", t: 105, label: "Cleaner done",          tone: "ok"   },
+          { id: "e3", kind: "arrive",    t: 210, label: "Nora arrives 16:00",    tone: "ok"   },
+        ],
+        risk: "low",
+        note: "On schedule · 105 min slack before guest arrival",
+      },
+      {
+        id: "p_bes7",
+        property: "Beşiktaş 7",
+        guest: "Hana Park",
+        events: [
+          { id: "e1", kind: "clean_out", t: 60,  label: "Cleaner already done", tone: "ok"   },
+          { id: "e2", kind: "code",      t: 210, label: "Access code releases", tone: "info" },
+          { id: "e3", kind: "arrive",    t: 270, label: "Hana arrives 18:30",   tone: "ok"   },
+        ],
+        risk: "low",
+        note: "Routine · code releases T-2h before check-in per portfolio rule",
+      },
+    ],
+  },
+
+  // Stay narrative · Cendra writes one-paragraph summary when stay closes
+  // Audit §15: "When the stay closes, Cendra produces a one-paragraph
+  // summary of what happened. Owners and PMs would value this."
+  stay_narratives: {
+    // Per-stay narrative previews keyed by guest id
+    jo_thomas: {
+      generated_at: "Today 06:14",
+      stage: "checkout_today",
+      summary: "Thomas Geier stayed three nights at Galata 3 from Booking.com. He raised a €120 refund request on Tuesday night citing the AC, but didn't provide photos despite three asks. Cendra held the refund per Galata Estates' photo-evidence rule, drafted a goodwill alternative (€40 credit), and paused outbound when the message tone turned hostile. Maintenance is verifying AC condition on departure to ground the decision. Your sign-off is pending on the refund outcome before the 14h review window.",
+      key_events: [
+        "Booked Mon · check-in Tue 15:00 · nights 3 · channel Booking.com",
+        "Refund request received Tue 18:14 (€120, AC complaint)",
+        "Photos requested ×2 by Cendra, never provided",
+        "Sentiment shift to hostile detected Tue 22:14 — outbound paused",
+        "Cross-channel match on Instagram — merged thread",
+        "Maintenance verify scheduled for departure (today 13:00)",
+      ],
+      next_steps: [
+        "Decide refund: hold / €40 goodwill / decline politely / escalate to owner",
+        "Send goodwill letter before review window opens (14h)",
+      ],
+    },
+    jh_selin: {
+      generated_at: "Today 06:14",
+      stage: "in_stay",
+      summary: "Selin Demir is mid-stay at Bosphorus Loft (night 2 of 3, Whatsapp guest). At 08:01 today she reported a bathroom leak. Cendra confirmed via photos, dispatched plumber A. Sözen (ETA 11:20), and notified owner Aylin (acknowledged). The plumber's €340 ceiling exceeds the property's €150 auto-spend cap, so Cendra is holding before work proceeds — your approval is the only blocker. Sentiment remains concerned but recoverable.",
+      key_events: [
+        "Booked Sat · check-in Sun 15:00 · nights 3 · channel WhatsApp",
+        "Bathroom leak reported 08:01 today",
+        "3 photos received, leak confirmed",
+        "Plumber A. Sözen dispatched · ETA 11:20",
+        "Owner Aylin Yıldız notified · acknowledged",
+        "€340 quote exceeds €150 auto-spend cap → held for PM approval",
+      ],
+      next_steps: [
+        "Approve plumber ceiling (€340 / €180 only / counter-quote / hold)",
+        "Send fulfillment update to Selin after work completes",
+      ],
+    },
+  },
+
   // Same-day turnovers · the operational adrenaline of short-stay ops
   same_day_turnovers: [
     { id: "sdt1", property: "Karaköy · Apt 12", out_at: "11:00 (Lukas departed)", clean_eta: "14:30", next_eta: "Noon (asked)", risk: "high", note: "Guest asked for early check-in · cleaner ETA 14:30 · 2.5h gap" },

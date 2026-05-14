@@ -833,6 +833,9 @@ function WorkScreen({ onOpen }) {
       {/* SAME-DAY TURNOVER TAPE — operational adrenaline up front */}
       <SameDayTurnoverTape turnovers={DP.same_day_turnovers || []} onOpen={onOpen} />
 
+      {/* CHECK-IN WINDOW TIMELINE — next 4h cleaner/guest overlay */}
+      <CheckinWindowTimeline data={DP.checkin_windows} />
+
       {/* NEEDS YOU — always open, full cards */}
       {needsYou.length > 0 && (
         <section style={{marginBottom: 56}}>
@@ -1272,6 +1275,9 @@ function WorkDetailScreen({ onOpen, tweaks }) {
           {/* PRIOR STAYS — Cendra remembers; surface it */}
           {g.trips > 0 && <PriorStaysStrip g={g} />}
 
+          {/* STAY NARRATIVE — Cendra writes the closing summary */}
+          {DP.stay_narratives && DP.stay_narratives[g.id] && <StayNarrativeCard narrative={DP.stay_narratives[g.id]} guest={g} />}
+
           {/* CENDRA BRIEFING — demoted: smaller, after the binding decision */}
           <div style={{marginTop: 36, paddingTop: 28, borderTop:'1px solid var(--hair-soft)'}}>
             <CendraBriefing g={g} compact />
@@ -1518,6 +1524,137 @@ function RecallWindowActions({ card, oneOff, onWhy }) {
   );
 }
 
+// CheckinWindowTimeline — next 4h with cleaner ETA + guest ETA overlay.
+// Audit §8: PMs live by check-in windows. Visualize collisions pre-emptively.
+function CheckinWindowTimeline({ data }) {
+  if (!data) return null;
+  const { now_min, window_start_min, window_end_min, properties } = data;
+  const total = window_end_min - window_start_min;
+  const pct = (t) => `${((t - window_start_min) / total) * 100}%`;
+
+  const eventMeta = {
+    depart:    { color: '#9CA3AF', glyph: '↗', label: 'Depart'   },
+    clean_in:  { color: '#5E6AD2', glyph: '◆', label: 'Clean·in' },
+    clean_out: { color: '#5E6AD2', glyph: '◇', label: 'Clean·out'},
+    arrive:    { color: '#00A699', glyph: '★', label: 'Arrive'   },
+    code:      { color: '#0891B2', glyph: '⚿', label: 'Code'     },
+  };
+
+  // Time labels every 60min
+  const hourMarks = [];
+  for (let t = window_start_min; t <= window_end_min; t += 60) {
+    const hr = 14 + Math.floor(t / 60); // anchor "now" near 14:00
+    const min = t % 60;
+    hourMarks.push({ t, label: `${hr.toString().padStart(2,'0')}:${min.toString().padStart(2,'0')}` });
+  }
+
+  const highRisk = properties.filter(p => p.risk === 'high').length;
+
+  return (
+    <div style={{marginBottom: 32}}>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing:'.18em', color:'var(--muted)',
+        marginBottom: 12, fontWeight: 500, display:'flex', alignItems:'center', gap: 10,
+      }}>
+        <span>CHECK-IN WINDOW · NEXT 4 HOURS</span>
+        {highRisk > 0 && (
+          <span className="mono" style={{fontSize: 9.5, letterSpacing:'.12em', color:'var(--risk)', fontWeight: 700}}>
+            · {highRisk} TIGHT
+          </span>
+        )}
+        <span style={{flex: 1}} />
+        <span className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.06em'}}>
+          ↗ depart · ◆ clean·in · ◇ clean·out · ★ arrive · ⚿ code
+        </span>
+      </div>
+
+      <div style={{
+        background:'#ffffff', border:'1px solid var(--hair)', borderRadius: 12,
+        padding:'14px 18px',
+      }}>
+        {/* Time axis */}
+        <div style={{position:'relative', height: 20, marginBottom: 6, marginLeft: 140}}>
+          {hourMarks.map(m => (
+            <span key={m.t} className="mono" style={{
+              position:'absolute', left: pct(m.t), top: 0,
+              fontSize: 9.5, color:'var(--muted)', letterSpacing:'.04em',
+              transform: 'translateX(-50%)',
+            }}>{m.label}</span>
+          ))}
+        </div>
+
+        {/* Per-property rows */}
+        {properties.map((p, idx) => {
+          const risk = p.risk === 'high' ? 'var(--risk)' : p.risk === 'moderate' ? 'var(--warn)' : 'var(--ok)';
+          return (
+            <div key={p.id} style={{
+              display:'grid', gridTemplateColumns: '140px 1fr',
+              gap: 8, alignItems:'center',
+              padding:'10px 0',
+              borderTop: idx === 0 ? 'none' : '1px solid var(--hair-soft)',
+            }}>
+              <div>
+                <div style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 600, lineHeight: 1.3}}>{p.property}</div>
+                <div className="mono" style={{fontSize: 9.5, color:'var(--muted)', letterSpacing:'.04em', marginTop: 2}}>{p.guest}</div>
+              </div>
+              <div style={{position:'relative', height: 32}}>
+                {/* Track */}
+                <div style={{position:'absolute', left: 0, right: 0, top: '50%', height: 2, background:'var(--hair-soft)', borderRadius: 999, transform:'translateY(-50%)'}} />
+                {/* Hour gridlines */}
+                {hourMarks.map(m => (
+                  <div key={m.t} style={{position:'absolute', left: pct(m.t), top: 6, bottom: 6, width: 1, background:'var(--hair-soft)'}} />
+                ))}
+                {/* Now indicator */}
+                <div style={{position:'absolute', left: pct(now_min), top: 0, bottom: 0, width: 2, background:'#FF385C', zIndex: 2}} />
+                <div style={{position:'absolute', left: pct(now_min), top: -6, transform:'translateX(-50%)'}}>
+                  <span className="mono" style={{fontSize: 7.5, color:'#FF385C', fontWeight: 700, letterSpacing:'.10em'}}>NOW</span>
+                </div>
+                {/* Events */}
+                {p.events.map(e => {
+                  const m = eventMeta[e.kind] || eventMeta.arrive;
+                  return (
+                    <div key={e.id} style={{
+                      position:'absolute', left: pct(e.t), top: '50%',
+                      transform:'translate(-50%, -50%)',
+                      display:'flex', flexDirection:'column', alignItems:'center', gap: 1,
+                      zIndex: 3,
+                    }}>
+                      <span style={{
+                        width: 20, height: 20, borderRadius: 999,
+                        background: m.color, color:'#ffffff',
+                        display:'grid', placeItems:'center',
+                        fontFamily:'var(--mono)', fontSize: 11, fontWeight: 700,
+                        border:'2px solid #ffffff',
+                        boxShadow: '0 1px 3px rgba(0,0,0,.18)',
+                      }} title={`${m.label} · ${e.label}`}>{m.glyph}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Notes row — only show for tight risks */}
+        {properties.some(p => p.risk === 'high' || p.risk === 'moderate') && (
+          <div style={{marginTop: 10, paddingTop: 10, borderTop:'1px solid var(--hair-soft)', display:'grid', gap: 6}}>
+            {properties.filter(p => p.risk === 'high' || p.risk === 'moderate').map(p => {
+              const c = p.risk === 'high' ? 'var(--risk)' : 'var(--warn)';
+              return (
+                <div key={p.id} style={{display:'flex', alignItems:'center', gap: 8, fontSize: 11.5}}>
+                  <span style={{width: 5, height: 5, borderRadius: 999, background: c}} />
+                  <span className="mono" style={{fontSize: 9.5, letterSpacing:'.10em', color: c, fontWeight: 700, textTransform:'uppercase'}}>{p.property}</span>
+                  <span style={{color:'var(--ink-mid)'}}>{p.note}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // SameDayTurnoverTape — operational adrenaline of short-stay ops up front.
 // Shows the day's turnovers with cleaner ETA + next-guest ETA overlay so PMs
 // can see at-glance which ones are tight.
@@ -1575,6 +1712,96 @@ function SameDayTurnoverTape({ turnovers, onOpen }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// StayNarrativeCard — Cendra writes the closing one-paragraph summary
+// when a stay reaches checkout. Send-to-guest / send-to-owner / archive.
+// Audit §15: "When the stay closes, Cendra produces a one-paragraph summary."
+function StayNarrativeCard({ narrative, guest }) {
+  const [editing, setEditing] = useState(false);
+  const [body, setBody] = useState(narrative.summary);
+  const stageCopy = narrative.stage === 'checkout_today'
+    ? 'Stay narrative · ready for checkout'
+    : narrative.stage === 'post_stay'
+    ? 'Stay narrative · post-stay'
+    : 'Stay narrative · live draft';
+
+  return (
+    <div style={{marginTop: 28}}>
+      <div className="mono" style={{
+        fontSize: 9.5, letterSpacing:'.16em', color:'var(--ink)',
+        fontWeight: 700, textTransform:'uppercase', marginBottom: 10,
+        display:'flex', alignItems:'center', gap: 10,
+      }}>
+        {stageCopy}
+        <span style={{fontFamily:'var(--mono)', fontSize: 9.5, color:'var(--muted)', fontWeight: 500}}>
+          Cendra · {narrative.generated_at}
+        </span>
+        <span style={{flex: 1}} />
+        <button onClick={() => setEditing(e => !e)} style={{
+          all:'unset', cursor:'pointer',
+          fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.10em',
+          color:'var(--ink-mid)', fontWeight: 600, textTransform:'uppercase',
+        }}>{editing ? '✓ Done' : 'Edit'}</button>
+      </div>
+
+      <div className="dcard-hero" style={{padding:'22px 26px'}}>
+        {/* Serif paragraph — Cendra's voice */}
+        {editing ? (
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            style={{
+              width: '100%', minHeight: 140, padding: 12,
+              fontFamily:'var(--serif)', fontSize: 17, lineHeight: 1.55,
+              color:'var(--ink)', border:'1px solid var(--hair)', borderRadius: 8,
+              resize:'vertical', outline: 0,
+              fontVariationSettings: '"opsz" 48, "SOFT" 30',
+            }}
+          />
+        ) : (
+          <p className="serif-display" style={{
+            margin: 0, fontSize: 18, lineHeight: 1.55, color:'var(--ink)',
+            letterSpacing:'-.004em',
+            fontVariationSettings: '"opsz" 48, "SOFT" 30, "WONK" 0',
+          }}>
+            {body}
+          </p>
+        )}
+
+        {/* Two-column: key events + next steps */}
+        <div style={{display:'grid', gridTemplateColumns: '1fr 1fr', gap: 28, marginTop: 22}}>
+          <div>
+            <div className="mono" style={{fontSize: 9.5, letterSpacing:'.16em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 8, fontWeight: 600}}>
+              Key events
+            </div>
+            <ul style={{margin: 0, padding:'0 0 0 16px', fontSize: 12.5, lineHeight: 1.65, color:'var(--ink-mid)'}}>
+              {narrative.key_events.map((e, i) => <li key={i}>{e}</li>)}
+            </ul>
+          </div>
+          <div>
+            <div className="mono" style={{fontSize: 9.5, letterSpacing:'.16em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 8, fontWeight: 600}}>
+              Next steps · pending
+            </div>
+            <ul style={{margin: 0, padding:'0 0 0 16px', fontSize: 12.5, lineHeight: 1.65, color:'var(--ink)'}}>
+              {narrative.next_steps.map((s, i) => <li key={i}><b>{s}</b></li>)}
+            </ul>
+          </div>
+        </div>
+
+        {/* Action row */}
+        <div style={{display:'flex', gap: 8, marginTop: 22, paddingTop: 18, borderTop:'1px solid var(--hair-soft)', alignItems:'center', flexWrap:'wrap'}}>
+          <Btn kind="primary" size="sm">Send to {guest.name.split(' ')[0]}</Btn>
+          <Btn size="sm">Send to {guest.owner}</Btn>
+          <Btn size="sm" kind="ghost">Archive as activity log</Btn>
+          <span style={{flex: 1}} />
+          <span className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.10em', textTransform:'uppercase'}}>
+            Cendra-written · you can edit before sending
+          </span>
+        </div>
       </div>
     </div>
   );
