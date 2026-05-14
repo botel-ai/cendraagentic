@@ -836,6 +836,9 @@ function WorkScreen({ onOpen }) {
       {/* CHECK-IN WINDOW TIMELINE — next 4h cleaner/guest overlay */}
       <CheckinWindowTimeline data={DP.checkin_windows} />
 
+      {/* REVIEW WINDOW STRIP — stays approaching review-write window */}
+      <ReviewWindowStrip windows={DP.review_windows || []} onOpen={onOpen} />
+
       {/* NEEDS YOU — always open, full cards */}
       {needsYou.length > 0 && (
         <section style={{marginBottom: 56}}>
@@ -1520,6 +1523,100 @@ function RecallWindowActions({ card, oneOff, onWhy }) {
       <span style={{fontSize: 12.5, color:'var(--ink-mid)'}}>
         Recall window closed. Logged to the audit trail.
       </span>
+    </div>
+  );
+}
+
+// ReviewWindowStrip — stays approaching their channel review window.
+// Audit §8: surface the "likely 3★ unless we close out warmly" pre-emptively.
+function ReviewWindowStrip({ windows, onOpen }) {
+  if (!windows.length) return null;
+  const atRisk = windows.filter(w => w.tone === 'risk' || w.tone === 'warn');
+  return (
+    <div style={{marginBottom: 32}}>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing:'.18em', color:'var(--muted)',
+        marginBottom: 12, fontWeight: 500, display:'flex', alignItems:'center', gap: 10,
+      }}>
+        <span>REVIEW WINDOWS · NEXT 7 DAYS</span>
+        {atRisk.length > 0 && (
+          <span className="mono" style={{fontSize: 9.5, letterSpacing:'.12em', color:'var(--warn)', fontWeight: 700}}>
+            · {atRisk.length} AT RISK
+          </span>
+        )}
+        <span style={{flex: 1}} />
+        <span className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.06em'}}>
+          Close out warmly before the channel asks
+        </span>
+      </div>
+      <div style={{display:'grid', gap: 10}}>
+        {windows.map(w => {
+          const c = w.tone === 'risk' ? 'var(--risk)' : w.tone === 'warn' ? 'var(--warn)' : 'var(--ok)';
+          const driftLabel = w.drift > 0 ? `+${w.drift.toFixed(1)}` : w.drift.toFixed(1);
+          return (
+            <button key={w.id} onClick={() => onOpen('work_detail', w.stay_id)} style={{
+              all:'unset', cursor:'pointer', display:'block',
+              padding:'14px 18px', borderRadius: 10,
+              background:'#ffffff', border:'1px solid var(--hair)',
+              borderLeft: `3px solid ${c}`,
+              width:'calc(100% - 38px)',
+              transition: 'background .15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--paper-2)'}
+            onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}>
+              <div style={{display:'grid', gridTemplateColumns: '180px 1fr 180px 100px', gap: 16, alignItems:'center'}}>
+                <div>
+                  <div style={{fontSize: 13.5, color:'var(--ink)', fontWeight: 600}}>{w.guest}</div>
+                  <div className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.04em', marginTop: 3}}>
+                    {w.property.toUpperCase()} · {w.channel.toUpperCase()}
+                  </div>
+                </div>
+                <div>
+                  <div style={{display:'flex', alignItems:'baseline', gap: 8, marginBottom: 4}}>
+                    <span className="mono" style={{fontSize: 10, color: c, letterSpacing:'.10em', textTransform:'uppercase', fontWeight: 700}}>
+                      {w.window_label}
+                    </span>
+                    <span style={{fontSize: 11.5, color:'var(--ink-mid)'}}>
+                      sentiment {w.sentiment_trajectory}
+                    </span>
+                  </div>
+                  {w.lift_actions.length > 0 ? (
+                    <div style={{fontSize: 12, color:'var(--ink-mid)', lineHeight: 1.45}}>
+                      <span className="mono" style={{fontSize: 9.5, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase', marginRight: 6}}>Lift</span>
+                      {w.lift_actions[0]}
+                      {w.lift_actions.length > 1 && <span style={{color:'var(--muted-2)'}}> · +{w.lift_actions.length - 1} more</span>}
+                    </div>
+                  ) : (
+                    <div className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.06em', textTransform:'uppercase'}}>
+                      No close-out needed · sentiment stable
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div className="mono" style={{fontSize: 9, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase'}}>Likely review</div>
+                  <div style={{display:'flex', alignItems:'baseline', gap: 6, marginTop: 2}}>
+                    <span style={{fontFamily:'var(--serif)', fontSize: 22, color: c, fontWeight: 500, lineHeight: 1, letterSpacing:'-.01em'}}>
+                      {w.likely_score.toFixed(1)}
+                    </span>
+                    <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.04em'}}>/ 5</span>
+                    <span className="mono" style={{fontSize: 10, color: w.drift < 0 ? 'var(--warn)' : w.drift > 0 ? 'var(--ok)' : 'var(--muted)', marginLeft: 4}}>
+                      {driftLabel}
+                    </span>
+                  </div>
+                  <div className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.06em', marginTop: 2}}>
+                    vs typical {w.typical_score.toFixed(1)}
+                  </div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <span className="mono" style={{fontSize: 10, letterSpacing:'.10em', color:'var(--ink-mid)', textTransform:'uppercase'}}>
+                    Open stay →
+                  </span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

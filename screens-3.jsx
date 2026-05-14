@@ -240,6 +240,129 @@ function PropertiesScreen({ onOpen }) {
 }
 
 // Portfolio knowledge sources strip — horizontal carousel of latest imports
+// TeamWorkloadPanel — workload distribution + overload flags + reassignment.
+// Audit §6: "Maya has 47 decisions today; Henrik 31. Where's team load
+// and 'Maya needs a break, route to Henrik'?"
+function TeamWorkloadPanel({ teamStats, capacity }) {
+  if (!teamStats.length || !capacity) return null;
+  const typical = capacity.typical_decisions_per_pm_day;
+  const overloadAt = typical * capacity.overload_threshold;
+  const underloadAt = typical * capacity.underload_threshold;
+
+  const stats = teamStats.map(s => {
+    const load = s.decisions_today / typical;
+    const overloaded = s.decisions_today >= overloadAt;
+    const underused = s.decisions_today < underloadAt;
+    return { ...s, load, overloaded, underused };
+  });
+
+  const teamLoad = stats.reduce((sum, s) => sum + s.decisions_today, 0) / (stats.length * typical);
+  const overloaded = stats.filter(s => s.overloaded).length;
+
+  return (
+    <div style={{
+      padding:'18px 22px', borderRadius: 14,
+      background: overloaded > 0 ? 'rgba(255,180,0,.06)' : 'var(--paper-2)',
+      border:'1px solid ' + (overloaded > 0 ? 'rgba(255,180,0,.30)' : 'var(--hair-soft)'),
+    }}>
+      <div style={{display:'flex', alignItems:'baseline', gap: 10, marginBottom: 14, flexWrap:'wrap'}}>
+        <span className="mono" style={{fontSize: 11, letterSpacing:'.16em', color: overloaded > 0 ? '#B45309' : 'var(--ink)', fontWeight: 700, textTransform:'uppercase'}}>
+          Team workload · today
+        </span>
+        <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.06em'}}>
+          Typical · {typical} decisions/PM · overload at {Math.round(capacity.overload_threshold * 100)}%
+        </span>
+        <span style={{flex: 1}} />
+        <span style={{fontFamily:'var(--serif)', fontSize: 22, color: teamLoad >= 1 ? 'var(--warn)' : teamLoad >= 0.7 ? 'var(--ink)' : 'var(--ok)', lineHeight: 1, fontWeight: 500, letterSpacing:'-.01em'}}>
+          {Math.round(teamLoad * 100)}%
+        </span>
+        <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.06em'}}>team load</span>
+      </div>
+
+      {/* Per-PM bars */}
+      <div style={{display:'grid', gap: 8}}>
+        {stats.map(s => {
+          const pct = Math.min(150, s.load * 100);
+          const c = s.overloaded ? 'var(--warn)' : s.underused ? 'var(--muted-2)' : 'var(--ink)';
+          return (
+            <div key={s.manager_id} style={{display:'grid', gridTemplateColumns: '160px 1fr 130px', gap: 12, alignItems:'center'}}>
+              <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                <div style={{
+                  width: 24, height: 24, borderRadius:'50%',
+                  background:'var(--ink)', color:'#ffffff',
+                  display:'grid', placeItems:'center',
+                  fontFamily:'var(--serif)', fontStyle:'italic', fontSize: 11,
+                }}>{s.avatar}</div>
+                <span style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 500}}>{s.name.split(' ')[0]}</span>
+                {s.overloaded && (
+                  <span className="mono" style={{
+                    fontSize: 9, letterSpacing:'.12em', color:'var(--warn)', fontWeight: 700, textTransform:'uppercase',
+                    padding:'1px 6px', borderRadius: 3,
+                    background:'rgba(255,180,0,.10)', border:'1px solid rgba(255,180,0,.30)',
+                  }}>Overload</span>
+                )}
+                {s.underused && (
+                  <span className="mono" style={{
+                    fontSize: 9, letterSpacing:'.12em', color:'var(--muted)', fontWeight: 600, textTransform:'uppercase',
+                  }}>Bandwidth</span>
+                )}
+              </div>
+              <div style={{position:'relative', height: 8, borderRadius: 999, background:'var(--hair-soft)', overflow:'hidden'}}>
+                <div style={{position:'absolute', left: 0, top: 0, bottom: 0, width: `${pct/1.5}%`, background: c, borderRadius: 999, transition:'width .3s'}} />
+                {/* Typical threshold line */}
+                <div style={{position:'absolute', left: `${100/1.5}%`, top: -2, bottom: -2, width: 1, background:'rgba(0,0,0,.30)'}} />
+              </div>
+              <div className="mono" style={{fontSize: 11, color:'var(--ink)', fontVariantNumeric:'tabular-nums', textAlign:'right'}}>
+                <b style={{fontWeight: 600}}>{s.decisions_today}</b>
+                <span style={{color:'var(--muted)', fontWeight: 400}}> / {typical} typical · </span>
+                <span style={{color: c, fontWeight: 600}}>{Math.round(s.load * 100)}%</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Reassignment suggestions */}
+      {capacity.routing_suggestions && capacity.routing_suggestions.length > 0 && (
+        <div style={{marginTop: 16, paddingTop: 14, borderTop:'1px solid var(--hair-soft)'}}>
+          <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--ink)', fontWeight: 700, textTransform:'uppercase', marginBottom: 10}}>
+            Cendra suggests reassigning
+          </div>
+          <div style={{display:'grid', gap: 8}}>
+            {capacity.routing_suggestions.map((sg, i) => {
+              const fromPM = stats.find(s => s.manager_id === sg.from);
+              const toPM   = stats.find(s => s.manager_id === sg.to);
+              if (!fromPM || !toPM) return null;
+              return (
+                <div key={i} style={{
+                  display:'grid', gridTemplateColumns: '1fr 130px', gap: 12, alignItems:'center',
+                  padding:'10px 12px', borderRadius: 8,
+                  background:'#ffffff', border:'1px solid var(--hair-soft)',
+                }}>
+                  <div>
+                    <div style={{display:'flex', alignItems:'center', gap: 8, marginBottom: 4}}>
+                      <span style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 600}}>{fromPM.name.split(' ')[0]}</span>
+                      <span className="mono" style={{fontSize: 10, color:'var(--muted)'}}>→</span>
+                      <span style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 600}}>{toPM.name.split(' ')[0]}</span>
+                      <span className="mono" style={{fontSize: 9.5, color:'var(--muted)', letterSpacing:'.04em', marginLeft: 6, textTransform:'uppercase'}}>
+                        {sg.scope}
+                      </span>
+                    </div>
+                    <div style={{fontSize: 11.5, color:'var(--ink-mid)', fontStyle:'italic'}}>{sg.reason}</div>
+                  </div>
+                  <div style={{textAlign:'right'}}>
+                    <Btn size="sm">Reassign</Btn>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // OwnersPulseStrip — surfaces owners as stakeholders.
 // Audit §6: "Owner is a stakeholder, not a label." Per-owner response time +
 // open approvals + sentiment + last interaction. Trust-of-trust signal.
@@ -1788,6 +1911,9 @@ function TrustScreen({ onOpen }) {
       {/* TEAM — per-PM aggregates via manager_id. Audit §7 #11. */}
       {tab === "team" && (
         <div style={{display:'grid', gap: 18}}>
+          {/* Workload overload — overload threshold flags + reassignment suggestions */}
+          <TeamWorkloadPanel teamStats={D3.team_stats || []} capacity={D3.team_capacity} />
+
           <SectionLabel2 eyebrow={`${(D3.team_stats || []).length} active managers · today`} sub="Per-PM decision aggregates from manager_id on every DecisionCase." />
           <div className="dcard" style={{padding: 0, overflow: 'hidden'}}>
             <div style={{

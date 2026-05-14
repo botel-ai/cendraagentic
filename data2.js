@@ -352,6 +352,91 @@ window.CENDRA_DATA2 = {
     ],
   },
 
+  // Review windows · stays approaching review-write window per channel
+  // Audit §8: "Booking review window opens in 14h on Selin's stay — sentiment
+  // is concerned. Likely 3★ unless we close out warmly."
+  review_windows: [
+    {
+      id: "rw1",
+      guest: "Thomas Geier",
+      stay_id: "jo_thomas",
+      property: "Galata 3",
+      channel: "Booking.com",
+      checkout: "Today 11:00",
+      window_opens_min: 840,                // 14 hours = 840 min
+      window_label: "Opens in 14h",
+      sentiment_trajectory: "concerned → tense",
+      likely_score: 3.2,                    // out of 5
+      typical_score: 4.6,
+      drift: -1.4,
+      lift_actions: [
+        "Send goodwill credit acknowledgment before window opens",
+        "Forward Galata maintenance verify outcome to Thomas",
+        "Owner Aydın replies to refund decision · would soften review",
+      ],
+      tone: "risk",
+    },
+    {
+      id: "rw2",
+      guest: "Selin Demir",
+      stay_id: "jh_selin",
+      property: "Bosphorus Loft",
+      channel: "WhatsApp · direct survey",
+      checkout: "Wed 11:00",
+      window_opens_min: 2820,               // 47 hours
+      window_label: "Opens Wed 13:00 · 47h",
+      sentiment_trajectory: "concerned → recovering",
+      likely_score: 4.3,
+      typical_score: 4.7,
+      drift: -0.4,
+      lift_actions: [
+        "Fulfillment message after plumber completes",
+        "Send personal apology + 10% off next stay",
+        "Aylin (owner) follow-up at checkout",
+      ],
+      tone: "warn",
+    },
+    {
+      id: "rw3",
+      guest: "Lukas Berger",
+      stay_id: "ji_lukas",
+      property: "Karaköy · Apt 12",
+      channel: "Airbnb",
+      checkout: "Fri 11:00",
+      window_opens_min: 5640,               // 94 hours
+      window_label: "Opens Fri 14:00 · 4d",
+      sentiment_trajectory: "soft-positive → stable",
+      likely_score: 4.7,
+      typical_score: 4.7,
+      drift: 0.0,
+      lift_actions: [],
+      tone: "ok",
+    },
+  ],
+
+  // Team workload — extends team_stats with capacity awareness
+  // Audit §6: "Maya has 47 decisions today; Henrik 31. Where's team load
+  // and 'Maya needs a break, route to Henrik'?"
+  team_capacity: {
+    typical_decisions_per_pm_day: 35,
+    overload_threshold: 1.30,         // 30% over typical = overload
+    underload_threshold: 0.50,        // less than 50% of typical = underused
+    routing_suggestions: [
+      {
+        from: "u_maya",
+        to: "u_henrik",
+        reason: "Maya is 34% above typical · Henrik is 11% below",
+        scope: "Bosphorus + Galata refund cases (3 open)",
+      },
+      {
+        from: "u_maya",
+        to: "u_yui",
+        reason: "Maya carrying all guest-support today · Yui has bandwidth",
+        scope: "All Karaköy guest replies for next 2h",
+      },
+    ],
+  },
+
   // Check-in window timeline · next 90 minutes
   // Audit §8: PMs live by 14:30-15:30 windows. Visualize cleaner ETA +
   // guest ETA overlay so tight collisions are pre-empted.
