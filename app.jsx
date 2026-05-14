@@ -130,6 +130,7 @@ function CendraBar({ route, goto }) {
   const [text, setText] = useState("");
   const [submitted, setSubmitted] = useState(null);
   const [focused, setFocused] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const inputRef = useRef(null);
 
   // Hotkey · "/" focuses (when not in another input)
@@ -149,26 +150,49 @@ function CendraBar({ route, goto }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const submit = (q) => {
-    const v = (q ?? text).trim();
-    if (!v) return;
-    setSubmitted(v);
-    setText("");
-    inputRef.current?.blur();
-  };
+  // Verb chip suggestions — command grammar, not Q&A grammar
+  // The PM steers Cendra; doesn't just query it.
+  const verbChips = useMemo(() => [
+    { verb: "Pause",     template: "Pause Cendra on ",            kind: "command" },
+    { verb: "Override",  template: "Override the cap to ",        kind: "command" },
+    { verb: "Snooze",    template: "Snooze this for ",            kind: "command" },
+    { verb: "Hand off",  template: "Hand off to Henrik · ",       kind: "command" },
+    { verb: "Why",       template: "Why ",                         kind: "ask"     },
+    { verb: "Draft",     template: "Draft a ",                     kind: "command" },
+  ], []);
 
-  // Rotating placeholder
+  // Rotating placeholder — shows command grammar, not Q&A grammar
   const placeholders = useMemo(() => [
-    "Ask Cendra anything — \"why is automation down this week?\"",
-    "\"Which property had the most refund asks last month?\"",
-    "\"Draft a polite hold message for tonight's late arrivals.\"",
-    "\"What did Cendra do overnight while I was sleeping?\"",
+    "Tell Cendra — \"Pause vendor dispatch on Bosphorus for 2 hours\"",
+    "\"Override the cap to €200 for the Cihangir plumber\"",
+    "\"Hand off Selin's case to Henrik until 14:00\"",
+    "\"Snooze this 30 minutes\"",
+    "\"Draft a warmer reply to Thomas\"",
+    "Or ask — \"why is automation down this week?\"",
   ], []);
   const [phIdx, setPhIdx] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setPhIdx(i => (i + 1) % placeholders.length), 5500);
     return () => clearInterval(t);
   }, []);
+
+  const submit = (q) => {
+    const v = (q ?? text).trim();
+    if (!v) return;
+    setThinking(true);
+    // simulate Cendra thinking for a beat before showing the answer panel
+    setTimeout(() => {
+      setSubmitted(v);
+      setThinking(false);
+      setText("");
+      inputRef.current?.blur();
+    }, 650);
+  };
+
+  // First-word verb detection — when a known verb leads, render the bar as command-mode
+  const firstWord = (text.trim().split(/\s+/)[0] || "").toLowerCase();
+  const matchedVerb = verbChips.find(c => c.verb.toLowerCase() === firstWord);
+  const commandMode = !!matchedVerb && matchedVerb.kind === "command";
 
   return (
     <div style={{
@@ -188,12 +212,35 @@ function CendraBar({ route, goto }) {
         />
       )}
 
+      {/* Verb chips — only show when focused or empty */}
+      {focused && !text && (
+        <div style={{
+          pointerEvents: 'auto',
+          display:'flex', gap: 6, marginBottom: 8, flexWrap:'wrap', alignItems:'center',
+        }}>
+          <span className="mono" style={{
+            fontSize: 9.5, letterSpacing:'.16em', color:'var(--muted)',
+            textTransform:'uppercase', marginRight: 4, fontWeight: 600,
+          }}>Steer Cendra ·</span>
+          {verbChips.map(c => (
+            <button key={c.verb} onClick={() => { setText(c.template); inputRef.current?.focus(); }} style={{
+              all:'unset', cursor:'pointer',
+              padding:'4px 10px', borderRadius: 999,
+              border:'1px solid var(--hair)', background:'#ffffff',
+              fontSize: 11.5, color: c.kind === 'command' ? 'var(--ink)' : 'var(--ink-mid)',
+              fontWeight: c.kind === 'command' ? 600 : 500,
+              fontFamily:'var(--sans)',
+            }}>{c.verb}</button>
+          ))}
+        </div>
+      )}
+
       <div
         onClick={() => inputRef.current?.focus()}
         style={{
           pointerEvents: 'auto',
           display: 'flex', alignItems: 'center', gap: 12,
-          border: '1px solid ' + (focused ? 'var(--ink)' : 'var(--hair)'),
+          border: '1px solid ' + (commandMode ? 'var(--ink)' : focused ? 'var(--ink)' : 'var(--hair)'),
           background: '#ffffff',
           borderRadius: 14, padding: '12px 18px',
           boxShadow: focused
@@ -205,15 +252,17 @@ function CendraBar({ route, goto }) {
       >
         <span style={{
           fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.14em',
-          color: 'var(--muted)', whiteSpace: 'nowrap', fontWeight: 500,
-        }}>▸ ASK CENDRA</span>
+          color: commandMode ? 'var(--rausch)' : 'var(--muted)',
+          whiteSpace: 'nowrap', fontWeight: 600,
+          transition: 'color .12s',
+        }}>{commandMode ? '⌃ STEER' : '▸ CENDRA'}</span>
         <input
           ref={inputRef}
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') submit(); }}
           onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onBlur={() => setTimeout(() => setFocused(false), 180)}
           placeholder={placeholders[phIdx]}
           style={{
             flex: 1, border: 0, outline: 0, background: 'transparent',
@@ -221,6 +270,22 @@ function CendraBar({ route, goto }) {
             minWidth: 0,
           }}
         />
+        {thinking && (
+          <span style={{
+            display:'inline-flex', alignItems:'center', gap: 4,
+            fontFamily:'var(--mono)', fontSize: 10.5, letterSpacing:'.10em',
+            color:'var(--ink-mid)', textTransform:'uppercase',
+          }}>
+            <span style={{
+              display:'inline-flex', gap: 3,
+            }}>
+              <span style={{width:5, height:5, borderRadius:999, background:'var(--ink)', animation:'thinkPulse 1.1s ease-in-out 0s infinite'}}/>
+              <span style={{width:5, height:5, borderRadius:999, background:'var(--ink)', animation:'thinkPulse 1.1s ease-in-out .15s infinite'}}/>
+              <span style={{width:5, height:5, borderRadius:999, background:'var(--ink)', animation:'thinkPulse 1.1s ease-in-out .30s infinite'}}/>
+            </span>
+            Cendra is thinking
+          </span>
+        )}
         <button title="Voice mode" style={{
           all: 'unset', cursor: 'pointer',
           width: 28, height: 28, borderRadius: '50%',
@@ -235,6 +300,7 @@ function CendraBar({ route, goto }) {
           borderRadius: 4, background:'#ffffff', color:'var(--ink-mid)',
         }}>{text.trim() ? '↵' : '/'}</span>
       </div>
+      <style>{`@keyframes thinkPulse { 0%, 100% { opacity: .35; transform: scale(1); } 50% { opacity: 1; transform: scale(1.4); } }`}</style>
     </div>
   );
 }
@@ -456,10 +522,75 @@ function CommandBar({ onPalette }) {
         <span className="kbd">⌘K</span>
       </button>
       <div className="cmd-right">
-        <span className="heartbeat">on watch · 31 active</span>
+        <CendraStatusPeek />
         <div className="avatar">M</div>
       </div>
     </header>
+  );
+}
+
+// Cendra current activity peek — click the "on watch" indicator to see what
+// Cendra is currently processing. Surfaces drafting / waiting / monitoring counts.
+function CendraStatusPeek() {
+  const [open, setOpen] = useState(false);
+  const status = window.CENDRA_DATA2.cendra_status || {};
+  return (
+    <span style={{position:'relative', display:'inline-block'}}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        all:'unset', cursor:'pointer',
+        display:'inline-flex', alignItems:'center', gap: 6,
+      }}>
+        <span style={{
+          width: 8, height: 8, borderRadius:999, background:'var(--ok)',
+          animation:'cendraPulse 2.4s ease-in-out infinite',
+        }} />
+        <span className="heartbeat" style={{cursor:'pointer'}}>on watch · {status.total_active} active</span>
+      </button>
+      <style>{`@keyframes cendraPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.15); } }`}</style>
+      {open && (
+        <div style={{
+          position:'absolute', top:'calc(100% + 10px)', right: 0,
+          minWidth: 320,
+          background:'#ffffff',
+          border:'1px solid var(--hair)', borderRadius: 12,
+          boxShadow:'0 12px 36px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.06)',
+          padding:'14px 16px', zIndex: 50,
+          color:'var(--ink)',
+        }}>
+          <div className="mono" style={{fontSize: 10, letterSpacing:'.16em', color:'var(--muted)', marginBottom: 10, textTransform:'uppercase', fontWeight: 600}}>
+            Cendra · currently
+          </div>
+          <div style={{display:'grid', gap: 8, marginBottom: 12}}>
+            <PeekRow color="#5E6AD2" label="Drafting"  count={status.drafting}        sub="messages and responses in progress" />
+            <PeekRow color="#FFB400" label="Waiting"   count={status.waiting_internal} sub="on vendors, cleaners, owner replies" />
+            <PeekRow color="#00A699" label="Monitoring"count={status.monitoring}      sub="active stays under live watch" />
+            <PeekRow color="#FF385C" label="Holding"   count={status.holding_for_pm}  sub="for your judgment" />
+            <PeekRow color="#9CA3AF" label="Routine"   count={status.routine}         sub="standard workflows, no action needed" />
+          </div>
+          {status.last_thinking_event && (
+            <div style={{
+              padding:'8px 10px', borderRadius: 8,
+              background:'var(--paper-2)', border:'1px solid var(--hair-soft)',
+              fontSize: 12, color:'var(--ink-mid)', lineHeight: 1.45,
+            }}>
+              <span className="mono" style={{fontSize: 9, letterSpacing:'.14em', color:'var(--muted)', marginRight: 6, textTransform:'uppercase'}}>Right now</span>
+              {status.last_thinking_event}
+            </div>
+          )}
+        </div>
+      )}
+    </span>
+  );
+}
+
+function PeekRow({ color, label, count, sub }) {
+  return (
+    <div style={{display:'grid', gridTemplateColumns: '8px 80px 30px 1fr', gap: 10, alignItems:'baseline'}}>
+      <span style={{width: 6, height: 6, borderRadius: 999, background: color, marginTop: 5}} />
+      <span style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 500}}>{label}</span>
+      <span className="mono" style={{fontSize: 13, color:'var(--ink)', fontWeight: 600, textAlign:'right', fontVariantNumeric:'tabular-nums'}}>{count}</span>
+      <span style={{fontSize: 11, color:'var(--muted)', lineHeight: 1.4}}>{sub}</span>
+    </div>
   );
 }
 

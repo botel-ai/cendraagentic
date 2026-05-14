@@ -41,6 +41,61 @@ window.CENDRA_DATA2 = {
   },
 
   // Five Today sections (exception-first, hospitality-native)
+  // Mission Control three-tense pulse — Just happened · Live in flight · Coming up next 4h
+  today_pulse: {
+    just_happened: [
+      { id: "jh1", time: "06:14", time_ago: "2h ago",  actor: "Cendra", verb: "Sent",        target: "Wi-Fi reply to Lukas Berger",           detail: "Auto · within SLA",                          tone: "ok"   },
+      { id: "jh2", time: "05:58", time_ago: "2h ago",  actor: "Cendra", verb: "Routed",      target: "AC photos thread to maintenance",       detail: "Galata 3 · Thomas refund case",              tone: "ok"   },
+      { id: "jh3", time: "05:32", time_ago: "3h ago",  actor: "Cendra", verb: "Promoted",    target: "Wi-Fi & access info → autopilot",       detail: "412 cases · 0 incidents · band stable",      tone: "ok"   },
+      { id: "jh4", time: "04:48", time_ago: "4h ago",  actor: "Cendra", verb: "Dedup'd",     target: "58 episodes · consolidated",            detail: "Overnight memory pass · ratio 28%",          tone: "info" },
+      { id: "jh5", time: "03:14", time_ago: "5h ago",  actor: "Cendra", verb: "Held",        target: "Refund €120 · Thomas · Galata 3",       detail: "GDPR Art.22 · awaiting your sign-off",       tone: "warn" },
+    ],
+    live_in_flight: [
+      { id: "lf1", actor: "Plumber Sözen",  state: "en_route",     target: "Bosphorus Loft",  detail: "ETA 11:20 · 26m",   stay_id: "jh_selin",   tone: "warn" },
+      { id: "lf2", actor: "Lukas Berger",   state: "drafting",     target: "Karaköy Apt 12",  detail: "Early check-in reply · awaiting your approval", stay_id: "ji_lukas", tone: "warn" },
+      { id: "lf3", actor: "Thomas Geier",   state: "monitoring",   target: "Galata 3",        detail: "Review-threat thread paused", stay_id: "jo_thomas", tone: "risk" },
+      { id: "lf4", actor: "Cleaner Marta",  state: "in_progress",  target: "Karaköy Apt 12",  detail: "Cleaning · ETA 14:30",     stay_id: "ji_lukas",   tone: "info" },
+      { id: "lf5", actor: "Nora Reinhardt", state: "waiting_you",  target: "Studio Galata",   detail: "Confirm parking fact · 39m SLA", stay_id: "ji_nora", tone: "warn" },
+      { id: "lf6", actor: "Hana Park",      state: "waiting_t2h",  target: "Beşiktaş 7",      detail: "Access code releases at 16:30", stay_id: "ji_hana",   tone: "info" },
+    ],
+    coming_up_4h: [
+      { id: "up1", time: "Today · noon",   actor: "Lukas Berger",   target: "Karaköy Apt 12",  detail: "Asked early check-in · same-day turnover",   tone: "warn" },
+      { id: "up2", time: "Today · 14:00",  actor: "Marta cleaning", target: "Karaköy Apt 12",  detail: "Turnover from Lukas's departure",            tone: "info" },
+      { id: "up3", time: "Today · 16:00",  actor: "Nora Reinhardt", target: "Studio Galata",   detail: "ETA 16:00 · official check-in 15:00",        tone: "ok"   },
+      { id: "up4", time: "Today · 18:30",  actor: "Hana Park",      target: "Beşiktaş 7",      detail: "ETA 18:30 · access code releases 16:30",     tone: "ok"   },
+    ],
+  },
+
+  // Live activity ticker — last few Cendra events, fade-in style
+  activity_stream: [
+    { id: "as1", time: "just now",   actor: "Cendra",       verb: "drafting",    target: "Selin · plumber fulfillment update",       channel: "whatsapp" },
+    { id: "as2", time: "47s ago",    actor: "Booking.com",  verb: "message in",  target: "Thomas · Galata 3 · checkout reminder",    channel: "booking" },
+    { id: "as3", time: "2m ago",     actor: "Plumber Sözen",verb: "confirmed",   target: "Bosphorus Loft · ETA 11:20 holds",         channel: "phone" },
+    { id: "as4", time: "4m ago",     actor: "Cendra",       verb: "auto-sent",   target: "Wi-Fi reply · Lukas",                       channel: "airbnb" },
+    { id: "as5", time: "8m ago",     actor: "Maya Lindqvist",verb: "approved",    target: "Vendor cap raise · Cihangir House · €200", channel: "system" },
+  ],
+
+  // Cendra's current activity — surfaces on the top-right indicator
+  cendra_status: {
+    on_watch: true,
+    total_active: 31,
+    drafting: 3,
+    waiting_internal: 5,
+    monitoring: 12,
+    holding_for_pm: 4,
+    routine: 7,
+    last_thinking_event: "Drafting reply to Selin · plumber fulfillment update",
+  },
+
+  // Region clusters — geographic grouping for portfolio-scale awareness
+  clusters: [
+    { id: "beyoglu",    label: "Beyoğlu",      properties: 12, live: 4, needs_you: 2, at_risk: 0,   note: "Lukas + Nora active · cleaner sync OK" },
+    { id: "bosphorus",  label: "Bosphorus",    properties: 3,  live: 2, needs_you: 1, at_risk: 1,   note: "Leak on Bosphorus Loft · plumber en route" },
+    { id: "cihangir",   label: "Cihangir",     properties: 9,  live: 1, needs_you: 0, at_risk: 0,   note: "All quiet" },
+    { id: "galata",     label: "Galata",       properties: 4,  live: 1, needs_you: 1, at_risk: 1,   note: "Thomas refund · review threat" },
+    { id: "besiktas",   label: "Beşiktaş",     properties: 7,  live: 1, needs_you: 0, at_risk: 0,   note: "Hana arriving · access code held T-2h" },
+  ],
+
   today_sections: {
     needs_decision: [
       { id: "n1", title: "Damage claim · €640 · Bosphorus Loft",   sub: "Booking.com window closes in 38h", risk: "high",   reversibility: "red",   autonomy: "never",    reason: "Charge ≥ €500 · Never auto", action: "Open evidence pack", waited: "2h 14m", owner: "Bosphorus Holdings", route: "work_queue:decision" },

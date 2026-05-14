@@ -13,162 +13,283 @@ function TodayScreen({ onOpen, tweaks }) {
   const now = new Date();
   const hr = now.getHours();
   const greeting = hr < 5 ? "Late again" : hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
-  const timeStr = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
   const dateStr = now.toLocaleDateString([], {weekday:'long', day:'numeric', month:'long'}).toUpperCase();
 
   const s = DP.signals;
-  const sections = DP.today_sections;
-  const composerRef = useRef(null);
-  const [expanded, setExpanded] = useState(null); // null | 'decisions' | 'risk' | 'revenue' | 'missing'
+  const pulse = DP.today_pulse;
+  const clusters = DP.clusters;
+  const stream = DP.activity_stream;
+  const hero = DP.today_sections.needs_decision[0];
 
-  // Pull the top priority from needs_decision — ordered by urgency.
-  const hero = sections.needs_decision[0];
-  const restDecisions = sections.needs_decision.slice(1);
-
-  const openHero = () => {
-    const r = hero.route || "work";
-    if (r.includes(":")) { const [n,a] = r.split(":"); onOpen(n,a); } else onOpen(r);
+  const openItem = (route, arg) => {
+    if (!route) return;
+    if (route.includes(":")) { const [n,a] = route.split(":"); onOpen(n, a); } else onOpen(route, arg);
   };
 
-  return (
-    <div className="stage" style={{maxWidth: 900, paddingTop: 64, paddingBottom: 120}}>
+  // Cendra's voice — replace "37 things waiting" with a serif paragraph
+  const overnightLine = s.needs_you === 0
+    ? <>Calm so far. Cendra handled <b style={{color:'var(--ink)'}}>{s.actions_total.toLocaleString()}</b> things overnight · zero incidents · nothing waiting on you.</>
+    : <>Cendra handled <b style={{color:'var(--ink)'}}>{s.actions_total.toLocaleString()}</b> things overnight. <b style={{color:'var(--ink)'}}>{s.needs_you}</b> want your judgment, <b style={{color:'var(--ink)'}}>{DP.today_sections.risk_sla.length}</b> are at risk, <b style={{color:'var(--ink)'}}>{DP.today_sections.revenue.length}</b> are revenue. Start with the {hero ? hero.title.split('·')[0].trim().toLowerCase() : 'leak'} — {hero?.sub?.toLowerCase()}.</>;
 
-      {/* DATE / TIME — quiet anchor. Incident status lives on Trust hero. */}
+  return (
+    <div className="stage" style={{maxWidth: 1100, paddingTop: 56, paddingBottom: 120}}>
+
+      {/* DATE / TIME — quiet anchor */}
       <div className="mono" style={{
         fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
-        marginBottom: 28, display:'flex', gap: 16, alignItems:'center',
+        marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
       }}>
         <span>{dateStr}</span>
         <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
-        <span>{timeStr} · LOCAL</span>
+        <span>{now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} · LOCAL</span>
       </div>
 
-      {/* HERO — Cendra speaks (display Fraunces) */}
-      <div style={{marginBottom: 56}}>
+      {/* HERO — Cendra speaks (continuous-present voice) */}
+      <div style={{marginBottom: 40}}>
         <h1 className="serif-display" style={{
-          fontSize: 56, lineHeight: 1.02, margin: 0,
+          fontSize: 52, lineHeight: 1.04, margin: 0,
           color: 'var(--ink)',
         }}>
           {greeting}, <span style={{fontVariationSettings: '"opsz" 144, "SOFT" 100, "WONK" 1', fontStyle:'normal'}}>Maya</span>.
         </h1>
         <p className="serif-display" style={{
-          fontSize: 28, lineHeight: 1.32, margin: '20px 0 0',
-          color: 'var(--ink-mid)', maxWidth: 760, fontWeight: 400,
+          fontSize: 22, lineHeight: 1.4, margin: '16px 0 0',
+          color: 'var(--ink-mid)', maxWidth: 820, fontWeight: 400,
           fontVariationSettings: '"opsz" 72, "SOFT" 50, "WONK" 0',
         }}>
-          {s.needs_you === 0
-            ? <>Nothing is waiting on you. Cendra handled <b style={{color:'var(--ink)'}}>{s.actions_total.toLocaleString()}</b> actions, zero incidents. Rest easy.</>
-            : <><b style={{color:'var(--ink)'}}>{s.needs_you} things</b> are waiting today. Let's start here —</>
-          }
+          {overnightLine}
         </p>
       </div>
 
-      {/* HERO PRIORITY — the single most important card, Fitts-friendly */}
-      {hero && <HeroPriorityCard hero={hero} onOpen={openHero} />}
+      {/* THREE TIME-TENSE LANES — Mission Control core */}
+      <TimeTenseLanes pulse={pulse} onItem={openItem} hero={hero} />
 
-      {/* WHAT ELSE — collapsed digests, expandable on click */}
-      <div style={{marginTop: 64}}>
-        <div className="mono" style={{
-          fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
-          marginBottom: 16,
-        }}>WHAT ELSE</div>
+      {/* REGION CLUSTER STRIP — portfolio at-glance */}
+      <RegionClusterStrip clusters={clusters} onOpen={onOpen} />
 
-        <div style={{display:'grid', gap: 1, background:'var(--hair)', border:'1px solid var(--hair)', borderRadius: 12, overflow:'hidden'}}>
-          <DigestRow
-            label={`${restDecisions.length} more decisions`}
-            hint="Same urgency stack. Cendra will hold them."
-            count={restDecisions.length}
-            tone="ink"
-            expanded={expanded === 'decisions'}
-            onToggle={() => setExpanded(e => e === 'decisions' ? null : 'decisions')}
-            seeAllRoute="work_queue"
-            seeAllArg="decision"
-            seeAllCount={restDecisions.length}
-            onOpen={onOpen}
-          >
-            {restDecisions.slice(0, 3).map(it => (
-              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.reason} action={it.action} onClick={() => {
-                const r = it.route || "work";
-                if (r.includes(":")) { const [n,a] = r.split(":"); onOpen(n,a); } else onOpen(r);
-              }} />
-            ))}
-          </DigestRow>
-
-          <DigestRow
-            label={`${sections.risk_sla.length} risk signals`}
-            hint="SLA breaches, sentiment shifts, integration health."
-            count={sections.risk_sla.length}
-            tone="risk"
-            expanded={expanded === 'risk'}
-            onToggle={() => setExpanded(e => e === 'risk' ? null : 'risk')}
-            seeAllRoute="work_queue"
-            seeAllArg="risk"
-            seeAllCount={sections.risk_sla.length}
-            onOpen={onOpen}
-          >
-            {sections.risk_sla.slice(0, 3).map(it => (
-              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.reason} action={it.action} onClick={() => onOpen('work_queue', 'risk')} />
-            ))}
-          </DigestRow>
-
-          <DigestRow
-            label={`${sections.revenue.length} revenue opportunities`}
-            hint={`€${sections.revenue.reduce((a,b)=>a+b.est_eur,0)} estimated this week.`}
-            count={sections.revenue.length}
-            tone="ok"
-            expanded={expanded === 'revenue'}
-            onToggle={() => setExpanded(e => e === 'revenue' ? null : 'revenue')}
-            seeAllRoute="work_queue"
-            seeAllArg="opportunity"
-            seeAllCount={sections.revenue.length}
-            onOpen={onOpen}
-          >
-            {sections.revenue.slice(0, 3).map(it => (
-              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.property} action={it.action} value={`+€${it.est_eur}`} onClick={() => onOpen('work_queue', 'opportunity')} />
-            ))}
-          </DigestRow>
-
-          <DigestRow
-            label={`${sections.missing_knowledge.length} knowledge gaps`}
-            hint="Facts Cendra is missing. Blocking automation."
-            count={sections.missing_knowledge.length}
-            tone="warn"
-            expanded={expanded === 'missing'}
-            onToggle={() => setExpanded(e => e === 'missing' ? null : 'missing')}
-            seeAllRoute="properties"
-            seeAllCount={sections.missing_knowledge.length}
-            onOpen={onOpen}
-          >
-            {sections.missing_knowledge.slice(0, 3).map(it => (
-              <DigestItem key={it.id} title={`${it.scope} · ${it.fact}`} sub={it.asks ? `Asked ${it.asks}× in 30d.` : 'Conflict detected.'} reason="—" action={it.action} onClick={() => onOpen('properties')} />
-            ))}
-          </DigestRow>
-        </div>
+      {/* OPEN FULL BACKLOG link — Today doesn't carry digests anymore */}
+      <div style={{
+        marginTop: 32, paddingTop: 20,
+        borderTop: '1px solid var(--hair-soft)',
+        display:'flex', alignItems:'center', gap: 18,
+      }}>
+        <span className="mono" style={{fontSize: 10.5, letterSpacing:'.16em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 500}}>
+          The full backlog
+        </span>
+        <button onClick={() => onOpen('work_queue')} style={{
+          all:'unset', cursor:'pointer',
+          fontFamily:'var(--mono)', fontSize: 11, letterSpacing:'.10em',
+          color:'var(--ink)', fontWeight: 600, textTransform:'uppercase',
+          padding:'6px 12px', borderRadius: 6,
+          border:'1px solid var(--hair)',
+        }}>{DP.today_sections.needs_decision.length + DP.today_sections.risk_sla.length} decisions & risks →</button>
+        <button onClick={() => onOpen('brain', 'report')} style={{
+          all:'unset', cursor:'pointer',
+          fontFamily:'var(--mono)', fontSize: 11, letterSpacing:'.10em',
+          color:'var(--ink-mid)', fontWeight: 500, textTransform:'uppercase',
+        }}>What Cendra did overnight →</button>
+        <span style={{flex: 1}} />
+        <span className="mono" style={{fontSize: 10, color:'var(--muted-2)', letterSpacing:'.06em'}}>
+          {s.actions_total.toLocaleString()} actions · {D.digest.drafts_sent} drafts · {D.digest.vendors_dispatched} vendors dispatched · last 12h
+        </span>
       </div>
 
-      {/* BEHIND THE SCENES — micro stat row, no fanfare */}
-      <div style={{marginTop: 64, paddingTop: 28, borderTop:'1px solid var(--hair-soft)'}}>
-        <div className="mono" style={{
-          fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
-          marginBottom: 14,
-        }}>BEHIND THE SCENES · LAST 12H</div>
-
-        <div style={{display:'flex', gap: 40, flexWrap:'wrap'}}>
-          <MicroStat value={s.actions_total.toLocaleString()} label="actions" sub={s.actions_delta} />
-          <MicroStat value={D.digest.drafts_sent} label="drafts sent" />
-          <MicroStat value={D.digest.info_replies} label="info replies" />
-          <MicroStat value={D.digest.vendors_dispatched} label="vendors dispatched" />
-          <MicroStat value={D.digest.facts_confirmed} label="facts confirmed" />
-          <MicroStat value="0" label="incidents" accent="ok" />
-        </div>
-      </div>
-
-      {/* In-screen composer removed — global CendraBar lives in app shell */}
+      {/* LIVE ACTIVITY TICKER — pulse at the bottom */}
+      <ActivityTicker stream={stream} />
     </div>
   );
 }
 
 // HERO priority card — single big Fitts-friendly action
+// ─── TimeTenseLanes — three lanes of continuous-present operations ─
+// Just happened (last 4h Cendra closures) · Live in flight (right now) · Coming up (next 4h)
+function TimeTenseLanes({ pulse, onItem, hero }) {
+  const stateMeta = {
+    en_route:      { color: '#FFB400', label: 'EN ROUTE'    },
+    drafting:      { color: '#5E6AD2', label: 'DRAFTING'    },
+    monitoring:    { color: '#FF385C', label: 'MONITORING'  },
+    in_progress:   { color: '#0891B2', label: 'IN PROGRESS' },
+    waiting_you:   { color: '#FF385C', label: 'NEEDS YOU'   },
+    waiting_t2h:   { color: '#9CA3AF', label: 'T-2H HOLD'   },
+  };
+  const lanes = [
+    { id: "past",    label: "Just happened",    sub: "Last 4h · Cendra closed",            items: pulse.just_happened,    tense: "past"  },
+    { id: "live",    label: "Live in flight",   sub: "Right now",                          items: pulse.live_in_flight,   tense: "now"   },
+    { id: "future",  label: "Coming up next 4h",sub: "Arrivals · cleaners · windows",      items: pulse.coming_up_4h,     tense: "future"},
+  ];
+
+  return (
+    <div style={{
+      display:'grid', gridTemplateColumns:'1fr 1.4fr 1fr', gap: 1,
+      background:'var(--hair)', border:'1px solid var(--hair)', borderRadius: 14,
+      overflow:'hidden', marginBottom: 32,
+    }}>
+      {lanes.map(lane => (
+        <div key={lane.id} style={{background: lane.tense === 'now' ? 'var(--paper-2)' : '#ffffff'}}>
+          <div style={{
+            padding:'14px 18px 10px',
+            borderBottom:'1px solid var(--hair-soft)',
+          }}>
+            <div className="mono" style={{
+              fontSize: 9.5, letterSpacing:'.18em',
+              color: lane.tense === 'now' ? 'var(--ink)' : 'var(--muted)',
+              fontWeight: 700, textTransform:'uppercase',
+            }}>{lane.label}</div>
+            <div className="mono" style={{
+              fontSize: 9.5, letterSpacing:'.08em',
+              color:'var(--muted-2)', textTransform:'uppercase', marginTop: 3,
+            }}>{lane.sub}</div>
+          </div>
+          <div style={{padding:'4px 0'}}>
+            {lane.items.slice(0, 5).map(it => {
+              if (lane.tense === "past") {
+                const tone = it.tone === 'ok' ? 'var(--ok)' : it.tone === 'warn' ? 'var(--warn)' : it.tone === 'risk' ? 'var(--risk)' : 'var(--info)';
+                return (
+                  <div key={it.id} style={{padding:'9px 18px', borderBottom:'1px solid var(--hair-soft)'}}>
+                    <div style={{display:'flex', alignItems:'center', gap: 8, marginBottom: 2}}>
+                      <span style={{width: 5, height: 5, borderRadius: 999, background: tone}} />
+                      <span className="mono" style={{fontSize: 9.5, letterSpacing:'.10em', color:'var(--muted)'}}>
+                        {it.time_ago.toUpperCase()} · {it.verb.toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={{fontSize: 12.5, color:'var(--ink)', lineHeight: 1.4}}>{it.target}</div>
+                    <div style={{fontSize: 11, color:'var(--muted)', marginTop: 2}}>{it.detail}</div>
+                  </div>
+                );
+              }
+              if (lane.tense === "now") {
+                const m = stateMeta[it.state] || { color: 'var(--ink)', label: it.state.toUpperCase() };
+                const isHero = hero && it.stay_id && hero.id && hero.title.toLowerCase().includes((it.target || '').toLowerCase().split(' ')[0]);
+                return (
+                  <button key={it.id} onClick={() => onItem(it.stay_id ? 'work_detail' : 'work', it.stay_id)} style={{
+                    all:'unset', cursor:'pointer', display:'block',
+                    padding:'10px 18px', width:'calc(100% - 36px)',
+                    borderBottom:'1px solid var(--hair-soft)',
+                    background: isHero ? 'rgba(255,56,92,.06)' : 'transparent',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,.03)'}
+                  onMouseLeave={e => e.currentTarget.style.background = isHero ? 'rgba(255,56,92,.06)' : 'transparent'}>
+                    <div style={{display:'flex', alignItems:'center', gap: 8, marginBottom: 3}}>
+                      <span className="mono" style={{
+                        fontSize: 9.5, letterSpacing:'.10em', color: m.color, fontWeight: 700,
+                        padding:'1px 6px', borderRadius: 3,
+                        background: `${m.color}14`,
+                      }}>{m.label}</span>
+                      <span style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 500}}>{it.actor}</span>
+                      <span style={{flex: 1}} />
+                      <span className="mono" style={{fontSize: 10, color:'var(--muted)'}}>{it.target}</span>
+                    </div>
+                    <div style={{fontSize: 11.5, color:'var(--ink-mid)', lineHeight: 1.4}}>{it.detail}</div>
+                  </button>
+                );
+              }
+              // future
+              return (
+                <div key={it.id} style={{padding:'9px 18px', borderBottom:'1px solid var(--hair-soft)'}}>
+                  <div className="mono" style={{fontSize: 9.5, letterSpacing:'.10em', color:'var(--muted)', marginBottom: 2}}>
+                    {it.time.toUpperCase()}
+                  </div>
+                  <div style={{fontSize: 12.5, color:'var(--ink)', lineHeight: 1.4}}>{it.actor}</div>
+                  <div style={{fontSize: 11, color:'var(--muted)', marginTop: 2}}>{it.target} · {it.detail}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── RegionClusterStrip — geographic at-glance ─
+function RegionClusterStrip({ clusters, onOpen }) {
+  return (
+    <div style={{marginBottom: 32}}>
+      <div className="mono" style={{
+        fontSize: 10.5, letterSpacing:'.18em', color:'var(--muted)',
+        marginBottom: 12, fontWeight: 500,
+      }}>BY REGION · {clusters.length} CLUSTERS</div>
+      <div style={{display:'grid', gridTemplateColumns: `repeat(${clusters.length}, 1fr)`, gap: 10}}>
+        {clusters.map(c => {
+          const hot = c.at_risk > 0;
+          const needs = c.needs_you > 0;
+          const accent = hot ? 'var(--risk)' : needs ? 'var(--warn)' : c.live > 0 ? 'var(--info)' : 'var(--ok)';
+          return (
+            <button key={c.id} onClick={() => onOpen('properties')} style={{
+              all:'unset', cursor:'pointer',
+              padding:'12px 14px', borderRadius: 10,
+              background:'#ffffff', border:'1px solid var(--hair)',
+              borderLeft: `3px solid ${accent}`,
+              transition: 'background .1s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--paper-2)'}
+            onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}>
+              <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', gap: 6, marginBottom: 4}}>
+                <span style={{fontSize: 13, fontWeight: 600, color:'var(--ink)'}}>{c.label}</span>
+                <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.06em'}}>{c.properties}p</span>
+              </div>
+              <div style={{display:'flex', gap: 6, marginBottom: 4, fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.04em'}}>
+                <span style={{color: c.live > 0 ? 'var(--ink)' : 'var(--muted-2)'}}>{c.live} live</span>
+                {c.needs_you > 0 && <span style={{color:'var(--warn)'}}>· {c.needs_you} need you</span>}
+                {c.at_risk > 0 && <span style={{color:'var(--risk)'}}>· {c.at_risk} at risk</span>}
+              </div>
+              <div style={{fontSize: 11, color:'var(--muted)', lineHeight: 1.45}}>{c.note}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── ActivityTicker — pulse strip at the bottom of Today ─
+function ActivityTicker({ stream }) {
+  const verbColor = {
+    drafting:    '#5E6AD2',
+    'message in':'#5E6AD2',
+    confirmed:   '#00A699',
+    'auto-sent': '#00A699',
+    approved:    '#00A699',
+  };
+  return (
+    <div style={{
+      marginTop: 24, paddingTop: 18,
+      borderTop:'1px solid var(--hair-soft)',
+    }}>
+      <div className="mono" style={{
+        fontSize: 9.5, letterSpacing:'.18em', color:'var(--muted)',
+        marginBottom: 12, fontWeight: 500, display:'flex', alignItems:'center', gap: 10,
+      }}>
+        <span style={{
+          width: 6, height: 6, borderRadius:999, background:'var(--ok)',
+          animation: 'tickerPulse 2s ease-in-out infinite',
+        }} />
+        LIVE · WHAT CENDRA IS HANDLING
+      </div>
+      <style>{`@keyframes tickerPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+      <div style={{display:'grid', gap: 6}}>
+        {stream.slice(0, 5).map((e, i) => {
+          const c = verbColor[e.verb] || 'var(--ink-mid)';
+          return (
+            <div key={e.id} style={{
+              display:'grid', gridTemplateColumns: '64px 100px 90px 1fr 70px',
+              gap: 14, alignItems:'baseline',
+              padding:'4px 0',
+              opacity: 1 - (i * 0.08),
+            }}>
+              <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.04em'}}>{e.time}</span>
+              <span style={{fontSize: 12, color:'var(--ink-mid)'}}>{e.actor}</span>
+              <span className="mono" style={{fontSize: 10.5, color: c, letterSpacing:'.04em', fontWeight: 600, textTransform: 'uppercase'}}>{e.verb}</span>
+              <span style={{fontSize: 12, color:'var(--ink)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{e.target}</span>
+              <span className="mono" style={{fontSize: 9.5, color:'var(--muted-2)', letterSpacing:'.10em', textAlign:'right', textTransform:'uppercase'}}>{e.channel}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function HeroPriorityCard({ hero, onOpen }) {
   const isHigh = hero.risk === "high";
   const accentColor = isHigh ? 'var(--rausch)' : 'var(--ink)';
