@@ -1021,6 +1021,29 @@ function StayProgress({ done, total, checkout }) {
 }
 
 // Individual guest card — Cendra's micro-take + status + stay
+// JourneyBreadcrumbInline — compact horizontal stage breadcrumb for Stays cards
+function JourneyBreadcrumbInline({ variant }) {
+  const activeIdx = variant === 'arrival' ? 2 : variant === 'stay' ? 3 : variant === 'departure' ? 4 : 3;
+  const stages = ['Booked', 'Pre-arrival', 'Check-in', 'In-stay', 'Checkout'];
+  return (
+    <div style={{display:'flex', alignItems:'center', gap: 3, flexWrap:'wrap'}}>
+      {stages.map((s, i) => (
+        <React.Fragment key={s}>
+          <span style={{
+            fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.06em',
+            fontWeight: i === activeIdx ? 700 : 400,
+            color: i === activeIdx ? 'var(--ink)' : i < activeIdx ? 'var(--ink-mid)' : 'var(--muted-2)',
+            textTransform:'uppercase',
+          }}>{s}</span>
+          {i < stages.length - 1 && (
+            <span style={{fontSize: 8, color: i < activeIdx ? 'var(--ink-mid)' : 'var(--muted-2)'}}>›</span>
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
 function GuestJourneyCard({ g, onOpen, variant }) {
   const accent = g.status === "needs_you" ? 'var(--warn)' : g.status === "waiting" ? 'var(--info)' : 'var(--ok)';
   const health = deriveStayHealth(g);
@@ -1062,6 +1085,9 @@ function GuestJourneyCard({ g, onOpen, variant }) {
           <span className="mono dim" style={{fontSize:10}}>{g.language}</span>
           {g.trips > 0 && <span className="mono dim" style={{fontSize:10}}>· {g.trips} prior</span>}
           <span className="mono dim" style={{fontSize:10}}>· {g.sentiment}</span>
+        </div>
+        <div style={{marginBottom: 6}}>
+          <JourneyBreadcrumbInline variant={variant} />
         </div>
         <div className="mono dim" style={{fontSize:10.5, letterSpacing:'.05em', marginBottom:8}}>
           {g.property} · {g.owner} · {g.channel}
@@ -1115,9 +1141,11 @@ function WorkDetailScreen({ onOpen, tweaks }) {
   const composerRef = useRef(null);
 
   const g = sweep[idx] || sweep[0];
+  // Hold-Steady on this stay — H key pauses Cendra's autonomy on this stay until released
+  const [holdSteady, setHoldSteady] = useState(false);
   if (!g) return null;
 
-  // Keyboard sweep · J/K
+  // Keyboard sweep · J/K · H = hold steady
   useEffect(() => {
     const onKey = (e) => {
       const inField = document.activeElement && ["INPUT","TEXTAREA"].includes(document.activeElement.tagName);
@@ -1128,6 +1156,9 @@ function WorkDetailScreen({ onOpen, tweaks }) {
       } else if (e.key === "k" || e.key === "K" || e.key === "ArrowUp") {
         e.preventDefault();
         setIdx(i => Math.max(0, i - 1));
+      } else if (e.key === "h" || e.key === "H") {
+        e.preventDefault();
+        setHoldSteady(h => !h);
       } else if (e.key === "/") {
         e.preventDefault();
         composerRef.current?.focus();
@@ -1175,6 +1206,38 @@ function WorkDetailScreen({ onOpen, tweaks }) {
         </button>
       </div>
 
+      {/* HOLD STEADY banner — H key pauses Cendra's autonomy on this stay */}
+      {holdSteady && (
+        <div style={{
+          display:'flex', alignItems:'center', gap: 10,
+          padding:'10px 16px', marginBottom: 18,
+          background: 'rgba(255,56,92,.08)',
+          border: '1px solid rgba(255,56,92,.30)',
+          borderRadius: 10,
+        }}>
+          <span style={{
+            width: 22, height: 22, borderRadius: 5,
+            background:'#FF385C', color:'#ffffff',
+            display:'grid', placeItems:'center',
+            fontFamily:'var(--mono)', fontWeight: 800, fontSize: 13,
+          }}>H</span>
+          <span style={{fontFamily:'var(--mono)', fontSize: 10, letterSpacing:'.16em', color:'#B00037', fontWeight: 700, textTransform:'uppercase'}}>
+            Hold steady · armed
+          </span>
+          <span style={{fontSize: 13, color:'var(--ink)'}}>
+            Cendra is paused on this stay. Drafts will queue; nothing auto-sends.
+          </span>
+          <span style={{flex: 1}} />
+          <button onClick={() => setHoldSteady(false)} style={{
+            all:'unset', cursor:'pointer',
+            padding:'5px 12px', borderRadius: 6,
+            background:'var(--ok)', color:'#ffffff',
+            fontFamily:'var(--mono)', fontSize: 10.5, letterSpacing:'.10em',
+            fontWeight: 700, textTransform:'uppercase',
+          }}>Resume</button>
+        </div>
+      )}
+
       <div style={{
         display:'grid',
         gridTemplateColumns: panelOpen ? 'minmax(0, 1fr) 280px' : '1fr',
@@ -1185,12 +1248,36 @@ function WorkDetailScreen({ onOpen, tweaks }) {
         <div style={{minWidth: 0}}>
           <GuestJourneyHeader g={g} />
 
-          {/* MICRO STAT BAND — stay/arrival progress */}
+          {/* RIGHT NOW strip — what Cendra is currently doing on this stay */}
+          <CendraNowStrip g={g} />
+
+          {/* HERO BINDING DECISION — promoted to top of cards (full bleed) */}
+          {g.cards.length > 0 && (() => {
+            const bindingIdx = g.cards.findIndex(c => c.type === 'abstention' || c.type === 'approval' || c.type === 'policy_hold');
+            const heroIdx = bindingIdx === -1 ? 0 : bindingIdx;
+            const hero = g.cards[heroIdx];
+            const rest = g.cards.filter((_, i) => i !== heroIdx);
+            return (
+              <div style={{marginTop: 24}}>
+                <DecisionLadderHeader total={g.cards.length} current={1} hero />
+                <GenerativeCard card={hero} guest={g} />
+                {rest.length > 0 && <StayLaddergroup rest={rest} guest={g} startIdx={2} total={g.cards.length} />}
+              </div>
+            );
+          })()}
+
+          {/* PRIOR STAYS — Cendra remembers; surface it */}
+          {g.trips > 0 && <PriorStaysStrip g={g} />}
+
+          {/* CENDRA BRIEFING — demoted: smaller, after the binding decision */}
+          <div style={{marginTop: 36, paddingTop: 28, borderTop:'1px solid var(--hair-soft)'}}>
+            <CendraBriefing g={g} compact />
+          </div>
+
+          {/* MICRO STAT BAND — stay/arrival progress (demoted below briefing) */}
           <div style={{
-            display:'flex', gap: 36, flexWrap:'wrap',
-            paddingTop: 24, paddingBottom: 24, marginBottom: 32,
-            borderTop:'1px solid var(--hair-soft)',
-            borderBottom:'1px solid var(--hair-soft)',
+            display:'flex', gap: 32, flexWrap:'wrap',
+            paddingTop: 20, paddingBottom: 4, marginTop: 18,
           }}>
             {inStay ? (
               <>
@@ -1209,11 +1296,8 @@ function WorkDetailScreen({ onOpen, tweaks }) {
             <GuestStat value={g.sla_min != null && g.sla_min < 0 ? `+${Math.abs(g.sla_min)}m` : g.sla_min != null ? `${g.sla_min}m` : '—'} label="sla" tone={g.sla_min != null && g.sla_min < 0 ? 'risk' : g.sla_min != null && g.sla_min < 60 ? 'warn' : null} />
           </div>
 
-          {/* CENDRA BRIEFING — big Fraunces display */}
-          <CendraBriefing g={g} />
-
-          {/* GENERATIVE CARDS — Cendra's pending actions */}
-          {g.cards.length > 0 && (
+          {/* Old generative cards block removed — laddered above */}
+          {false && g.cards.length > 0 && (
             <div style={{display:'grid', gap: 14, marginTop: 32}}>
               {g.cards.map((c, i) => <GenerativeCard key={i} card={c} guest={g} />)}
             </div>
@@ -1318,31 +1402,203 @@ function GuestJourneyHeader({ g }) {
   );
 }
 
-// Cendra's serif briefing — Fraunces display, matches Morning Brief
-function CendraBriefing({ g }) {
+// PriorStaysStrip — surface returning-guest history. Cendra knows; UI shows.
+// Synthesises N prior stays from g.trips count for the prototype.
+function PriorStaysStrip({ g }) {
+  // For the prototype, synthesise prior stays based on g.trips count.
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const stays = useMemo(() => {
+    const out = [];
+    const baseMonth = 4; // May
+    for (let i = 0; i < g.trips; i++) {
+      const offset = (i + 1) * 5;
+      const month = months[(baseMonth - offset + 36) % 12];
+      const year = 2026 - Math.floor((offset - baseMonth) / 12 + 1);
+      const nights = 2 + (i * 3) % 5;
+      const sentiments = ['warm', 'neutral', 'soft-positive'];
+      const sentiment = sentiments[i % sentiments.length];
+      const tropes = [
+        'asked for early check-in · approved',
+        'wi-fi reset · resolved by Cendra',
+        'late checkout requested · €25 accepted',
+        'reported missing towel · cleaner same-day',
+      ];
+      out.push({
+        id: 'past_' + i,
+        when: `${month} ${year}`,
+        nights,
+        sentiment,
+        trope: tropes[i % tropes.length],
+      });
+    }
+    return out;
+  }, [g.trips]);
+
+  return (
+    <div style={{marginTop: 28}}>
+      <div className="mono" style={{
+        fontSize: 9.5, letterSpacing:'.16em', color:'var(--ink)',
+        fontWeight: 700, textTransform:'uppercase', marginBottom: 10,
+        display:'flex', alignItems:'center', gap: 10,
+      }}>
+        Prior stays · {g.trips}
+        <span style={{fontFamily:'var(--mono)', fontSize: 9.5, color:'var(--muted)', fontWeight: 500}}>
+          Cendra carries this context forward.
+        </span>
+      </div>
+      <div style={{
+        display:'grid', gap: 1, background:'var(--hair)', border:'1px solid var(--hair)',
+        borderRadius: 8, overflow:'hidden',
+      }}>
+        {stays.map(s => {
+          const sTone = s.sentiment === 'warm' ? 'var(--ok)' : s.sentiment === 'soft-positive' ? 'var(--info)' : 'var(--ink-mid)';
+          return (
+            <div key={s.id} style={{
+              display:'grid', gridTemplateColumns: '90px 70px 100px 1fr',
+              gap: 14, padding:'10px 14px', alignItems:'center',
+              background:'#ffffff',
+            }}>
+              <span className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'.04em'}}>{s.when}</span>
+              <span className="mono" style={{fontSize: 11, color:'var(--ink-mid)', letterSpacing:'.04em'}}>{s.nights}n</span>
+              <span className="mono" style={{fontSize: 10, color: sTone, letterSpacing:'.06em', textTransform:'uppercase', fontWeight: 600}}>
+                {s.sentiment}
+              </span>
+              <span style={{fontSize: 12.5, color:'var(--ink-mid)'}}>{s.trope}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// CendraNowStrip — right now strip for Stay Detail
+// "Cendra is currently waiting on the plumber quote · last signal 14m ago"
+function CendraNowStrip({ g }) {
+  // Synthesise current activity from guest state
+  const activity = (() => {
+    if (g.status === 'needs_you' && (g.cards || []).some(c => c.type === 'abstention'))
+      return { verb: 'holding', subject: 'for your judgment', detail: g.status_reason || 'awaiting your direction', tone: 'risk' };
+    if (g.status === 'needs_you')
+      return { verb: 'holding', subject: 'a draft for you',   detail: g.status_reason || 'awaiting your approval',   tone: 'warn' };
+    if ((g.cards || []).some(c => c.type === 'dependency'))
+      return { verb: 'waiting on', subject: 'a vendor reply', detail: 'last signal coming up',                       tone: 'info' };
+    if ((g.cards || []).some(c => c.type === 'promise'))
+      return { verb: 'fulfilling', subject: 'a promise',      detail: 'updating guest on progress',                  tone: 'info' };
+    return { verb: 'monitoring', subject: 'this stay',        detail: 'no action needed',                            tone: 'ok' };
+  })();
+
+  const c = activity.tone === 'risk' ? 'var(--risk)' : activity.tone === 'warn' ? 'var(--warn)' : activity.tone === 'info' ? 'var(--info)' : 'var(--ok)';
+
+  return (
+    <div style={{
+      display:'flex', alignItems:'center', gap: 10,
+      marginTop: 18, marginBottom: 4,
+      padding:'8px 14px', borderRadius: 8,
+      background: `${c}10`,
+      border: `1px solid ${c}30`,
+    }}>
+      <span style={{
+        width: 7, height: 7, borderRadius: 999, background: c,
+        animation:'nowPulse 1.8s ease-in-out infinite',
+      }} />
+      <style>{`@keyframes nowPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+      <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color: c, textTransform:'uppercase', fontWeight: 700}}>
+        Right now
+      </span>
+      <span style={{fontSize: 13, color:'var(--ink)'}}>
+        Cendra is <b>{activity.verb}</b> {activity.subject} · {activity.detail}
+      </span>
+    </div>
+  );
+}
+
+// DecisionLadderHeader — "1 of N · binding · unblocks the others"
+function DecisionLadderHeader({ total, current, hero }) {
+  return (
+    <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 10, marginTop: 18}}>
+      <span className="mono" style={{
+        fontSize: 9.5, letterSpacing:'.16em', color: hero ? 'var(--rausch)' : 'var(--muted)',
+        fontWeight: 700, textTransform:'uppercase',
+        padding:'3px 8px', borderRadius: 4,
+        background: hero ? 'rgba(255,56,92,.08)' : 'var(--paper-2)',
+        border: hero ? '1px solid rgba(255,56,92,.30)' : '1px solid var(--hair)',
+      }}>
+        {hero ? `Binding · ${current} of ${total}` : `${current} of ${total}`}
+      </span>
+      {hero && total > 1 && (
+        <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.06em'}}>
+          Unblocks the {total - 1} below
+        </span>
+      )}
+    </div>
+  );
+}
+
+// StayLaddergroup — secondary cards collapsed below the hero with a toggle
+function StayLaddergroup({ rest, guest, startIdx, total }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{marginTop: 20}}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        all:'unset', cursor:'pointer',
+        display:'flex', alignItems:'center', gap: 10,
+        padding:'10px 14px', borderRadius: 8,
+        background:'var(--paper-2)', border:'1px solid var(--hair-soft)',
+        width:'calc(100% - 30px)',
+      }}>
+        <span className="mono" style={{fontSize: 9.5, letterSpacing:'.16em', color:'var(--ink-mid)', fontWeight: 700, textTransform:'uppercase'}}>
+          Next {rest.length} step{rest.length === 1 ? '' : 's'}
+        </span>
+        <span style={{fontSize: 12, color:'var(--muted)'}}>
+          {rest.map(r => r.type).join(' · ')}
+        </span>
+        <span style={{flex: 1}} />
+        <span className="mono" style={{fontSize: 10, color:'var(--ink-mid)', letterSpacing:'.10em'}}>
+          {open ? '↑ Collapse' : '↓ Expand'}
+        </span>
+      </button>
+      {open && (
+        <div style={{display:'grid', gap: 14, marginTop: 14}}>
+          {rest.map((c, i) => (
+            <div key={i}>
+              <DecisionLadderHeader total={total} current={startIdx + i} />
+              <GenerativeCard card={c} guest={guest} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Cendra's serif briefing — Fraunces display, matches Morning Brief.
+// `compact` mode used after the binding hero decision is already shown.
+function CendraBriefing({ g, compact }) {
   return (
     <div>
-      <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 16}}>
+      <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: compact ? 10 : 16}}>
         <span style={{
-          width: 22, height: 22, borderRadius: 6,
+          width: compact ? 18 : 22, height: compact ? 18 : 22, borderRadius: 6,
           background: 'var(--ink)', color: '#ffffff',
           display:'grid', placeItems:'center',
-          fontFamily:'var(--mono)', fontSize: 11, fontWeight: 600,
+          fontFamily:'var(--mono)', fontSize: compact ? 10 : 11, fontWeight: 600,
         }}>C</span>
         <span className="mono" style={{fontSize: 10.5, letterSpacing:'.14em', color:'var(--ink)', fontWeight: 600}}>CENDRA</span>
         <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)'}}>·</span>
-        <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)', letterSpacing:'.12em'}}>BRIEFING</span>
+        <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)', letterSpacing:'.12em'}}>{compact ? 'BACKGROUND' : 'BRIEFING'}</span>
         <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)'}}>·</span>
         <span style={{fontFamily:'var(--mono)', fontSize: 10, color:'var(--muted)', letterSpacing:'.12em'}}>CONFIDENCE · {g.confidence != null ? confidenceBand(g.confidence).label.toUpperCase() : '—'}</span>
       </div>
       <p className="serif-display" style={{
-        fontSize: 26, lineHeight: 1.36, margin: 0, color:'var(--ink)',
+        fontSize: compact ? 18 : 26, lineHeight: compact ? 1.5 : 1.36, margin: 0, color: compact ? 'var(--ink-mid)' : 'var(--ink)',
         letterSpacing:'-.008em', maxWidth: 780,
-        fontVariationSettings: '"opsz" 72, "SOFT" 50, "WONK" 0',
+        fontVariationSettings: compact ? '"opsz" 48, "SOFT" 30, "WONK" 0' : '"opsz" 72, "SOFT" 50, "WONK" 0',
+        fontStyle: compact ? 'italic' : 'normal',
       }}>
         {g.cendra_take}
       </p>
-      {g.status === "needs_you" && (
+      {!compact && g.status === "needs_you" && (
         <div style={{fontSize: 14.5, color:'var(--muted)', marginTop: 14, fontFamily:'var(--serif)'}}>
           That's why I'm bringing it to you.
         </div>
