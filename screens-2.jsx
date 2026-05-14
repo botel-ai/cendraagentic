@@ -14,18 +14,20 @@ function CertBadge({ wf }) {
   const tier = wf.state === 'autopilot' ? 'T4 · auto-act-with-disclosure' : 'T3 · semi-with-pm-co-sign';
   const expires = wf.state === 'autopilot' ? '7d' : '24h';
   const digest = wf.cert_digest || ((wf.id || 'wf') + '_03b1' + (wf.samples || 0)).slice(0, 16) + '…';
+  // Inline tier visible by default; click expands the full cert details.
+  const tierShort = wf.state === 'autopilot' ? 'T4' : 'T3';
   return (
     <span style={{position:'relative', display:'inline-block', marginLeft: 4}}>
       <button onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }} style={{
         all:'unset', cursor:'pointer',
-        padding:'1px 6px', borderRadius: 4,
+        padding:'2px 7px', borderRadius: 4,
         background:'rgba(0,166,153,.10)', border:'1px solid rgba(0,166,153,.30)',
-        fontFamily:'var(--mono)', fontSize: 9, letterSpacing:'.10em',
+        fontFamily:'var(--mono)', fontSize: 9.5, letterSpacing:'.08em',
         color:'#00867E', fontWeight: 700, textTransform:'uppercase',
-        display:'inline-flex', alignItems:'center', gap: 3,
+        display:'inline-flex', alignItems:'center', gap: 4,
       }}
-      title="HMAC-SHA256 signed autonomy certificate">
-        🔒 Cert
+      title="HMAC-SHA256 signed autonomy certificate · click for details">
+        🔒 {tierShort} · {expires} · ✓
       </button>
       {open && (
         <div style={{

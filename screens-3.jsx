@@ -1835,12 +1835,18 @@ function TrustScreen({ onOpen }) {
       {/* AUDIT — link to audit trail + incident review */}
       {tab === "audit" && (
         <div>
-          <SectionLabel2
-            eyebrow={`Every decision · ${D2.audit.length} entries · last 7 days`}
-            sub="Filter by actor, incident, or reversibility. Roll back any reversible action. Replay against today's rules to see if Cendra would still decide the same way."
-          />
-          <div style={{marginTop: 16}}>
-            <AuditTrailPanel />
+          {/* REVERSALS · honest negatives — top of audit. Trust grows from
+              acknowledged misses. */}
+          <ReversalsPanel reversals={D3.reversals_7d || []} />
+
+          <div style={{marginTop: 36}}>
+            <SectionLabel2
+              eyebrow={`Every decision · ${D2.audit.length} entries · last 7 days`}
+              sub="Filter by actor, incident, or reversibility. Roll back any reversible action. Replay against today's rules to see if Cendra would still decide the same way."
+            />
+            <div style={{marginTop: 16}}>
+              <AuditTrailPanel />
+            </div>
           </div>
         </div>
       )}
@@ -1857,6 +1863,72 @@ function SectionLabel2({ eyebrow, sub }) {
         fontWeight: 600, textTransform:'uppercase', marginBottom: 4,
       }}>{eyebrow}</div>
       {sub && <div style={{fontSize: 13, color:'var(--muted)'}}>{sub}</div>}
+    </div>
+  );
+}
+
+// ReversalsPanel — Cendra's honest negatives. Trust grows from acknowledged
+// misses, not from pure-positive dashboards.
+function ReversalsPanel({ reversals }) {
+  const [openId, setOpenId] = useState(reversals[0]?.id || null);
+  return (
+    <div>
+      <div style={{display:'flex', alignItems:'baseline', gap: 12, marginBottom: 12}}>
+        <div className="mono" style={{fontSize: 11, letterSpacing:'.16em', color:'var(--ink)', fontWeight: 700, textTransform:'uppercase'}}>
+          Cendra reversals · last 7 days
+        </div>
+        <span className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.06em'}}>
+          {reversals.length} acknowledged miss{reversals.length === 1 ? '' : 'es'} · post-mortems below
+        </span>
+      </div>
+      <div style={{
+        background:'rgba(255,180,0,.04)',
+        border:'1px solid rgba(255,180,0,.25)',
+        borderRadius: 12,
+        padding:'4px 0',
+      }}>
+        {reversals.map((r, i) => {
+          const open = openId === r.id;
+          const sevColor = r.severity === 'major' ? 'var(--risk)' : r.severity === 'moderate' ? 'var(--warn)' : '#B45309';
+          return (
+            <div key={r.id} style={{
+              borderBottom: i < reversals.length - 1 ? '1px solid rgba(255,180,0,.18)' : 'none',
+            }}>
+              <button onClick={() => setOpenId(open ? null : r.id)} style={{
+                all:'unset', cursor:'pointer', display:'grid',
+                gridTemplateColumns: '8px 130px 180px 1fr 90px 14px',
+                gap: 14, padding:'14px 18px', alignItems:'center',
+                width:'calc(100% - 36px)',
+              }}>
+                <span style={{width: 8, height: 8, borderRadius:999, background: sevColor}} />
+                <span className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em'}}>{r.time}</span>
+                <span style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 500}}>{r.workflow}</span>
+                <span style={{fontSize: 12.5, color:'var(--ink-mid)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{r.property} · {r.what_went_wrong.split('.')[0]}</span>
+                <span className="mono" style={{fontSize: 10, letterSpacing:'.12em', color: sevColor, textTransform:'uppercase', fontWeight: 700}}>{r.severity}</span>
+                <span style={{fontFamily:'var(--mono)', fontSize: 13, color:'var(--ink-mid)', transform: open ? 'rotate(90deg)' : 'none', transition:'transform .15s'}}>›</span>
+              </button>
+              {open && (
+                <div style={{padding:'4px 18px 18px 50px', display:'grid', gap: 10, fontSize: 12.5, lineHeight: 1.55}}>
+                  <KV label="What Cendra did"     value={r.what_cendra_did} />
+                  <KV label="What went wrong"     value={r.what_went_wrong} />
+                  <KV label="Reversed by"         value={r.reversed_by} />
+                  <KV label="Action taken"        value={r.action_taken} />
+                  <KV label="Learning"            value={r.learning} accent />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function KV({ label, value, accent }) {
+  return (
+    <div style={{display:'grid', gridTemplateColumns:'140px 1fr', gap: 12, alignItems:'baseline'}}>
+      <span className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 600}}>{label}</span>
+      <span style={{fontSize: 12.5, color: accent ? 'var(--ok)' : 'var(--ink-mid)', lineHeight: 1.55, fontWeight: accent ? 500 : 400}}>{value}</span>
     </div>
   );
 }

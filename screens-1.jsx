@@ -1402,6 +1402,119 @@ function GuestJourneyHeader({ g }) {
   );
 }
 
+// RecallWindowActions — the trust unlock for autopilot.
+// When PM approves, the card flips to a 60-second "recall window" with a
+// progress bar and a Pull back button. After 60s, locked in.
+function RecallWindowActions({ card, oneOff, onWhy }) {
+  const [phase, setPhase] = useState("pending");  // pending | sent | locked | recalled
+  const [remaining, setRemaining] = useState(60);
+
+  useEffect(() => {
+    if (phase !== "sent") return;
+    if (remaining <= 0) { setPhase("locked"); return; }
+    const t = setTimeout(() => setRemaining(r => r - 1), 1000);
+    return () => clearTimeout(t);
+  }, [phase, remaining]);
+
+  if (phase === "pending") {
+    return (
+      <div style={{display:'flex', gap: 8, marginTop: 14, flexWrap:'wrap', alignItems:'center'}}>
+        {card.options.map((o, i) => (
+          <Btn key={o} kind={i === 0 ? 'primary' : 'default'} size="sm" onClick={i === 0 ? () => { setPhase("sent"); setRemaining(60); } : undefined}>{o}</Btn>
+        ))}
+        <span style={{flex: 1}} />
+        <button onClick={onWhy} style={{
+          all:'unset', cursor:'pointer',
+          fontFamily:'var(--mono)', fontSize: 10.5, letterSpacing:'.12em',
+          color:'var(--ink-mid)', textTransform:'uppercase', fontWeight: 600,
+          padding: '6px 10px', borderRadius: 6,
+          border:'1px solid var(--hair)',
+        }}>
+          Why · §10 chain →
+        </button>
+      </div>
+    );
+  }
+
+  if (phase === "sent") {
+    const pct = (60 - remaining) / 60 * 100;
+    return (
+      <div style={{
+        marginTop: 14, padding:'12px 14px', borderRadius: 10,
+        background:'rgba(0,166,153,.06)', border:'1px solid rgba(0,166,153,.30)',
+      }}>
+        <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 8}}>
+          <span className="mono" style={{fontSize: 9.5, letterSpacing:'.16em', color:'#00867E', fontWeight: 700, textTransform:'uppercase'}}>
+            ✓ Sent · recall window
+          </span>
+          <span style={{fontSize: 12.5, color:'var(--ink)'}}>
+            {card.options[0]} · {oneOff && <em>tagged as one-off · won't be learned</em>}
+          </span>
+          <span style={{flex: 1}} />
+          <span className="mono" style={{fontSize: 12.5, color:'#00867E', fontVariantNumeric:'tabular-nums', fontWeight: 600}}>
+            {remaining}s
+          </span>
+          <button onClick={() => setPhase("recalled")} style={{
+            all:'unset', cursor:'pointer',
+            padding:'5px 12px', borderRadius: 6,
+            background:'#ffffff', border:'1px solid #FF385C',
+            color:'#FF385C', fontSize: 11.5, fontWeight: 700,
+            fontFamily:'var(--mono)', letterSpacing:'.08em', textTransform:'uppercase',
+          }}>
+            ⤺ Pull back
+          </button>
+        </div>
+        <div style={{height: 3, borderRadius: 2, background:'rgba(0,166,153,.15)', overflow:'hidden'}}>
+          <div style={{
+            height: '100%', width: `${100 - pct}%`,
+            background:'var(--ok)', transition: 'width 1s linear',
+          }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === "recalled") {
+    return (
+      <div style={{
+        marginTop: 14, padding:'10px 14px', borderRadius: 10,
+        background:'rgba(255,56,92,.06)', border:'1px solid rgba(255,56,92,.30)',
+        display:'flex', alignItems:'center', gap: 10,
+      }}>
+        <span className="mono" style={{fontSize: 9.5, letterSpacing:'.16em', color:'#FF385C', fontWeight: 700, textTransform:'uppercase'}}>
+          ⤺ Pulled back
+        </span>
+        <span style={{fontSize: 12.5, color:'var(--ink-mid)'}}>
+          Nothing went out. The decision is reopened.
+        </span>
+        <span style={{flex: 1}} />
+        <button onClick={() => setPhase("pending")} style={{
+          all:'unset', cursor:'pointer',
+          padding:'4px 10px', borderRadius: 6,
+          fontSize: 11, fontWeight: 500,
+          color:'var(--ink-mid)', border:'1px solid var(--hair)',
+        }}>Reopen</button>
+      </div>
+    );
+  }
+
+  // locked
+  return (
+    <div style={{
+      marginTop: 14, padding:'10px 14px', borderRadius: 10,
+      background:'var(--paper-2)', border:'1px solid var(--hair-soft)',
+      display:'flex', alignItems:'center', gap: 10,
+    }}>
+      <span className="mono" style={{fontSize: 9.5, letterSpacing:'.16em', color:'var(--ok)', fontWeight: 700, textTransform:'uppercase'}}>
+        ✓ Confirmed
+      </span>
+      <span style={{fontSize: 12.5, color:'var(--ink-mid)'}}>
+        Recall window closed. Logged to the audit trail.
+      </span>
+    </div>
+  );
+}
+
 // PriorStaysStrip — surface returning-guest history. Cendra knows; UI shows.
 // Synthesises N prior stays from g.trips count for the prototype.
 function PriorStaysStrip({ g }) {
@@ -1816,21 +1929,7 @@ function ApprovalGenerativeCard({ card, guest }) {
           </div>
         </label>
 
-        <div style={{display:'flex', gap: 8, marginTop: 14, flexWrap:'wrap', alignItems:'center'}}>
-          {card.options.map((o, i) => (
-            <Btn key={o} kind={i === 0 ? 'primary' : 'default'} size="sm">{o}</Btn>
-          ))}
-          <span style={{flex: 1}} />
-          <button onClick={() => setWhyOpen(true)} style={{
-            all:'unset', cursor:'pointer',
-            fontFamily:'var(--mono)', fontSize: 10.5, letterSpacing:'.12em',
-            color:'var(--ink-mid)', textTransform:'uppercase', fontWeight: 600,
-            padding: '6px 10px', borderRadius: 6,
-            border:'1px solid var(--hair)',
-          }}>
-            Why · §10 chain →
-          </button>
-        </div>
+        <RecallWindowActions card={card} oneOff={oneOff} onWhy={() => setWhyOpen(true)} />
       </div>
       <WhyDrawer open={whyOpen} onClose={() => setWhyOpen(false)} decision={decisionForWhy} />
     </>

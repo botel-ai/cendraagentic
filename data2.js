@@ -66,6 +66,48 @@ window.CENDRA_DATA2 = {
     ],
   },
 
+  // Reversals · last 7d — Cendra's honest admissions
+  // Surfaces post-mortems where Cendra got something wrong and we rolled back.
+  // Trust grows from acknowledged misses, not from a pure-positive trust dashboard.
+  reversals_7d: [
+    {
+      id: "rv1",
+      time: "4d ago · 14:22",
+      workflow: "Vendor dispatch",
+      property: "Bosphorus Loft",
+      what_cendra_did: "Auto-dispatched plumber A. Sözen for a sink leak (€85 quote, under cap)",
+      what_went_wrong: "Plumber arrived, leak was already self-resolved. Guest unimpressed by the disruption. Cendra didn't ask for confirmation photos before dispatching.",
+      reversed_by: "Maya · 16:08 same day",
+      action_taken: "Plumber rescheduled to next morning, courtesy fee paid",
+      learning: "Pattern rule added: for leak reports under €100, request photo confirmation before auto-dispatch. Live since 4d ago.",
+      severity: "minor",
+    },
+    {
+      id: "rv2",
+      time: "6d ago · 09:14",
+      workflow: "Late checkout offer",
+      property: "Cihangir House",
+      what_cendra_did: "Auto-offered €25 late checkout to guest with same-day turnover scheduled",
+      what_went_wrong: "Cleaner ETA was 14:00 (tight). Late checkout pushed guest exit to 13:30, cleaner arrived to a not-yet-cleared room. Next guest's check-in delayed 35 min.",
+      reversed_by: "Cendra self-detected · 10:42 same day",
+      action_taken: "Future late checkouts paused on same-day turnover properties · 7-day cool-down",
+      learning: "Workflow demoted from autopilot back to semi-auto on Cihangir House until cleaning sync stabilises. Already promoted back today.",
+      severity: "moderate",
+    },
+    {
+      id: "rv3",
+      time: "Yesterday · 22:18",
+      workflow: "Sentiment classification",
+      property: "Galata 3",
+      what_cendra_did: "Classified Thomas's 'this is ridiculous' message as neutral-frustration",
+      what_went_wrong: "Should have been classified as hostile · review threat. The sentiment shift was caught 26 minutes later by the secondary classifier.",
+      reversed_by: "Cendra self-detected · 22:44 same day",
+      action_taken: "Outbound paused; escalation drafted; you signed off this morning.",
+      learning: "Multilingual classifier updated with 7 new German+English code-switched anger markers.",
+      severity: "minor",
+    },
+  ],
+
   // Live activity ticker — last few Cendra events, fade-in style
   activity_stream: [
     { id: "as1", time: "just now",   actor: "Cendra",       verb: "drafting",    target: "Selin · plumber fulfillment update",       channel: "whatsapp" },
