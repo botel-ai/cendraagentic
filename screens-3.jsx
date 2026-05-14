@@ -359,15 +359,9 @@ function MicroBlockerStat({ value, label, tone }) {
     </div>
   );
 }
-function MicroStatBlock2({ value, label, sub, tone }) {
-  const color = tone === 'ok' ? 'var(--ok)' : tone === 'warn' ? 'var(--warn)' : tone === 'risk' ? 'var(--risk)' : 'var(--ink)';
-  return (
-    <div>
-      <div style={{fontFamily:'var(--sans)', fontSize: 22, fontWeight: 500, color, lineHeight: 1.1, letterSpacing:'-.015em', fontVariantNumeric:'tabular-nums'}}>{value}</div>
-      <div className="mono" style={{fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase', marginTop: 4, fontWeight: 500}}>{label}</div>
-      {sub && <div className="mono" style={{fontSize: 10, color:'var(--muted-2)', marginTop: 2}}>{sub}</div>}
-    </div>
-  );
+// MicroStatBlock2 — thin wrapper over canonical Stat (atoms-2)
+function MicroStatBlock2(props) {
+  return <window.CendraAtoms2.Stat {...props} />;
 }
 
 // ───────────────────────────────────────────────────────────────────

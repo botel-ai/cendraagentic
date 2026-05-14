@@ -33,7 +33,7 @@ function TodayScreen({ onOpen, tweaks }) {
   return (
     <div className="stage" style={{maxWidth: 900, paddingTop: 64, paddingBottom: 120}}>
 
-      {/* DATE / TIME — quiet anchor */}
+      {/* DATE / TIME — quiet anchor. Incident status lives on Trust hero. */}
       <div className="mono" style={{
         fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
         marginBottom: 28, display:'flex', gap: 16, alignItems:'center',
@@ -41,11 +41,6 @@ function TodayScreen({ onOpen, tweaks }) {
         <span>{dateStr}</span>
         <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
         <span>{timeStr} · LOCAL</span>
-        <span style={{flex:1}} />
-        <span style={{display:'inline-flex', alignItems:'center', gap:6, color:'var(--ok)'}}>
-          <span style={{width:6, height:6, borderRadius:'50%', background:'var(--ok)'}} />
-          ALL SYSTEMS · {s.incidents} INCIDENTS · 30D
-        </span>
       </div>
 
       {/* HERO — Cendra speaks (display Fraunces) */}
@@ -317,21 +312,8 @@ function DigestItem({ title, sub, reason, action, value, onClick }) {
   );
 }
 
-function MicroStat({ value, label, sub, accent }) {
-  const color = accent === 'ok' ? 'var(--ok)' : 'var(--ink)';
-  return (
-    <div>
-      <div style={{
-        fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 500,
-        color: color, lineHeight: 1.1, letterSpacing: '-.015em',
-        fontVariantNumeric: 'tabular-nums',
-      }}>{value}</div>
-      <div className="mono" style={{fontSize:10, letterSpacing:'.14em', color:'var(--muted)', marginTop: 4, textTransform:'uppercase'}}>
-        {label}
-      </div>
-      {sub && <div className="mono" style={{fontSize:10, color:'var(--muted-2)', marginTop:2}}>{sub}</div>}
-    </div>
-  );
+function MicroStat(props) {
+  return <window.CendraAtoms2.Stat {...props} />;
 }
 
 // Today v2 atoms — signal strip, portfolio filter, sections, rows
@@ -1045,6 +1027,7 @@ function WorkDetailScreen({ onOpen, tweaks }) {
     <div className="stage" style={{maxWidth: 1100, paddingTop: 40, paddingBottom: 140}}>
 
       {/* QUIET HEADER — left: back + position, right: conf + facts toggle */}
+      {/* Top nav band — compressed: back / stage·position / right side facts toggle */}
       <div className="mono" style={{
         fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
         marginBottom: 28, display: 'flex', gap: 16, alignItems: 'center',
@@ -1057,30 +1040,15 @@ function WorkDetailScreen({ onOpen, tweaks }) {
         onMouseLeave={e => e.currentTarget.style.color = 'var(--muted)'}>
           ← ALL GUESTS
         </button>
-        <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
-        <span>{stageLabel} · <span style={{color:'var(--ink)'}}>{idx + 1}/{sweep.length}</span></span>
-        <span className="kbd" style={{
-          fontFamily:'var(--mono)', fontSize: 10, padding:'2px 6px',
-          border:'1px solid var(--hair)', borderBottomWidth: 2, borderRadius: 4,
-          background:'#ffffff', color:'var(--ink-mid)', letterSpacing: 0,
-        }}>J</span>
-        <span style={{letterSpacing:'.08em'}}>NEXT</span>
-        <span className="kbd" style={{
-          fontFamily:'var(--mono)', fontSize: 10, padding:'2px 6px',
-          border:'1px solid var(--hair)', borderBottomWidth: 2, borderRadius: 4,
-          background:'#ffffff', color:'var(--ink-mid)', letterSpacing: 0,
-        }}>K</span>
-        <span style={{letterSpacing:'.08em'}}>PREV</span>
+        <span style={{color: 'var(--ink-mid)'}}>{stageLabel}</span>
+        <span style={{color:'var(--ink)'}}>{idx + 1}/{sweep.length}</span>
         <span style={{flex: 1}} />
-        <span>CONFIDENCE · <span style={{color: g.confidence != null ? (confidenceBand(g.confidence).tone === 'ok' ? 'var(--ok)' : confidenceBand(g.confidence).tone === 'warn' ? 'var(--warn)' : confidenceBand(g.confidence).tone === 'risk' ? 'var(--risk)' : 'var(--ink)') : 'var(--muted)'}}>{g.confidence != null ? confidenceBand(g.confidence).label.toUpperCase() : '—'}</span></span>
-        <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
-        <span>LAST CONTACT · {g.last_contact.toUpperCase()}</span>
         <button onClick={() => setPanelOpen(p => !p)} style={{
           all:'unset', cursor:'pointer',
           padding: '4px 10px', borderRadius: 999,
           border: '1px solid var(--hair)', background:'#ffffff',
           fontSize: 10.5, color: 'var(--ink-mid)', letterSpacing:'.08em',
-          fontWeight: 500, marginLeft: 6,
+          fontWeight: 500,
         }}>
           {panelOpen ? 'HIDE FACTS' : 'SHOW FACTS'}
         </button>

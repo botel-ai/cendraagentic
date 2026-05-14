@@ -430,15 +430,9 @@ function KillSwitchPanel() {
   );
 }
 
-// MicroStatBlock — tiny inline stat for the band
-function MicroStatBlock({ value, label, tone }) {
-  const color = tone === 'ok' ? 'var(--ok)' : tone === 'warn' ? 'var(--warn)' : tone === 'risk' ? 'var(--risk)' : tone === 'info' ? 'var(--info)' : 'var(--ink)';
-  return (
-    <div>
-      <div style={{fontFamily:'var(--sans)', fontSize: 22, fontWeight: 500, color, lineHeight: 1.1, letterSpacing:'-.015em', fontVariantNumeric:'tabular-nums'}}>{value}</div>
-      <div className="mono" style={{fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', textTransform:'uppercase', marginTop: 4, fontWeight: 500}}>{label}</div>
-    </div>
-  );
+// MicroStatBlock — thin wrapper over canonical Stat (atoms-2)
+function MicroStatBlock(props) {
+  return <window.CendraAtoms2.Stat {...props} />;
 }
 
 // Workflow group panel

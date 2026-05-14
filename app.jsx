@@ -109,7 +109,7 @@ function App() {
           <TweakButton label="Autopilot" onClick={() => goto("autopilot")} secondary />
           <TweakButton label="Playbook builder" onClick={() => goto("playbook")} secondary />
           <TweakButton label="Properties · portfolio" onClick={() => goto("properties")} secondary />
-          <TweakButton label="Property detail · Karaköy 12" onClick={() => goto("property_detail", "p_kara12")} secondary />
+          <TweakButton label="Property detail · Karaköy 12" onClick={() => goto("properties", "p_kara12")} secondary />
           <TweakButton label="Playbook library" onClick={() => goto("playbook_library")} secondary />
           <TweakButton label="Insights · portfolio health" onClick={() => goto("insights")} secondary />
           <TweakButton label="Trust Center" onClick={() => goto("trust")} secondary />
@@ -510,7 +510,6 @@ function Routes({ route, goto, tweaks }) {
     case "properties":       return route.arg
                                 ? <PropertyDetailScreen onOpen={onOpen} arg={route.arg} />
                                 : <PropertiesScreen onOpen={onOpen} />;
-    case "property_detail":  return <PropertyDetailScreen onOpen={onOpen} arg={route.arg} />;  /* legacy alias */
     case "insights":         return <InsightsScreen onOpen={onOpen} />;
     case "trust":            return <TrustScreen onOpen={onOpen} />;
     case "learning":         return <LearningScreen />;
@@ -810,7 +809,7 @@ function buildSearchIndex(DP, D) {
       id: p.id, cat: "property",
       title: p.name,
       sub: `${p.owner} · ${p.region} · ${p.asks} asks · risk ${p.risk}`,
-      route: "property_detail", arg: p.id,
+      route: "properties", arg: p.id,
       keywords: [p.name, p.owner, p.region].join(" ").toLowerCase(),
     });
   });

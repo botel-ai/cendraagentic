@@ -226,6 +226,33 @@ function SLATimer({ minutes }) {
   );
 }
 
+// ─── Stat — canonical micro stat block ──────────────────────
+// Replaces MicroStat / MicroStatBlock / MicroStatBlock2 with one impl.
+// `tone` ∈ ok | warn | risk | info | default. `accent` accepted as a
+// legacy alias for `tone`. `sub` is optional second line below the label.
+function Stat({ value, label, sub, tone, accent }) {
+  const t = tone || accent;
+  const color = t === 'ok'   ? 'var(--ok)'
+              : t === 'warn' ? 'var(--warn)'
+              : t === 'risk' ? 'var(--risk)'
+              : t === 'info' ? 'var(--info)'
+              : 'var(--ink)';
+  return (
+    <div>
+      <div style={{
+        fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 500,
+        color, lineHeight: 1.1, letterSpacing: '-.015em',
+        fontVariantNumeric: 'tabular-nums',
+      }}>{value}</div>
+      <div className="mono" style={{
+        fontSize: 10, letterSpacing: '.12em', color: 'var(--muted)',
+        textTransform: 'uppercase', marginTop: 4, fontWeight: 500,
+      }}>{label}</div>
+      {sub && <div className="mono" style={{fontSize: 10, color: 'var(--muted-2)', marginTop: 2}}>{sub}</div>}
+    </div>
+  );
+}
+
 // ─── High-signal stat card (top of Today) ───────────────────
 function SignalStat({ label, value, sub, tone, accent }) {
   const color = tone === 'ok' ? 'var(--ok)' : tone === 'warn' ? 'var(--warn)' : tone === 'risk' ? 'var(--risk)' : 'var(--ink)';
@@ -807,7 +834,7 @@ function MsgChannelChip({ channel, sub, time }) {
 }
 
 window.CendraAtoms2 = {
-  StatusPill, StateBadge, SLATimer, SignalStat, PortfolioFilterBar,
+  Stat, StatusPill, StateBadge, SLATimer, SignalStat, PortfolioFilterBar,
   WorkflowTrustRow, TrustMeter, deriveTrust, deriveCriteria,
   IntegrationHealthCard, HardRuleCard, KnowledgeGapCard,
   PropertyFactRow, TeamAssignmentCard, LiveActivityMilestone, SignalStrip,
