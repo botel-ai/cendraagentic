@@ -86,8 +86,12 @@ function TodayScreen({ onOpen, tweaks }) {
             tone="ink"
             expanded={expanded === 'decisions'}
             onToggle={() => setExpanded(e => e === 'decisions' ? null : 'decisions')}
+            seeAllRoute="work_queue"
+            seeAllArg="decision"
+            seeAllCount={restDecisions.length}
+            onOpen={onOpen}
           >
-            {restDecisions.map(it => (
+            {restDecisions.slice(0, 3).map(it => (
               <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.reason} action={it.action} onClick={() => {
                 const r = it.route || "work";
                 if (r.includes(":")) { const [n,a] = r.split(":"); onOpen(n,a); } else onOpen(r);
@@ -102,9 +106,13 @@ function TodayScreen({ onOpen, tweaks }) {
             tone="risk"
             expanded={expanded === 'risk'}
             onToggle={() => setExpanded(e => e === 'risk' ? null : 'risk')}
+            seeAllRoute="work_queue"
+            seeAllArg="risk"
+            seeAllCount={sections.risk_sla.length}
+            onOpen={onOpen}
           >
-            {sections.risk_sla.map(it => (
-              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.reason} action={it.action} onClick={() => onOpen('work')} />
+            {sections.risk_sla.slice(0, 3).map(it => (
+              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.reason} action={it.action} onClick={() => onOpen('work_queue', 'risk')} />
             ))}
           </DigestRow>
 
@@ -115,9 +123,13 @@ function TodayScreen({ onOpen, tweaks }) {
             tone="ok"
             expanded={expanded === 'revenue'}
             onToggle={() => setExpanded(e => e === 'revenue' ? null : 'revenue')}
+            seeAllRoute="work_queue"
+            seeAllArg="opportunity"
+            seeAllCount={sections.revenue.length}
+            onOpen={onOpen}
           >
-            {sections.revenue.map(it => (
-              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.property} action={it.action} value={`+€${it.est_eur}`} onClick={() => onOpen('work')} />
+            {sections.revenue.slice(0, 3).map(it => (
+              <DigestItem key={it.id} title={it.title} sub={it.sub} reason={it.property} action={it.action} value={`+€${it.est_eur}`} onClick={() => onOpen('work_queue', 'opportunity')} />
             ))}
           </DigestRow>
 
@@ -128,8 +140,11 @@ function TodayScreen({ onOpen, tweaks }) {
             tone="warn"
             expanded={expanded === 'missing'}
             onToggle={() => setExpanded(e => e === 'missing' ? null : 'missing')}
+            seeAllRoute="properties"
+            seeAllCount={sections.missing_knowledge.length}
+            onOpen={onOpen}
           >
-            {sections.missing_knowledge.map(it => (
+            {sections.missing_knowledge.slice(0, 3).map(it => (
               <DigestItem key={it.id} title={`${it.scope} · ${it.fact}`} sub={it.asks ? `Asked ${it.asks}× in 30d.` : 'Conflict detected.'} reason="—" action={it.action} onClick={() => onOpen('properties')} />
             ))}
           </DigestRow>
@@ -231,7 +246,7 @@ function HeroPriorityCard({ hero, onOpen }) {
 }
 
 // DIGEST row — collapsed by default, click to expand
-function DigestRow({ label, hint, count, tone, expanded, onToggle, children }) {
+function DigestRow({ label, hint, count, tone, expanded, onToggle, children, seeAllRoute, seeAllArg, seeAllCount, onOpen }) {
   const dotColor = tone === 'risk' ? 'var(--risk)' : tone === 'warn' ? 'var(--warn)' : tone === 'ok' ? 'var(--ok)' : 'var(--ink)';
   return (
     <div style={{background:'#ffffff'}}>
@@ -249,7 +264,7 @@ function DigestRow({ label, hint, count, tone, expanded, onToggle, children }) {
           <div style={{fontSize: 13, color:'var(--muted)'}}>{hint}</div>
         </div>
         <span className="mono" style={{fontSize:11, color:'var(--muted)', letterSpacing:'.08em'}}>
-          {expanded ? 'COLLAPSE' : 'EXPAND'}
+          {expanded ? 'COLLAPSE' : 'PEEK'}
         </span>
         <span style={{
           fontFamily:'var(--mono)', fontSize: 14, color: 'var(--ink-mid)',
@@ -260,6 +275,18 @@ function DigestRow({ label, hint, count, tone, expanded, onToggle, children }) {
       {expanded && (
         <div style={{borderTop:'1px solid var(--hair-soft)', background:'var(--paper)'}}>
           {children}
+          {seeAllRoute && seeAllCount > 0 && onOpen && (
+            <button onClick={(e) => { e.stopPropagation(); onOpen(seeAllRoute, seeAllArg); }} style={{
+              all:'unset', cursor:'pointer', display:'flex',
+              alignItems:'center', justifyContent:'center', gap: 8,
+              padding:'14px 24px', width:'calc(100% - 48px)',
+              fontFamily:'var(--mono)', fontSize: 11, letterSpacing:'.08em',
+              color:'var(--ink)', fontWeight: 600,
+              borderTop:'1px solid var(--hair-soft)',
+            }}>
+              See all {seeAllCount} in Work →
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -684,24 +711,20 @@ function WorkScreen({ onOpen }) {
         <h1 className="serif-display" style={{
           fontSize: 48, lineHeight: 1.05, margin: 0, color: 'var(--ink)',
         }}>
-          {needsYou.length === 0 && waiting.length === 0
-            ? <>A quiet day. No one is waiting on you.</>
-            : firstPriority
-              ? <>Let's start with <span style={{fontVariationSettings:'"opsz" 144, "SOFT" 70, "WONK" 1'}}>{firstPriority.name.split(' ')[0]}</span>.</>
-              : <>Today's guests.</>
+          {allActive.length === 0
+            ? <>No stays in flight today.</>
+            : <>Your guests, by journey stage.</>
           }
         </h1>
-        {firstPriority && (
-          <p className="serif-display" style={{
-            fontSize: 22, lineHeight: 1.4, margin: '20px 0 0',
-            color: 'var(--ink-mid)', maxWidth: 760, fontWeight: 400,
-            fontVariationSettings: '"opsz" 48, "SOFT" 50, "WONK" 0',
-          }}>
-            {firstPriority.cendra_take.length > 200
-              ? firstPriority.cendra_take.slice(0, 200).trim() + '…'
-              : firstPriority.cendra_take}
-          </p>
-        )}
+        <p style={{
+          fontSize: 16, lineHeight: 1.55, margin: '18px 0 0',
+          color: 'var(--ink-mid)', maxWidth: 760,
+        }}>
+          {needsYou.length > 0
+            ? <><b style={{color:'var(--ink)'}}>{needsYou.length} need{needsYou.length === 1 ? 's' : ''} you</b> · {waiting.length} waiting on dependencies · {allGood.length} routine. Today's queue is at the top.</>
+            : <>{allActive.length} active · everything routine.</>
+          }
+        </p>
       </div>
 
       {/* NEEDS YOU — always open, full cards */}
@@ -845,7 +868,10 @@ function UpcomingPeek({ upcoming, laterCount }) {
 }
 
 // Status chip — single canonical signal per guest
-function GuestStatusChip({ status, reason, slaMin }) {
+function GuestStatusChip({ status, reason, slaMin, hidePill }) {
+  // When StayHealthBadge is already present (size=lg context), `hidePill` lets
+  // us suppress the redundant Needs-you pill and just show context + SLA chip.
+  // Avoids competing red signals at the top of the Stay Detail header.
   const map = {
     needs_you: { tone: "warn", label: "Needs you" },
     waiting:   { tone: "info", label: "Waiting" },
@@ -854,7 +880,7 @@ function GuestStatusChip({ status, reason, slaMin }) {
   const m = map[status] || map.all_good;
   return (
     <div style={{display:'flex', alignItems:'center', gap: 10, flexWrap:'wrap'}}>
-      <Pill tone={m.tone}>{m.label}</Pill>
+      {!hidePill && <Pill tone={m.tone}>{m.label}</Pill>}
       {reason && <span style={{fontSize: 13, color:'var(--ink-mid)'}}>{reason}</span>}
       {slaMin != null && slaMin >= 0 && slaMin < 60 && (
         <span style={{
@@ -1196,7 +1222,7 @@ function GuestJourneyHeader({ g }) {
         </div>
         <div style={{display:'flex', alignItems:'center', gap: 10, marginTop: 14, flexWrap:'wrap'}}>
           <StayHealthBadge health={deriveStayHealth(g)} size="lg" signals={deriveStayHealthSignals(g)} />
-          <GuestStatusChip status={g.status} reason={g.status_reason} slaMin={g.sla_min} />
+          <GuestStatusChip status={g.status} reason={g.status_reason} slaMin={g.sla_min} hidePill />
         </div>
       </div>
     </div>
@@ -1746,19 +1772,13 @@ function AbstentionCard({ card, guest }) {
 function StaticFactsPanel({ g, stageLabel }) {
   const inStay = g.nights_done != null && g.nights_total != null && g.nights_total > 0;
 
-  // 5-point journey timeline: Booked → Pre-arrival → Check-in → In-stay → Checkout
-  const stages = [
-    { key: 'booked',    label: 'Booked' },
-    { key: 'prearr',    label: 'Pre-arrival' },
-    { key: 'checkin',   label: 'Check-in' },
-    { key: 'instay',    label: 'In-stay' },
-    { key: 'checkout',  label: 'Checkout' },
-  ];
-  const activeKey = stageLabel === "CHECKING IN TODAY" ? 'checkin'
-                  : stageLabel === "IN-STAY" ? 'instay'
-                  : stageLabel === "CHECKING OUT TODAY" ? 'checkout'
-                  : 'instay';
-  const activeIdx = stages.findIndex(s => s.key === activeKey);
+  // Journey collapsed to single-line breadcrumb. Active stage bolded.
+  // Headline stage is conveyed by the breadcrumb + the title-bar's IN-STAY chip.
+  const stages = ["Booked", "Pre-arrival", "Check-in", "In-stay", "Checkout"];
+  const activeIdx = stageLabel === "CHECKING IN TODAY" ? 2
+                  : stageLabel === "IN-STAY" ? 3
+                  : stageLabel === "CHECKING OUT TODAY" ? 4
+                  : 3;
 
   return (
     <aside style={{
@@ -1766,30 +1786,30 @@ function StaticFactsPanel({ g, stageLabel }) {
       maxHeight: 'calc(100vh - 80px)', overflowY:'auto',
       paddingRight: 4,
     }}>
-      <Section title="JOURNEY">
-        <div style={{position:'relative', paddingLeft: 16, marginTop: 6}}>
-          <div style={{position:'absolute', left: 5, top: 4, bottom: 4, width: 1, background:'var(--hair)'}} />
-          {stages.map((s, i) => {
-            const done = i < activeIdx;
-            const active = i === activeIdx;
-            return (
-              <div key={s.key} style={{position:'relative', padding:'3px 0 9px'}}>
-                <div style={{
-                  position:'absolute', left:-16, top: 5,
-                  width: 11, height: 11, borderRadius:'50%',
-                  background: active ? 'var(--ink)' : done ? 'var(--ok)' : 'var(--paper)',
-                  border: `1px solid ${active || done ? 'var(--ink)' : 'var(--hair)'}`,
-                }} />
-                <div style={{
-                  fontSize: 12.5,
-                  fontWeight: active ? 600 : 400,
-                  color: active ? 'var(--ink)' : done ? 'var(--ink-mid)' : 'var(--muted)',
-                }}>{s.label}</div>
-              </div>
-            );
-          })}
+      {/* Journey breadcrumb — single line */}
+      <div style={{
+        marginBottom: 16, padding:'10px 12px',
+        borderRadius: 8, background:'var(--paper-2)',
+        border:'1px solid var(--hair-soft)',
+      }}>
+        <div className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 6, fontWeight: 500}}>
+          Journey
         </div>
-      </Section>
+        <div style={{display:'flex', alignItems:'center', gap: 4, flexWrap:'wrap', lineHeight: 1.4}}>
+          {stages.map((s, i) => (
+            <React.Fragment key={s}>
+              <span style={{
+                fontSize: 11.5,
+                fontWeight: i === activeIdx ? 700 : 400,
+                color: i === activeIdx ? 'var(--ink)' : i < activeIdx ? 'var(--ink-mid)' : 'var(--muted-2)',
+              }}>{s}</span>
+              {i < stages.length - 1 && (
+                <span style={{fontSize: 10, color: i < activeIdx ? 'var(--ink-mid)' : 'var(--muted-2)'}}>›</span>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
 
       <Section title="BOOKING">
         <div className="kv">

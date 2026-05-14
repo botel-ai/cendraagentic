@@ -271,67 +271,66 @@ window.CENDRA_DATA2 = {
   ],
 
   // Property detail (Karaköy Apt 12 — drilldown)
-  property_detail: {
-    id: "p_kara12",
-    name: "Karaköy · Apartment 12",
-    owner: "Karaköy LLC", primary_contact: "Mehmet Demir",
-    region: "Beyoğlu", group: "Standard short-stay",
-    floor: "4F", access: "Smart-lock · KK12-Yale-9821", wifi: "KK12-Guest / sapphire-otter-9821",
-    integrations: { pms: "Hostaway · OK", channels: ["Airbnb · OK", "Booking · OK"], lock: "Yale Connect · OK", clean: "Properly · OK" },
-    facts_summary: { verified: 24, missing: 1, conflicts: 1, stale: 0, internal: 7 },
-    risks: ["Same-day turnovers cluster Fri/Sat", "Smart-lock pairing failed once · 60d ago"],
-    fact_groups: [
-      { label: "Guest-facing facts", facts: [
-        { fact: "Wi-Fi",            value: "KK12-Guest / sapphire-otter-9821", source: "Smart-lock auto", source_file: "PMS · Yale Connect", fresh: "12d", true_since: "Jan 2024", last_verified: "12d ago", pinned: true,  visible: "guest", state: "verified", used_in: ["wf_wifi"] },
-        { fact: "Quiet hours",      value: "23:00 → 08:00",                    source: "Building rule",   source_file: "kara12_owner_handbook.pdf · p.4", fresh: "60d", true_since: "Building bylaw, 2018", last_verified: "60d ago", pinned: true, visible: "guest", state: "verified", used_in: ["wf_wifi","wf_check"] },
-        { fact: "Pets",             value: "Not allowed",                      source: "Owner rule",      source_file: "kara12_owner_handbook.pdf · p.7", fresh: "120d",true_since: "Apr 2023", last_verified: "120d ago", pinned: true, visible: "guest", state: "verified", used_in: ["wf_wifi"] },
-        { fact: "Bedroom",          value: "1 king + 1 sofa-bed",              source: "Cleaner photo · listing says 1 queen", source_file: "kara12_walkthrough.mp4 · 02:14 + Airbnb listing", fresh: "live", true_since: "Refurb · Oct 2024", last_verified: "32d ago (cleaner)", visible: "internal", state: "conflict", used_in: ["wf_wifi"],
-          conflict_sources: [
-            {
-              id: "src_a",
-              label: "Cleaner walkthrough · video",
-              value: "1 king + 1 sofa-bed",
-              source_file: "kara12_walkthrough.mp4 · 02:14",
-              source_type: "video",
-              captured: "32d ago",
-              captured_by: "Marta C.",
-              confidence: 0.92,
-              evidence: "Visual count at 02:14 — primary bedroom and living room sofa-bed clearly visible.",
-              fix_if_loses: "Re-inspect with cleaner on next turnover and confirm.",
-              fix_if_wins:  "Update Airbnb listing description to match (Maya · OTA team).",
-            },
-            {
-              id: "src_b",
-              label: "Airbnb listing description",
-              value: "1 queen",
-              source_file: "kara12_listing_airbnb.html",
-              source_type: "web",
-              captured: "180d ago",
-              captured_by: "auto-sync",
-              confidence: 0.74,
-              evidence: "Listing copy field 'bed configuration'. Last edited 6 months ago — predates the room refurb.",
-              fix_if_loses: "Push corrective edit to the Airbnb listing copy.",
-              fix_if_wins:  "Re-shoot walkthrough and reconcile cleaner's photo.",
-            },
-          ],
-        },
-      ]},
-      { label: "Internal notes",    facts: [
-        { fact: "Cleaner notes",    value: "Hot water heater needs flush every 30 days",       source: "Marta C.",   source_file: "kara12_cleaner_notes.mp3 · 00:42", fresh: "8d",  true_since: "Jul 2024", last_verified: "8d ago", visible: "internal", state: "verified", used_in: ["wf_maint"] },
-        { fact: "Owner preference", value: "Never offer late checkout if same-day turnover",   source: "Owner rule", source_file: "kara12_owner_handbook.pdf · p.11", fresh: "32d", true_since: "Owner rule, Mar 2025", last_verified: "32d ago", pinned: true, visible: "internal", state: "verified", used_in: ["wf_late"] },
-      ]},
-      { label: "Missing",           facts: [
-        { fact: "Heating type",     value: "—", source: "—", source_file: null, fresh: "—", visible: "—", state: "missing", used_in: [] },
-      ]},
-    ],
-  },
-
   // ──────────────────────────────────────────────────────────────────
   // Rich detail records for every property in the portfolio
   // Keyed by property id. Each property gets its own facts, rules,
   // integrations, risks, and quirks so detail pages feel distinct.
   // ──────────────────────────────────────────────────────────────────
   property_details: {
+    p_kara12: {
+      id: "p_kara12",
+      name: "Karaköy · Apartment 12",
+      owner: "Karaköy LLC", primary_contact: "Mehmet Demir",
+      region: "Beyoğlu", group: "Standard short-stay",
+      floor: "4F", access: "Smart-lock · KK12-Yale-9821", wifi: "KK12-Guest / sapphire-otter-9821",
+      integrations: { pms: "Hostaway · OK", channels: ["Airbnb · OK", "Booking · OK"], lock: "Yale Connect · OK", clean: "Properly · OK" },
+      facts_summary: { verified: 24, missing: 1, conflicts: 1, stale: 0, internal: 7 },
+      risks: ["Same-day turnovers cluster Fri/Sat", "Smart-lock pairing failed once · 60d ago"],
+      fact_groups: [
+        { label: "Guest-facing facts", facts: [
+          { fact: "Wi-Fi",            value: "KK12-Guest / sapphire-otter-9821", source: "Smart-lock auto", source_file: "PMS · Yale Connect", fresh: "12d", true_since: "Jan 2024", last_verified: "12d ago", pinned: true,  visible: "guest", state: "verified", used_in: ["wf_wifi"] },
+          { fact: "Quiet hours",      value: "23:00 → 08:00",                    source: "Building rule",   source_file: "kara12_owner_handbook.pdf · p.4", fresh: "60d", true_since: "Building bylaw, 2018", last_verified: "60d ago", pinned: true, visible: "guest", state: "verified", used_in: ["wf_wifi","wf_check"] },
+          { fact: "Pets",             value: "Not allowed",                      source: "Owner rule",      source_file: "kara12_owner_handbook.pdf · p.7", fresh: "120d",true_since: "Apr 2023", last_verified: "120d ago", pinned: true, visible: "guest", state: "verified", used_in: ["wf_wifi"] },
+          { fact: "Bedroom",          value: "1 king + 1 sofa-bed",              source: "Cleaner photo · listing says 1 queen", source_file: "kara12_walkthrough.mp4 · 02:14 + Airbnb listing", fresh: "live", true_since: "Refurb · Oct 2024", last_verified: "32d ago (cleaner)", visible: "internal", state: "conflict", used_in: ["wf_wifi"],
+            conflict_sources: [
+              {
+                id: "src_a",
+                label: "Cleaner walkthrough · video",
+                value: "1 king + 1 sofa-bed",
+                source_file: "kara12_walkthrough.mp4 · 02:14",
+                source_type: "video",
+                captured: "32d ago",
+                captured_by: "Marta C.",
+                confidence: 0.92,
+                evidence: "Visual count at 02:14 — primary bedroom and living room sofa-bed clearly visible.",
+                fix_if_loses: "Re-inspect with cleaner on next turnover and confirm.",
+                fix_if_wins:  "Update Airbnb listing description to match (Maya · OTA team).",
+              },
+              {
+                id: "src_b",
+                label: "Airbnb listing description",
+                value: "1 queen",
+                source_file: "kara12_listing_airbnb.html",
+                source_type: "web",
+                captured: "180d ago",
+                captured_by: "auto-sync",
+                confidence: 0.74,
+                evidence: "Listing copy field 'bed configuration'. Last edited 6 months ago — predates the room refurb.",
+                fix_if_loses: "Push corrective edit to the Airbnb listing copy.",
+                fix_if_wins:  "Re-shoot walkthrough and reconcile cleaner's photo.",
+              },
+            ],
+          },
+        ]},
+        { label: "Internal notes",    facts: [
+          { fact: "Cleaner notes",    value: "Hot water heater needs flush every 30 days",       source: "Marta C.",   source_file: "kara12_cleaner_notes.mp3 · 00:42", fresh: "8d",  true_since: "Jul 2024", last_verified: "8d ago", visible: "internal", state: "verified", used_in: ["wf_maint"] },
+          { fact: "Owner preference", value: "Never offer late checkout if same-day turnover",   source: "Owner rule", source_file: "kara12_owner_handbook.pdf · p.11", fresh: "32d", true_since: "Owner rule, Mar 2025", last_verified: "32d ago", pinned: true, visible: "internal", state: "verified", used_in: ["wf_late"] },
+        ]},
+        { label: "Missing",           facts: [
+          { fact: "Heating type",     value: "—", source: "—", source_file: null, fresh: "—", visible: "—", state: "missing", used_in: [] },
+        ]},
+      ],
+    },
     p_kara9: {
       id: "p_kara9", name: "Karaköy · Apartment 9",
       owner: "Karaköy LLC", primary_contact: "Mehmet Demir",

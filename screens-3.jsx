@@ -403,16 +403,14 @@ const AS_OF_PRESETS = [
 ];
 
 function PropertyDetailScreen({ onOpen, arg, focus }) {
-  // Resolve property — every property in property_details gets rich data;
-  // anything missing falls back to synth from portfolio summary.
+  // Resolve property from the single property_details map.
+  // synthProperty falls back to portfolio-summary data when the rich record is missing.
   const targetId = arg || "p_kara12";
-  const richBase = D3.property_detail; // canonical example (kara12)
-  const summary = (D3.properties_brain || []).find(x => x.id === targetId) || (D3.properties_brain || [])[0];
   const richMap = D3.property_details || {};
-  const richRecord = targetId === richBase.id
-    ? richBase
-    : richMap[targetId] || null;
-  const p = richRecord || synthProperty(summary, richBase);
+  const summary = (D3.properties_brain || []).find(x => x.id === targetId) || (D3.properties_brain || [])[0];
+  const richRecord = richMap[targetId] || null;
+  const synthTemplate = richMap.p_kara12; // canonical shape donor for synth fallback
+  const p = richRecord || synthProperty(summary, synthTemplate);
 
   // Knowledge sources for THIS property
   const propSources = (D3.knowledge_sources?.by_property?.[targetId]) || [];
@@ -1458,8 +1456,6 @@ function PlaybookLibraryScreen({ onOpen }) {
 // ───────────────────────────────────────────────────────────────────
 function InsightsScreen({ onOpen }) {
   const I = D3.insights;
-  const [q, setQ] = useState(I.answer_demo.question);
-  const [answered, setAnswered] = useState(true);
 
   return (
     <div className="stage" style={{maxWidth: 1020, paddingTop: 56, paddingBottom: 120}}>
@@ -1468,107 +1464,22 @@ function InsightsScreen({ onOpen }) {
         fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
         marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
       }}>
-        <span>INSIGHTS · ASK CENDRA</span>
+        <span>INSIGHTS · PORTFOLIO HEALTH</span>
         <span style={{flex:1}} />
-        <span>NATURAL LANGUAGE · EVIDENCE-BACKED</span>
+        <span>EVIDENCE-BACKED · ASK CENDRA ANYTHING BELOW</span>
       </div>
 
       <div style={{marginBottom: 36}}>
         <h1 className="serif-display" style={{fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)'}}>
-          Ask anything about your portfolio.
+          What's moving across your portfolio.
         </h1>
         <p style={{fontSize: 16.5, lineHeight: 1.55, margin:'18px 0 0', color:'var(--ink-mid)', maxWidth: 720}}>
-          Cendra answers in plain English with evidence and suggested next steps. Click an evidence row to drill into the underlying decisions.
+          Trends, bottlenecks, and revenue opportunities Cendra spotted in the last 7 days. For a specific question, use the Ask Cendra bar at the bottom.
         </p>
       </div>
 
-      {/* Ask Cendra — composer + suggested */}
-      <div style={{
-        background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 14,
-        padding: '4px 4px 18px', marginBottom: 32,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-      }}>
-        <div style={{display:'flex', gap: 12, alignItems:'center', padding:'14px 18px'}}>
-          <span className="mono" style={{fontSize: 10, letterSpacing:'.18em', color:'var(--muted)', fontWeight: 500}}>ASK</span>
-          <input
-            value={q}
-            onChange={e => { setQ(e.target.value); setAnswered(false); }}
-            onKeyDown={e => { if (e.key === 'Enter') setAnswered(true); }}
-            placeholder="e.g. Why did automation drop this week?"
-            style={{
-              flex: 1, border: 0, outline: 0, background:'transparent',
-              fontFamily:'var(--serif)', fontSize: 20, lineHeight: 1.3,
-              color:'var(--ink)',
-              fontVariationSettings: '"opsz" 48, "SOFT" 30',
-            }}
-          />
-          <button onClick={() => setAnswered(true)} style={{
-            all:'unset', cursor:'pointer',
-            background:'var(--ink)', color:'#ffffff',
-            padding:'10px 18px', borderRadius: 10,
-            fontSize: 13.5, fontWeight: 600,
-            display:'inline-flex', alignItems:'center', gap: 6,
-          }}>
-            Ask Cendra
-            <span style={{fontFamily:'var(--mono)', fontSize:12, opacity:.8}}>↵</span>
-          </button>
-        </div>
-
-        <div style={{padding:'4px 18px 0', display:'flex', gap: 6, flexWrap:'wrap', alignItems:'center'}}>
-          <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', fontWeight: 500, marginRight: 6}}>SUGGESTED</span>
-          {I.suggested.map(s => (
-            <button key={s} onClick={() => { setQ(s); setAnswered(true); }} style={{
-              all:'unset', cursor:'pointer',
-              padding:'5px 12px', borderRadius: 999,
-              border:'1px solid var(--hair)',
-              background:'#ffffff', color:'var(--ink-mid)',
-              fontSize: 11.5, fontWeight: 500,
-            }}>{s}</button>
-          ))}
-        </div>
-      </div>
-
-      {answered && q === I.answer_demo.question && (
-        <section style={{marginBottom: 48}}>
-          <div className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', marginBottom: 10, fontWeight: 500}}>
-            CENDRA'S ANSWER · HIGH CONFIDENCE
-          </div>
-          <div className="dcard" style={{padding: '26px 30px'}}>
-            <h2 className="serif-display" style={{fontSize: 28, lineHeight: 1.22, fontWeight: 400, margin:'0 0 14px', color:'var(--ink)'}}>
-              {I.answer_demo.headline}
-            </h2>
-            <p style={{margin:'0 0 22px', fontSize: 15, lineHeight: 1.6, color:'var(--ink-mid)', maxWidth: 720}}>
-              {I.answer_demo.detail}
-            </p>
-
-            {/* Single-line evidence rows */}
-            <div style={{display:'grid', gap: 1, background:'var(--hair)', border:'1px solid var(--hair)', borderRadius: 10, overflow:'hidden'}}>
-              {I.answer_demo.evidence.map((e, i) => (
-                <div key={i} style={{
-                  display:'grid', gridTemplateColumns:'160px 1fr 110px',
-                  gap: 14, padding:'12px 18px', alignItems:'center',
-                  background:'#ffffff', fontSize: 13,
-                }}>
-                  <span className="mono" style={{fontSize: 10, letterSpacing:'.14em', color:'var(--muted)', textTransform:'uppercase', fontWeight: 500}}>{e.kind}</span>
-                  <span style={{color:'var(--ink)'}}>{e.value}</span>
-                  <span className="mono" style={{fontSize: 11, color:'var(--muted)', letterSpacing:'.04em', textAlign:'right'}}>{e.delta || ''}</span>
-                </div>
-              ))}
-            </div>
-
-            <div style={{display:'flex', gap: 10, marginTop: 22, flexWrap:'wrap', alignItems:'center'}}>
-              {I.answer_demo.next.map((n, i) => (
-                <Btn key={i} size="sm" kind={i === 0 ? "primary" : "default"}>{n}</Btn>
-              ))}
-              <span style={{flex:1}} />
-              <Btn size="sm" kind="ghost" onClick={() => onOpen('audit')}>Open underlying decisions →</Btn>
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Trends */}
-      <SectionHead eyebrow="PORTFOLIO TRENDS · 7D" title="What's moving." sub="Six headline metrics. Click to drill in." />
+      <SectionHead eyebrow="PORTFOLIO TRENDS · 7D" title="Headline metrics." sub="Click any metric to drill in." />
       <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:0, border:'1px solid var(--hair)', borderRadius:4, marginBottom:36, background:'var(--card)'}}>
         {I.trends.map((t, i) => (
           <div key={i} style={{

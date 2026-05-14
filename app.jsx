@@ -496,28 +496,6 @@ function Nav({ route, goto }) {
       ))}
 
       <div className="grow" style={{flex:1}} />
-
-      <div style={{
-        marginTop: 24,
-        padding: '14px 14px',
-        background: 'var(--ink)',
-        color: '#ffffff',
-        borderRadius: 10,
-        position: 'relative',
-      }}>
-        <div style={{
-          fontFamily: 'var(--sans)', fontSize: 10,
-          letterSpacing: '.16em', textTransform: 'uppercase',
-          opacity: .5, fontWeight: 600, marginBottom: 8,
-        }}>Heartbeat</div>
-        <div style={{display:'flex', alignItems:'baseline', gap: 8, marginBottom: 4}}>
-          <span style={{fontFamily:'var(--sans)', fontSize: 26, fontWeight: 500, letterSpacing:'-.015em', fontVariantNumeric:'tabular-nums'}}>0</span>
-          <span style={{fontSize: 11, opacity: .6, letterSpacing:'.06em'}}>incidents · 30d</span>
-        </div>
-        <div style={{fontSize: 11.5, opacity: .75, letterSpacing:'-.005em'}}>
-          99.4% match rate
-        </div>
-      </div>
     </nav>
   );
 }
@@ -527,7 +505,7 @@ function Routes({ route, goto, tweaks }) {
   switch (route.name) {
     case "today":            return <TodayScreen onOpen={onOpen} tweaks={tweaks} />;
     case "work":             return <WorkScreen onOpen={onOpen} />;  /* Stays */
-    case "work_queue":       return <WorkQueueScreen onOpen={onOpen} />;
+    case "work_queue":       return <WorkQueueScreen onOpen={onOpen} arg={route.arg} />;
     case "brain":            return <BrainShell onOpen={onOpen} tweaks={tweaks} arg={route.arg} />;
     case "work_detail":      return <WorkDetailScreen onOpen={onOpen} tweaks={tweaks} />;
     case "approval":         return <ApprovalScreen onOpen={onOpen} />;
@@ -1124,8 +1102,10 @@ function DailyBrainReport({ onOpen }) {
 // stays. Different from Stays (which is property-of-guest centric).
 // Work is comprehensive backlog; Today is exception-first.
 // ───────────────────────────────────────────────────────────────────
-function WorkQueueScreen({ onOpen }) {
-  const [filter, setFilter] = useState("all");
+function WorkQueueScreen({ onOpen, arg }) {
+  // arg can pre-filter on a category, e.g. work_queue:decision
+  const validFilters = ["all", "decision", "risk", "promise", "dependency", "opportunity", "learning"];
+  const [filter, setFilter] = useState(validFilters.includes(arg) ? arg : "all");
   const DP = window.CENDRA_DATA2;
 
   // Synthesize the queue from existing data
