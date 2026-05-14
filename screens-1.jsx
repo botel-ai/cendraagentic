@@ -830,6 +830,9 @@ function WorkScreen({ onOpen }) {
         </p>
       </div>
 
+      {/* SAME-DAY TURNOVER TAPE — operational adrenaline up front */}
+      <SameDayTurnoverTape turnovers={DP.same_day_turnovers || []} onOpen={onOpen} />
+
       {/* NEEDS YOU — always open, full cards */}
       {needsYou.length > 0 && (
         <section style={{marginBottom: 56}}>
@@ -1511,6 +1514,68 @@ function RecallWindowActions({ card, oneOff, onWhy }) {
       <span style={{fontSize: 12.5, color:'var(--ink-mid)'}}>
         Recall window closed. Logged to the audit trail.
       </span>
+    </div>
+  );
+}
+
+// SameDayTurnoverTape — operational adrenaline of short-stay ops up front.
+// Shows the day's turnovers with cleaner ETA + next-guest ETA overlay so PMs
+// can see at-glance which ones are tight.
+function SameDayTurnoverTape({ turnovers, onOpen }) {
+  if (!turnovers.length) return null;
+  const high = turnovers.filter(t => t.risk === 'high').length;
+  const trim = turnovers.filter(t => t.risk === 'moderate').length;
+  return (
+    <div style={{
+      marginBottom: 28, padding:'12px 16px',
+      background: high > 0 ? 'rgba(255,56,92,.04)' : 'rgba(255,180,0,.04)',
+      border:'1px solid ' + (high > 0 ? 'rgba(255,56,92,.24)' : 'rgba(255,180,0,.24)'),
+      borderRadius: 12,
+    }}>
+      <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 8}}>
+        <span style={{
+          width: 24, height: 24, borderRadius: 5,
+          background: high > 0 ? '#FF385C' : '#FFB400', color:'#ffffff',
+          display:'grid', placeItems:'center',
+          fontFamily:'var(--mono)', fontSize: 13, fontWeight: 800,
+        }}>↹</span>
+        <span className="mono" style={{fontSize: 10.5, letterSpacing:'.16em', color: high > 0 ? '#B00037' : '#B45309', fontWeight: 700, textTransform:'uppercase'}}>
+          Same-day turnovers · {turnovers.length}
+        </span>
+        {high > 0 && (
+          <span className="mono" style={{
+            fontSize: 9.5, letterSpacing:'.12em', color:'#B00037', fontWeight: 700, textTransform:'uppercase',
+            padding:'2px 7px', borderRadius: 3,
+            background:'rgba(255,56,92,.10)', border:'1px solid rgba(255,56,92,.30)',
+          }}>{high} tight</span>
+        )}
+        <span style={{fontSize: 13, color:'var(--ink)'}}>
+          {high > 0 ? "Cleaner-to-guest windows that don't have buffer." : "All windows comfortable."}
+        </span>
+      </div>
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(280px, 1fr))', gap: 8}}>
+        {turnovers.map(t => {
+          const c = t.risk === 'high' ? 'var(--risk)' : t.risk === 'moderate' ? 'var(--warn)' : 'var(--ok)';
+          return (
+            <div key={t.id} style={{
+              padding:'8px 12px', borderRadius: 8,
+              background:'#ffffff', border:`1px solid ${c}30`,
+              borderLeft: `3px solid ${c}`,
+            }}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 4}}>
+                <span style={{fontSize: 13, color:'var(--ink)', fontWeight: 600}}>{t.property}</span>
+                <span className="mono" style={{fontSize: 10, color: c, letterSpacing:'.10em', textTransform:'uppercase', fontWeight: 700}}>
+                  {t.risk}
+                </span>
+              </div>
+              <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.04em', marginBottom: 3}}>
+                {t.out_at} · CLEAN {t.clean_eta} · NEXT {t.next_eta}
+              </div>
+              <div style={{fontSize: 11.5, color:'var(--ink-mid)', lineHeight: 1.45}}>{t.note}</div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1225,6 +1225,85 @@ function DailyBrainReport({ onOpen }) {
   );
 }
 
+// PortfolioPromisesStrip — surfaces every open commitment Cendra (or PM) made.
+// "Promise" is the moat — make it first-class.
+function PortfolioPromisesStrip({ onOpen }) {
+  const data = window.CENDRA_DATA2.portfolio_promises || { total_open: 0, at_risk_6h: 0, breached: 0, items: [] };
+  const [open, setOpen] = useState(data.at_risk_6h > 0 || data.breached > 0);
+  const breached = data.items.filter(p => p.due_in_min < 0);
+  const at_risk = data.items.filter(p => p.due_in_min >= 0 && p.due_in_min < 60);
+  const upcoming = data.items.filter(p => p.due_in_min >= 60);
+
+  const fmt = (m) => m < 0 ? `${Math.abs(m)}m past` : m < 60 ? `${m}m left` : m < 1440 ? `${(m/60).toFixed(1)}h left` : `${Math.round(m/1440)}d left`;
+
+  return (
+    <div style={{marginBottom: 28}}>
+      <button onClick={() => setOpen(o => !o)} style={{
+        all:'unset', cursor:'pointer',
+        display:'flex', alignItems:'center', gap: 12,
+        padding:'12px 16px',
+        background: data.breached > 0 ? 'rgba(255,56,92,.06)' : data.at_risk_6h > 0 ? 'rgba(255,180,0,.06)' : '#ffffff',
+        border: '1px solid ' + (data.breached > 0 ? 'rgba(255,56,92,.30)' : data.at_risk_6h > 0 ? 'rgba(255,180,0,.30)' : 'var(--hair)'),
+        borderRadius: 12,
+        width:'calc(100% - 34px)',
+      }}>
+        <span style={{
+          width: 24, height: 24, borderRadius: 5,
+          background: data.breached > 0 ? '#FF385C' : data.at_risk_6h > 0 ? '#FFB400' : 'var(--ink)',
+          color:'#ffffff', display:'grid', placeItems:'center',
+          fontFamily:'var(--mono)', fontSize: 13, fontWeight: 700,
+        }}>P</span>
+        <div style={{flex:1, textAlign:'left'}}>
+          <div style={{display:'flex', alignItems:'baseline', gap: 10}}>
+            <span style={{fontSize: 14, fontWeight: 600, color:'var(--ink)'}}>
+              {data.total_open} open promises
+            </span>
+            {data.breached > 0 && (
+              <span className="mono" style={{fontSize: 10, letterSpacing:'.10em', color:'#FF385C', textTransform:'uppercase', fontWeight: 700}}>
+                · {data.breached} BREACHED
+              </span>
+            )}
+            {data.at_risk_6h > 0 && (
+              <span className="mono" style={{fontSize: 10, letterSpacing:'.10em', color:'#B45309', textTransform:'uppercase', fontWeight: 700}}>
+                · {data.at_risk_6h} at risk in next 6h
+              </span>
+            )}
+          </div>
+          <div className="mono" style={{fontSize: 10.5, color:'var(--muted)', letterSpacing:'.06em', marginTop: 3}}>
+            Every commitment Cendra or you made to a guest · breach = trust event
+          </div>
+        </div>
+        <span className="mono" style={{fontSize: 10, color:'var(--ink-mid)', letterSpacing:'.10em'}}>
+          {open ? '↑ Collapse' : '↓ Show all'}
+        </span>
+      </button>
+      {open && (
+        <div className="dcard" style={{marginTop: 10, padding: 0, overflow:'hidden'}}>
+          {[...breached, ...at_risk, ...upcoming].map((p, i, arr) => {
+            const c = p.tone === 'risk' ? 'var(--risk)' : p.tone === 'warn' ? 'var(--warn)' : 'var(--info)';
+            return (
+              <div key={p.id} style={{
+                display:'grid', gridTemplateColumns: '8px 140px 130px 1fr 100px',
+                gap: 14, padding:'12px 22px', alignItems:'center',
+                borderBottom: i < arr.length - 1 ? '1px solid var(--hair-soft)' : 'none',
+              }}>
+                <span style={{width: 8, height: 8, borderRadius:999, background: c}} />
+                <div>
+                  <div style={{fontSize: 12.5, color:'var(--ink)', fontWeight: 500}}>{p.to}</div>
+                  <div className="mono" style={{fontSize: 10, color:'var(--muted)', letterSpacing:'.04em', marginTop: 2}}>{p.channel.toUpperCase()}</div>
+                </div>
+                <span style={{fontSize: 12, color:'var(--ink-mid)'}}>{p.property}</span>
+                <span style={{fontSize: 12.5, color:'var(--ink)', fontStyle:'italic', fontFamily:'var(--serif)'}}>"{p.commitment}"</span>
+                <span className="mono" style={{fontSize: 11.5, color: c, textAlign:'right', fontWeight: p.due_in_min < 0 ? 700 : 500}}>{fmt(p.due_in_min)}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ───────────────────────────────────────────────────────────────────
 // WORK QUEUE — aggregate of the six canonical card types across all
 // stays. Different from Stays (which is property-of-guest centric).
@@ -1322,7 +1401,7 @@ function WorkQueueScreen({ onOpen, arg }) {
         <span>{items.length} ITEMS · 6 TYPES</span>
       </div>
 
-      <div style={{marginBottom: 40}}>
+      <div style={{marginBottom: 32}}>
         <h1 className="serif-display" style={{fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)'}}>
           Everything outstanding.
         </h1>
@@ -1330,6 +1409,9 @@ function WorkQueueScreen({ onOpen, arg }) {
           Today shows the exceptions that need you now. Work is the full picture — decisions, risks, promises, dependencies, opportunities, and learnings — across the whole portfolio.
         </p>
       </div>
+
+      {/* PORTFOLIO PROMISES — first-class strip, top of Work */}
+      <PortfolioPromisesStrip onOpen={onOpen} />
 
       {/* Filter pills */}
       <div style={{display:'flex', gap: 8, flexWrap:'wrap', marginBottom: 20}}>

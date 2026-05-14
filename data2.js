@@ -129,6 +129,29 @@ window.CENDRA_DATA2 = {
     last_thinking_event: "Drafting reply to Selin · plumber fulfillment update",
   },
 
+  // Portfolio promises · all open commitments Cendra (or PM) made to guests
+  // Surfaces what's at risk of breaching. Audit recommendation §5 #6.
+  portfolio_promises: {
+    total_open: 23,
+    at_risk_6h: 4,
+    breached: 1,
+    items: [
+      { id: "p1", to: "Selin Demir",     property: "Bosphorus Loft", channel: "WhatsApp",   commitment: "Plumber on site within the hour, follow up when fixed",      due_in_min: 26,   tone: "warn"  },
+      { id: "p2", to: "Lukas Berger",    property: "Karaköy · Apt 12", channel: "Airbnb",   commitment: "Confirm whether early check-in is possible before 10:30",   due_in_min: 48,   tone: "warn"  },
+      { id: "p3", to: "Thomas Geier",    property: "Galata 3",        channel: "Booking.com",commitment: "Resolution on €120 refund before checkout 11:00",          due_in_min: -94,  tone: "risk"  },
+      { id: "p4", to: "Nora Reinhardt",  property: "Studio Galata",   channel: "Airbnb",    commitment: "Confirm whether parking is available before arrival 16:00", due_in_min: 215,  tone: "info"  },
+      { id: "p5", to: "Marc Henderson",  property: "Cihangir House",  channel: "Direct",    commitment: "Quiet-floor request — will confirm at check-in",            due_in_min: 360,  tone: "info"  },
+      { id: "p6", to: "Hana Park",       property: "Beşiktaş 7",      channel: "Direct",    commitment: "Access code will arrive 2 hours before your check-in",      due_in_min: 90,   tone: "warn"  },
+    ],
+  },
+
+  // Same-day turnovers · the operational adrenaline of short-stay ops
+  same_day_turnovers: [
+    { id: "sdt1", property: "Karaköy · Apt 12", out_at: "11:00 (Lukas departed)", clean_eta: "14:30", next_eta: "Noon (asked)", risk: "high", note: "Guest asked for early check-in · cleaner ETA 14:30 · 2.5h gap" },
+    { id: "sdt2", property: "Galata 3",         out_at: "11:00 (Thomas departing)", clean_eta: "12:15", next_eta: "15:00", risk: "low", note: "Comfortable gap" },
+    { id: "sdt3", property: "Cihangir House",   out_at: "11:00 (Élise tomorrow)", clean_eta: "13:00", next_eta: "16:00 (next-day)", risk: "low", note: "Comfortable" },
+  ],
+
   // Region clusters — geographic grouping for portfolio-scale awareness
   clusters: [
     { id: "beyoglu",    label: "Beyoğlu",      properties: 12, live: 4, needs_you: 2, at_risk: 0,   note: "Lukas + Nora active · cleaner sync OK" },
