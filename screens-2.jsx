@@ -1374,7 +1374,9 @@ function LearningCard({ l }) {
 // ───────────────────────────────────────────────────────────────────
 // AUDIT TRAIL
 // ───────────────────────────────────────────────────────────────────
-function AuditScreen() {
+// AuditTrailPanel — embeddable audit-trail surface.
+// Lives inside Brain → Trust → Audit tab. No hero/header (the tab provides its own).
+function AuditTrailPanel() {
   const [filter, setFilter] = useState("all");
   const [expandedId, setExpandedId] = useState(null);
   const [replayOf, setReplayOf] = useState(null);
@@ -1388,38 +1390,8 @@ function AuditScreen() {
   ];
   const shown = D2.audit.filter(filterDefs.find(f => f.id === filter).test);
 
-  const incidentCount = D2.audit.filter(a => a.incident).length;
-
   return (
-    <div className="stage" style={{maxWidth: 1080, paddingTop: 56, paddingBottom: 120}}>
-
-      <div className="mono" style={{
-        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
-        marginBottom: 24, display:'flex', gap: 16, alignItems:'center',
-      }}>
-        <span>TRUST · AUDIT TRAIL · IMMUTABLE</span>
-        <span style={{flex:1}} />
-        <span style={{display:'inline-flex', alignItems:'center', gap:6, color: incidentCount > 0 ? 'var(--warn)' : 'var(--ok)'}}>
-          <span style={{width:6, height:6, borderRadius:'50%', background: incidentCount > 0 ? 'var(--warn)' : 'var(--ok)'}} />
-          {incidentCount} INCIDENT{incidentCount === 1 ? '' : 'S'} · 7D
-        </span>
-      </div>
-
-      {/* HERO */}
-      <div style={{marginBottom: 40}}>
-        <h1 className="serif-display" style={{
-          fontSize: 46, lineHeight: 1.05, margin: 0, color:'var(--ink)',
-        }}>
-          Every decision. Recorded.
-        </h1>
-        <p style={{
-          fontSize: 16.5, lineHeight: 1.55, margin: '18px 0 0',
-          color:'var(--ink-mid)', maxWidth: 720, fontFamily:'var(--sans)',
-        }}>
-          <b style={{color:'var(--ink)'}}>{D2.audit.length} entries</b> in the last 7 days. Filter by actor, incident, or reversibility. Roll back any reversible action.
-        </p>
-      </div>
-
+    <div>
       {/* MICRO STAT BAND */}
       <div style={{
         display:'flex', gap: 36, flexWrap:'wrap',
@@ -1433,11 +1405,8 @@ function AuditScreen() {
         <Btn kind="ghost" size="sm">Export · CSV</Btn>
       </div>
 
-      {/* STICKY FILTER BAR */}
-      <div style={{
-        position:'sticky', top: 0, background:'var(--paper)', zIndex: 4,
-        paddingTop: 8, paddingBottom: 16, marginBottom: 4,
-      }}>
+      {/* FILTER BAR */}
+      <div style={{paddingTop: 8, paddingBottom: 16, marginBottom: 4}}>
         <div style={{display:'flex', gap: 8, flexWrap:'wrap'}}>
           {filterDefs.map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)} style={{
@@ -1655,258 +1624,7 @@ function StatCard({ label, value, sub, tone }) {
   );
 }
 
-// ───────────────────────────────────────────────────────────────────
-// MOBILE — Approval-first, thumb-friendly
-// 6 tabs → 2 (Approval / Activity). Flow states preserved as a
-// "Preview state" cycle for the prototype demo.
-// ───────────────────────────────────────────────────────────────────
-function MobileScreen({ onOpen }) {
-  const [view, setView] = useState("approval");
-  const v2 = window.CENDRA_DATA.mobile_v2;
-  const q = v2.quick_card;
-  const [evidenceOpen, setEvidenceOpen] = useState(false);
-
-  // Two-tab toggle replaces 6 tabs
-  const tabs = [
-    { id: "approval", label: "Approval" },
-    { id: "activity", label: "Activity" },
-  ];
-
-  // For prototype demo: cycle through flow states inside the phone
-  const previewStates = [
-    { id: "push", label: "Push" },
-    { id: "approval", label: "Open" },
-    { id: "evidence", label: "Evidence" },
-    { id: "takeover", label: "Takeover" },
-    { id: "paused", label: "Paused" },
-  ];
-
-  // Map: which view to render given selected tab + preview state
-  const tab = view === "activity" ? "activity" : "approval";
-
-  return (
-    <div className="mobile-stage">
-      <div className="mobile-tabbar" style={{display:'flex', gap: 8, justifyContent:'center', paddingBottom: 8}}>
-        {tabs.map(t => (
-          <button key={t.id} onClick={() => setView(t.id)} style={{
-            all:'unset', cursor:'pointer',
-            padding:'8px 18px', borderRadius: 999,
-            border:'1px solid ' + (view === t.id || (tab === t.id && view !== "activity") ? 'var(--ink)' : 'var(--hair)'),
-            background: (view === t.id || (tab === t.id && view !== "activity")) ? 'var(--ink)' : '#ffffff',
-            color: (view === t.id || (tab === t.id && view !== "activity")) ? '#ffffff' : 'var(--ink-mid)',
-            fontSize: 13, fontWeight: 500,
-          }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div style={{display:'flex', gap: 4, justifyContent:'center', flexWrap:'wrap', padding:'0 20px 14px', maxWidth: 460, margin:'0 auto'}}>
-        <span className="mono" style={{fontSize: 9.5, letterSpacing:'.14em', color:'var(--muted-2)', alignSelf:'center', marginRight: 6}}>PREVIEW STATE ·</span>
-        {previewStates.map(s => (
-          <button key={s.id} onClick={() => setView(s.id)} style={{
-            all:'unset', cursor:'pointer',
-            padding:'3px 9px', fontSize: 10.5, fontFamily:'var(--mono)',
-            color: view === s.id ? 'var(--ink)' : 'var(--muted)',
-            borderBottom: '1px solid ' + (view === s.id ? 'var(--ink)' : 'transparent'),
-            letterSpacing:'.04em',
-          }}>{s.label}</button>
-        ))}
-      </div>
-
-      <div className="phone">
-        <div className="phone-status">
-          <span className="mono" style={{fontSize:11}}>{v2.push.time}</span>
-          <span className="mono" style={{fontSize:11, opacity:.55}}>·  ●●●  ·</span>
-          <span className="mono" style={{fontSize:11}}>92%</span>
-        </div>
-
-        {view === "push" && (
-          <div className="phone-body phone-locked">
-            <div className="phone-time">06:14</div>
-            <div className="phone-date">Friday · 9 May</div>
-            <div className="push-card">
-              <div className="row" style={{justifyContent:'space-between', alignItems:'baseline'}}>
-                <span className="mono" style={{fontSize:10, letterSpacing:'.18em', color:'var(--ink)'}}>CENDRA</span>
-                <span className="mono dim" style={{fontSize:10}}>now</span>
-              </div>
-              <div className="push-title">{v2.push.title}</div>
-              <div className="push-body">{v2.push.body}</div>
-              <div className="push-actions">
-                <button className="push-act" onClick={() => setView("approval")}>Open</button>
-                <button className="push-act dim">Snooze 15m</button>
-              </div>
-            </div>
-            <div className="phone-hint">Cendra only pushes when something is final, risky, or breaching SLA.</div>
-          </div>
-        )}
-
-        {view === "today" && (
-          <div className="phone-body">
-            <div className="row" style={{alignItems:'center',justifyContent:'space-between'}}>
-              <div className="brand"><span className="logo" style={{fontSize:22}}>Cendra<span className="dot"/></span></div>
-              <div className="heartbeat" style={{fontSize:10}}>on watch</div>
-            </div>
-            <div className="eyebrow mt-3">URGENT · 2 NEED YOU NOW</div>
-            <h1 className="phone-h1">Two things want you.</h1>
-            <p className="phone-lead">Cendra resolved 47 overnight. The rest is steady.</p>
-            <div className="col gap-3 mt-4">
-              <button className="phone-card" onClick={() => setView("approval")}>
-                <div className="row gap-1" style={{flexWrap:'wrap', marginBottom:6}}>
-                  <Pill tone="risk">Damage claim · €640</Pill>
-                  <Pill>OTA window 38h</Pill>
-                </div>
-                <div className="phone-card-title">Aiyana C. · Bosphorus Loft</div>
-                <div className="phone-card-sub">Cleaner photos show wall damage. Cendra prepared evidence and a neutral first message.</div>
-                <div className="phone-card-foot"><span className="mono dim" style={{fontSize:10}}>BOOKING.COM · 2H 14M WAITING</span></div>
-              </button>
-              <button className="phone-card" onClick={() => setView("approval")}>
-                <div className="row gap-1" style={{flexWrap:'wrap', marginBottom:6}}>
-                  <Pill tone="warn">Vendor quote · €340</Pill>
-                  <Pill>Plumber</Pill>
-                </div>
-                <div className="phone-card-title">Selin D. · Bosphorus Loft</div>
-                <div className="phone-card-sub">Quote €340 exceeds €150 auto-spend cap. Cendra pre-approved scope, needs your ceiling.</div>
-                <div className="phone-card-foot"><span className="mono dim" style={{fontSize:10}}>SLA · 26M LEFT</span></div>
-              </button>
-            </div>
-            <div className="quiet-block mt-5">
-              <div className="mono" style={{fontSize:10, opacity:.6, letterSpacing:'.18em', marginBottom:6}}>HEARTBEAT</div>
-              <div style={{fontFamily:'var(--serif)', fontSize:18, fontStyle:'italic', lineHeight:1.3}}>
-                0 incidents in 30 days. 99.4% match. On watch.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {view === "approval" && (
-          <div className="phone-body">
-            <button className="link-btn back-link" onClick={() => setView("today")}>← Today</button>
-            <div className="eyebrow mt-2">APPROVAL · NEVER AUTO</div>
-            <h1 className="phone-h1">{q.title}</h1>
-            <div className="row gap-1 mt-2" style={{flexWrap:'wrap'}}>
-              <AutonomyPill state="never" />
-              <Pill tone="risk">Risk · {q.risk}</Pill>
-              
-            </div>
-            <div className="phone-kv mt-4">
-              <span>Property</span><span>{q.property}</span>
-              <span>Channel</span><span>{q.channel}</span>
-              <span>Reversibility</span><span style={{color:'var(--risk)'}}>Final once filed</span>
-              <span>OTA window</span><span>{q.sla}</span>
-            </div>
-            <div className="phone-summary">{q.summary}</div>
-            <div className="phone-cta-rec">
-              <div className="mono" style={{fontSize:10, letterSpacing:'.18em', color:'var(--ink)', marginBottom:6}}>CENDRA RECOMMENDS</div>
-              <div style={{fontSize:14, lineHeight:1.5}}>Send a neutral message first. File the claim only if guest goes silent. Keeps OTA window with 14h buffer.</div>
-            </div>
-            <div className="phone-actions">
-              <Btn kind="primary" onClick={() => alert('Safer alternative sent')}>Use safer alternative</Btn>
-              <button className="link-btn" onClick={() => setView("evidence")}>See full evidence pack →</button>
-            </div>
-            <div className="phone-secondary">
-              <button className="link-btn">Edit message</button>
-              <button className="link-btn" onClick={() => setView("takeover")}>Take over thread</button>
-              <button className="link-btn risk-link">Authorize €640 claim</button>
-            </div>
-            <p className="phone-foot">If you do nothing, Cendra will hold and re-prompt at T−12h.</p>
-          </div>
-        )}
-
-        {view === "evidence" && (
-          <div className="phone-body">
-            <button className="link-btn back-link" onClick={() => setView("approval")}>← Approval</button>
-            <div className="eyebrow mt-2">EVIDENCE PACK · 5 ITEMS · ALL FRESH</div>
-            <h1 className="phone-h1">Why this needs you.</h1>
-            <div className="evidence-list">
-              {D.approval.evidence.map((e, i) => (
-                <div key={i} className="evidence-row">
-                  <div className="mono" style={{fontSize:9, letterSpacing:'.18em', color:'var(--ink)'}}>{e.kind.toUpperCase()}</div>
-                  <div style={{fontSize:13, lineHeight:1.4, marginTop:3}}>{e.label}</div>
-                  <div className="mono dim" style={{fontSize:10, marginTop:3}}>{e.source} · {e.fresh}</div>
-                </div>
-              ))}
-            </div>
-            <Btn size="sm" kind="ghost" onClick={() => alert('Call Marta')}>Call cleaner · Marta C.</Btn>
-          </div>
-        )}
-
-        {view === "takeover" && (
-          <div className="phone-body">
-            <button className="link-btn back-link" onClick={() => setView("approval")}>← Back</button>
-            <div className="eyebrow mt-2">TAKE OVER THREAD</div>
-            <h1 className="phone-h1">You drive from here.</h1>
-            <p className="phone-lead">Cendra will stop drafting and pause autonomy on this conversation. The audit log notes the handoff.</p>
-            <div className="phone-kv mt-4">
-              <span>Cendra status</span><span>Paused on thread</span>
-              <span>Drafts</span><span>Saved · not sent</span>
-              <span>Other guests</span><span>Unaffected</span>
-              <span>Resume</span><span>"Hand back to Cendra" anytime</span>
-            </div>
-            <div className="phone-actions">
-              <Btn kind="primary">Take over now</Btn>
-              <Btn>Call Aiyana directly</Btn>
-              <Btn kind="ghost" onClick={() => setView("paused")}>Pause Cendra for this guest only</Btn>
-            </div>
-          </div>
-        )}
-
-        {view === "paused" && (
-          <div className="phone-body">
-            <button className="link-btn back-link" onClick={() => setView("approval")}>← Approval</button>
-            <div className="paused-card">
-              <div className="mono" style={{fontSize:10, letterSpacing:'.18em', color:'var(--ink)'}}>CENDRA PAUSED · APT12 · LUKAS B.</div>
-              <h1 className="phone-h1" style={{marginTop:6}}>Cendra is quiet on this thread.</h1>
-              <p className="phone-lead">It will not message Lukas, draft, or auto-act. The rest of your portfolio runs as usual.</p>
-              <div className="phone-kv mt-4">
-                <span>Paused</span><span>Just now</span>
-                <span>Scope</span><span>This conversation only</span>
-                <span>Audit</span><span>Logged · ax-pause-1183</span>
-              </div>
-              <div className="phone-actions">
-                <Btn kind="primary">Hand back to Cendra</Btn>
-                <Btn>Open thread</Btn>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {view === "activity" && (
-          <div className="phone-body">
-            <div className="eyebrow mt-1">RECENT · LAST 12H</div>
-            <h1 className="phone-h1">What you did.</h1>
-            <p className="phone-lead">Every decision on this phone, in order. Tap to revisit.</p>
-            <div style={{display:'grid', gap: 10, marginTop: 18}}>
-              {[
-                { time: "06:14", actor: "You", action: "Approved", target: "Safer alternative · Aiyana C.", tone: "ok" },
-                { time: "Yest. 21:02", actor: "You", action: "Published rule", target: "Never promise early check-in", tone: "ok" },
-                { time: "Yest. 18:31", actor: "Cendra", action: "Auto-paused", target: "Late checkout offer · 24h", tone: "warn" },
-                { time: "2d ago", actor: "You", action: "Took over", target: "Thread with Rafael S.", tone: "info" },
-              ].map((a, i) => (
-                <div key={i} style={{
-                  padding:'14px 16px', borderRadius: 10,
-                  background:'#ffffff', border:'1px solid var(--hair)',
-                }}>
-                  <div className="mono" style={{fontSize: 10, letterSpacing:'.12em', color:'var(--muted)', marginBottom: 6}}>
-                    {a.time.toUpperCase()} · {a.actor.toUpperCase()}
-                  </div>
-                  <div style={{display:'flex', alignItems:'center', gap: 8, marginBottom: 4}}>
-                    <span style={{
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: a.tone === 'ok' ? 'var(--ok)' : a.tone === 'warn' ? 'var(--warn)' : 'var(--info)',
-                    }} />
-                    <span style={{fontSize: 14, fontWeight: 500, color:'var(--ink)'}}>{a.action}</span>
-                  </div>
-                  <div style={{fontSize: 13, color:'var(--ink-mid)', lineHeight: 1.45, paddingLeft: 16}}>{a.target}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 window.CendraScreens2 = {
-  AutopilotScreen, PlaybookScreen, PropertyBrainScreen, LearningScreen, AuditScreen, MobileScreen,
+  AutopilotScreen, PlaybookScreen, PropertyBrainScreen, LearningScreen, AuditTrailPanel,
 };

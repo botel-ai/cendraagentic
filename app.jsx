@@ -1,7 +1,7 @@
 // Cendra Agent OS — App shell, router, and tweaks
-const { TodayScreen, WorkScreen, WorkDetailScreen, ApprovalScreen } = window.CendraScreens1;
-const { AutopilotScreen, PlaybookScreen, PropertyBrainScreen, LearningScreen, AuditScreen, MobileScreen } = window.CendraScreens2;
-const { PropertiesScreen, PropertyDetailScreen, PlaybookLibraryScreen, InsightsScreen, TrustScreen, IntegrationsScreen } = window.CendraScreens3;
+const { TodayScreen, WorkScreen, WorkDetailScreen } = window.CendraScreens1;
+const { AutopilotScreen, PlaybookScreen, PropertyBrainScreen, LearningScreen } = window.CendraScreens2;
+const { PropertiesScreen, PropertyDetailScreen, PlaybookLibraryScreen, InsightsScreen, TrustScreen } = window.CendraScreens3;
 const { Btn } = window.CendraAtoms;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -106,18 +106,14 @@ function App() {
           <TweakButton label="Guest journey · Rafael (review risk)" onClick={() => goto("work_detail", "jh_rafael")} secondary />
           <TweakButton label="Guest journey · Thomas (refund)" onClick={() => goto("work_detail", "jo_thomas")} secondary />
           <TweakButton label="Guest journey · Nora (fact)" onClick={() => goto("work_detail", "ji_nora")} secondary />
-          <TweakButton label="Approval · damage claim" onClick={() => goto("approval")} secondary />
           <TweakButton label="Autopilot" onClick={() => goto("autopilot")} secondary />
           <TweakButton label="Playbook builder" onClick={() => goto("playbook")} secondary />
           <TweakButton label="Properties · portfolio" onClick={() => goto("properties")} secondary />
           <TweakButton label="Property detail · Karaköy 12" onClick={() => goto("property_detail", "p_kara12")} secondary />
           <TweakButton label="Playbook library" onClick={() => goto("playbook_library")} secondary />
-          <TweakButton label="Insights · Ask Cendra" onClick={() => goto("insights")} secondary />
+          <TweakButton label="Insights · portfolio health" onClick={() => goto("insights")} secondary />
           <TweakButton label="Trust Center" onClick={() => goto("trust")} secondary />
-          <TweakButton label="Integrations health" onClick={() => goto("integrations")} secondary />
           <TweakButton label="Learning" onClick={() => goto("learning")} secondary />
-          <TweakButton label="Audit trail" onClick={() => goto("audit")} secondary />
-          <TweakButton label="Mobile · approval-first" onClick={() => goto("mobile")} secondary />
         </TweakSection>
       </TweaksPanel>
     </div>
@@ -485,7 +481,7 @@ function Nav({ route, goto }) {
             route.name === n.id ||
             (n.id === "work" && route.name === "work_detail") ||
             (n.id === "properties" && route.name === "property_detail") ||
-            (n.id === "brain" && ["playbook_library", "autopilot", "learning", "insights", "trust", "playbook", "approval", "audit", "integrations"].includes(route.name))
+            (n.id === "brain" && ["playbook_library", "autopilot", "learning", "insights", "trust", "playbook"].includes(route.name))
               ? " active" : ""
           )}
           onClick={() => goto(n.id)}
@@ -508,7 +504,6 @@ function Routes({ route, goto, tweaks }) {
     case "work_queue":       return <WorkQueueScreen onOpen={onOpen} arg={route.arg} />;
     case "brain":            return <BrainShell onOpen={onOpen} tweaks={tweaks} arg={route.arg} />;
     case "work_detail":      return <WorkDetailScreen onOpen={onOpen} tweaks={tweaks} />;
-    case "approval":         return <ApprovalScreen onOpen={onOpen} />;
     case "autopilot":        return <AutopilotScreen tweaks={tweaks} />;
     case "playbook":         return <PlaybookScreen />;
     case "playbook_library": return <PlaybookLibraryScreen onOpen={onOpen} />;
@@ -518,10 +513,13 @@ function Routes({ route, goto, tweaks }) {
     case "property_detail":  return <PropertyDetailScreen onOpen={onOpen} arg={route.arg} />;  /* legacy alias */
     case "insights":         return <InsightsScreen onOpen={onOpen} />;
     case "trust":            return <TrustScreen onOpen={onOpen} />;
-    case "integrations":     return <IntegrationsScreen onOpen={onOpen} />;
     case "learning":         return <LearningScreen />;
-    case "audit":            return <AuditScreen />;
-    case "mobile":           return <MobileScreen onOpen={onOpen} />;
+    /* `#approval`, `#integrations`, `#audit`, `#mobile` removed — the content
+       lives on Today / Trust → Data / Trust → Audit / etc. */
+    case "approval":
+    case "integrations":
+    case "audit":
+    case "mobile":           return <TrustScreen onOpen={onOpen} />;  /* redirect orphan deep-links */
     default:              return <TodayScreen onOpen={onOpen} tweaks={tweaks} />;
   }
 }
@@ -778,8 +776,8 @@ function buildSearchIndex(DP, D) {
     { id: "scr_learning",  title: "Learning",     sub: "Suggestions Cendra wants to learn",     route: "learning" },
     { id: "scr_insights",  title: "Insights",     sub: "Ask Cendra · portfolio analytics",      route: "insights" },
     { id: "scr_trust",     title: "Trust",        sub: "Safety surface · hard rules · audit",   route: "trust" },
-    { id: "scr_audit",     title: "Audit trail",  sub: "Every decision · immutable",            route: "audit" },
-    { id: "scr_intg",      title: "Integrations", sub: "Health · PMS · channels · ops",         route: "integrations" },
+    { id: "scr_audit",     title: "Audit trail",  sub: "Every decision · immutable · in Trust",   route: "trust" },
+    { id: "scr_intg",      title: "Integrations", sub: "Health · PMS · channels · in Trust",      route: "trust" },
   ].forEach(s => idx.push({ ...s, cat: "screen" }));
 
   // Guests (active journey)
@@ -895,7 +893,7 @@ function buildSearchIndex(DP, D) {
       id: a.id, cat: "audit",
       title: a.action + " · " + a.target,
       sub: `${a.actor} · ${a.workflow} · ${a.time}`,
-      route: "audit",
+      route: "trust",
       keywords: [a.action, a.target, a.actor, a.workflow].join(" ").toLowerCase(),
     });
   });

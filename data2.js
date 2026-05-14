@@ -43,7 +43,7 @@ window.CENDRA_DATA2 = {
   // Five Today sections (exception-first, hospitality-native)
   today_sections: {
     needs_decision: [
-      { id: "n1", title: "Damage claim · €640 · Bosphorus Loft",   sub: "Booking.com window closes in 38h", risk: "high",   reversibility: "red",   autonomy: "never",    reason: "Charge ≥ €500 · Never auto", action: "Open evidence pack", waited: "2h 14m", owner: "Bosphorus Holdings", route: "approval" },
+      { id: "n1", title: "Damage claim · €640 · Bosphorus Loft",   sub: "Booking.com window closes in 38h", risk: "high",   reversibility: "red",   autonomy: "never",    reason: "Charge ≥ €500 · Never auto", action: "Open evidence pack", waited: "2h 14m", owner: "Bosphorus Holdings", route: "work_queue:decision" },
       { id: "n2", title: "Vendor quote · €340 plumber · Bosphorus Loft", sub: "Exceeds €150 auto-spend cap",      risk: "medium", reversibility: "amber", autonomy: "approval", reason: "Spend > property cap",       action: "Approve ceiling or hold",  waited: "34 min",   owner: "Bosphorus Holdings", route: "work_detail:ex_05" },
       { id: "n3", title: "Refund request · €120 · Galata 3",      sub: "Guest claims AC fault, no photos",        risk: "medium", reversibility: "amber", autonomy: "approval", reason: "Refund > €50",              action: "Ask for evidence first",   waited: "47 min",   owner: "Galata Estates",     route: "work" },
       { id: "n4", title: "Early check-in · Karaköy Apt 12",       sub: "Cleaning ETA 14:30, owner rule blocks promise", risk: "low", reversibility: "green", autonomy: "approval", reason: "Owner rule",                 action: "Approve safe holding reply", waited: "12 min", owner: "Karaköy LLC",         route: "work_detail:ex_01" },

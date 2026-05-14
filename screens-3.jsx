@@ -1,10 +1,14 @@
 // Cendra Agent OS — new screens v2:
-// Properties (portfolio + detail), Playbook Library, Insights, Trust, Integrations, Team, Onboarding
+// Properties (portfolio + detail), Playbook Library, Insights, Trust, Team, Onboarding
 const { Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar, DecisionCard, PageHeader, QuietState, cls } = window.CendraAtoms;
 const { ChannelChip } = window.CendraVision;
 const { StatusPill, StateBadge, SLATimer, PortfolioFilterBar, IntegrationHealthCard, HardRuleCard,
         KnowledgeGapCard, PropertyFactRow, TeamAssignmentCard, LiveActivityMilestone,
         SignalStrip, SectionHead, WorkflowTrustRow } = window.CendraAtoms2;
+// AuditTrailPanel lives in screens-2; pulled in at runtime via window.CendraScreens2
+const AuditTrailPanel = () => window.CendraScreens2.AuditTrailPanel
+  ? React.createElement(window.CendraScreens2.AuditTrailPanel)
+  : null;
 const D2 = window.CENDRA_DATA;
 const D3 = window.CENDRA_DATA2;
 
@@ -1836,37 +1840,13 @@ function TrustScreen({ onOpen }) {
 
       {/* AUDIT — link to audit trail + incident review */}
       {tab === "audit" && (
-        <div style={{display:'grid', gap: 32}}>
-          <div style={{
-            background:'#ffffff', border:'1px solid var(--hair)', borderRadius: 16,
-            padding:'28px 32px', boxShadow:'0 4px 24px rgba(0,0,0,0.04)',
-            position:'relative', overflow:'hidden',
-          }}>
-            <div style={{position:'absolute', top:0, left:0, width:4, height:'100%', background:'var(--ok)'}} />
-            <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 12}}>
-              <span className="mono" style={{fontSize: 10, letterSpacing: '.18em', color: 'var(--ok)', fontWeight: 600}}>NO INCIDENTS · 30D</span>
-              <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
-              <span className="mono" style={{fontSize:10, letterSpacing:'.12em', color:'var(--muted)'}}>LAST · 23D AGO · LATE CHECKOUT TIMING · RESOLVED</span>
-            </div>
-            <h2 className="serif-display" style={{fontSize: 28, lineHeight: 1.15, margin: 0, color:'var(--ink)', marginBottom: 12}}>
-              No incidents in 30 days.
-            </h2>
-            <p style={{margin: 0, fontSize: 14, lineHeight: 1.6, color:'var(--ink-mid)', maxWidth: 680}}>
-              An incident is any decision flagged by Golden Cases overnight, any rolled-back action, or any guest-reported issue tied to Cendra.
-            </p>
-            <div style={{display:'flex', gap: 12, marginTop: 20}}>
-              <button onClick={() => onOpen('audit')} style={{
-                all:'unset', cursor:'pointer',
-                background:'var(--ink)', color:'#ffffff',
-                padding:'12px 22px', borderRadius: 10,
-                fontSize: 14.5, fontWeight: 600,
-                display:'inline-flex', alignItems:'center', gap: 8,
-              }}>
-                Open audit trail
-                <span style={{fontFamily:'var(--mono)', fontSize:13, opacity:.8}}>↵</span>
-              </button>
-              <Btn kind="ghost">Read last post-mortem →</Btn>
-            </div>
+        <div>
+          <SectionLabel2
+            eyebrow={`Every decision · ${D2.audit.length} entries · last 7 days`}
+            sub="Filter by actor, incident, or reversibility. Roll back any reversible action. Replay against today's rules to see if Cendra would still decide the same way."
+          />
+          <div style={{marginTop: 16}}>
+            <AuditTrailPanel />
           </div>
         </div>
       )}
@@ -1979,130 +1959,6 @@ function TeamRolesView() {
   );
 }
 
-// ───────────────────────────────────────────────────────────────────
-// INTEGRATIONS — standalone deep page
-// ───────────────────────────────────────────────────────────────────
-function IntegrationsScreen({ onOpen }) {
-  const groups = useMemo(() => {
-    const g = {};
-    D3.integrations.forEach(i => { (g[i.category] = g[i.category] || []).push(i); });
-    return g;
-  }, []);
-
-  const connected = D3.integrations.filter(i => i.status === 'connected');
-  const degraded = D3.integrations.filter(i => i.status === 'degraded');
-  const broken = D3.integrations.filter(i => i.status === 'broken');
-  const open = D3.integrations.filter(i => i.open_incident);
-  const affectedProps = degraded.reduce((s, i) => s + i.affects_props, 0);
-  const allHealthy = degraded.length === 0 && broken.length === 0;
-
-  return (
-    <div className="stage" style={{maxWidth: 1080, paddingTop: 56, paddingBottom: 120}}>
-
-      <div className="mono" style={{
-        fontSize: 10.5, letterSpacing: '.18em', color: 'var(--muted)',
-        marginBottom: 28, display:'flex', gap: 16, alignItems:'center',
-      }}>
-        <span>TRUST · INTEGRATION HEALTH</span>
-        <span style={{flex:1}} />
-        <span style={{display:'inline-flex', alignItems:'center', gap:6, color: allHealthy ? 'var(--ok)' : 'var(--warn)'}}>
-          <span style={{width:6, height:6, borderRadius:'50%', background: allHealthy ? 'var(--ok)' : 'var(--warn)'}} />
-          {allHealthy ? 'ALL HEALTHY' : `${degraded.length} DEGRADED`}
-        </span>
-      </div>
-
-      {/* HERO — Cendra speaks on data sources */}
-      <div style={{marginBottom: 48}}>
-        <h1 className="serif-display" style={{
-          fontSize: 46, lineHeight: 1.05, margin: 0, color: 'var(--ink)',
-        }}>
-          {allHealthy
-            ? <>Every source is live.</>
-            : <>{degraded.length} source{degraded.length > 1 ? 's' : ''} need{degraded.length === 1 ? 's' : ''} attention.</>
-          }
-        </h1>
-        <p style={{
-          fontSize: 16.5, lineHeight: 1.55, margin: '18px 0 0',
-          color: 'var(--ink-mid)', maxWidth: 720, fontFamily: 'var(--sans)',
-        }}>
-          {allHealthy
-            ? <>{D3.integrations.length} connections across PMS, channels, ops, payments. Cendra is reading clean data everywhere.</>
-            : <><b style={{color:'var(--ink)'}}>{open[0]?.name || degraded[0].name}</b> degraded — {affectedProps} properties affected, workflows auto-demoted. Cendra falls back, then tells you what stopped.</>
-          }
-        </p>
-      </div>
-
-      {/* OPEN INCIDENT HERO CARD — only when an incident is open */}
-      {open.length > 0 && (
-        <div style={{
-          background: '#ffffff', border: '1px solid var(--hair)', borderRadius: 16,
-          padding: '28px 32px', marginBottom: 48,
-          boxShadow: '0 4px 24px rgba(0,0,0,0.04)',
-          position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{position:'absolute', top:0, left:0, width:4, height:'100%', background:'var(--rausch)'}} />
-          <div style={{display:'flex', alignItems:'center', gap: 10, marginBottom: 14}}>
-            <span className="mono" style={{fontSize: 10, letterSpacing: '.18em', color: 'var(--rausch)', fontWeight: 600}}>OPEN INCIDENT</span>
-            <span style={{width:3, height:3, borderRadius:'50%', background:'var(--muted-2)'}} />
-            <span className="mono" style={{fontSize:10, letterSpacing:'.12em', color:'var(--muted)'}}>{open[0].category.toUpperCase()} · LAST SYNC {open[0].last_sync.toUpperCase()}</span>
-            <span style={{flex:1}} />
-            <Pill tone="warn">{open[0].status}</Pill>
-          </div>
-          <h2 className="serif-display" style={{fontSize: 30, lineHeight: 1.12, margin: 0, color:'var(--ink)', marginBottom: 14}}>
-            {open[0].name}
-          </h2>
-          <p style={{margin: 0, fontSize: 14.5, lineHeight: 1.55, color:'var(--ink-mid)', maxWidth: 720, marginBottom: 18}}>
-            {open[0].fallback}
-          </p>
-          <div style={{display:'flex', gap: 28, flexWrap:'wrap', marginBottom: 20}}>
-            <MicroStatBlock2 value={open[0].affects_props} label="properties affected" tone="warn" />
-            <MicroStatBlock2 value={open[0].affects_workflows.length === 1 && open[0].affects_workflows[0] === 'all' ? 'All' : open[0].affects_workflows.length} label="workflows demoted" tone="warn" />
-          </div>
-          <div style={{display:'flex', alignItems:'center', gap: 14, flexWrap:'wrap'}}>
-            <button style={{
-              all:'unset', cursor:'pointer',
-              background:'var(--ink)', color:'#ffffff',
-              padding:'12px 22px', borderRadius: 10,
-              fontSize: 14.5, fontWeight: 600,
-              display:'inline-flex', alignItems:'center', gap: 8,
-            }}>
-              Reconnect now
-              <span style={{fontFamily:'var(--mono)', fontSize:13, opacity:.8}}>↵</span>
-            </button>
-            <Btn kind="ghost">Pause affected workflows</Btn>
-            <Btn kind="ghost">View affected guests →</Btn>
-          </div>
-        </div>
-      )}
-
-      {/* MICRO STAT BAND */}
-      <div style={{
-        display:'flex', gap: 36, flexWrap:'wrap',
-        paddingBottom: 24, marginBottom: 24, borderBottom:'1px solid var(--hair-soft)',
-      }}>
-        <MicroStatBlock2 value={connected.length} label="connected" tone="ok" />
-        <MicroStatBlock2 value={degraded.length} label="degraded" tone={degraded.length > 0 ? "warn" : "ok"} />
-        <MicroStatBlock2 value={broken.length} label="broken" tone={broken.length > 0 ? "risk" : "ok"} />
-        <MicroStatBlock2 value={affectedProps} label="properties affected" tone={affectedProps > 0 ? "warn" : "ok"} />
-        <span style={{flex:1}} />
-        <MicroStatBlock2 value="live" label="last full sync" tone="ok" />
-      </div>
-
-      {/* GROUPED INTEGRATION CARDS */}
-      {Object.entries(groups).map(([cat, items]) => (
-        <section key={cat} style={{marginBottom: 36}}>
-          <div className="mono" style={{
-            fontSize: 11, letterSpacing:'.14em', color:'var(--ink)',
-            fontWeight: 600, textTransform:'uppercase', marginBottom: 12,
-          }}>{cat} · {items.length}</div>
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap: 14}}>
-            {items.map(i => <IntegrationHealthCard key={i.id} i={i} onOpen={onOpen} />)}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
 
 // ───────────────────────────────────────────────────────────────────
 // KNOWLEDGE INGESTION — drop zone, source cards, extraction preview
@@ -2895,5 +2751,5 @@ window.CendraScreens3 = {
   PropertiesScreen, PropertyDetailScreen,
   PlaybookLibraryScreen,
   InsightsScreen,
-  TrustScreen, IntegrationsScreen,
+  TrustScreen,
 };
