@@ -513,8 +513,18 @@ function confidenceBand(c) {
   return                             { label: 'Very low', tone: 'risk',  range: '< 60%'    };
 }
 
+// Warmer prose for confidence — used where the bar is narrative, not chrome.
+// Audit §11 — emotional UX: "Cendra is fairly sure" > "CONFIDENCE · MEDIUM".
+function confidencePhrase(c) {
+  if (c == null || isNaN(c)) return "Cendra is still forming a view";
+  if (c >= 0.90)              return "Cendra is highly confident";
+  if (c >= 0.75)              return "Cendra is fairly sure";
+  if (c >= 0.60)              return "Cendra is uncertain";
+  return                             "Cendra is very uncertain";
+}
+
 window.CendraAtoms = {
   cls, Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar,
   DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState,
-  PRIORITY_CHAIN, tierForKind, confidenceBand,
+  PRIORITY_CHAIN, tierForKind, confidenceBand, confidencePhrase,
 };

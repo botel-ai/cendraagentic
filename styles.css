@@ -2,9 +2,9 @@
 
 :root {
   /* Airbnb-inspired surface / ink */
-  --paper: #F7F7F7;            /* Airbnb light surface */
-  --paper-2: #EBEBEB;
-  --card: #FFFFFF;
+  --paper: #F7F7F7;            /* Airbnb light surface (app background) */
+  --paper-2: #F1F1F3;          /* Quiet inset · subtle cool tone for tertiary surfaces */
+  --card: #FFFFFF;             /* Primary card surface */
   --card-raised: #FFFFFF;
   --ink: #222222;              /* Hof — primary text */
   --ink-mid: #484848;          /* Foggy */
@@ -363,9 +363,30 @@ input, textarea { font-family: inherit; color: inherit; }
   border-radius: var(--rad-card);
   position: relative;
   box-shadow: var(--shadow-card);
-  transition: box-shadow .15s, border-color .15s;
+  transition: box-shadow .15s, border-color .15s, transform .15s;
 }
 .dcard:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); border-color: var(--stone); }
+/* Three-tier card hierarchy — Phase 9 pixel polish.
+   Primary: hero / binding decision · soft 8px shadow, no border.
+   Default (.dcard): secondary content · 1px border + small shadow.
+   Quiet: tertiary / supporting · paper-2 background, no chrome. */
+.dcard-hero {
+  background: var(--card);
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+  transition: box-shadow .15s, transform .15s;
+}
+.dcard-hero:hover { box-shadow: 0 12px 32px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04); }
+.dcard-quiet {
+  background: var(--paper-2);
+  border: none;
+  border-radius: 10px;
+  box-shadow: none;
+}
+/* Universal button :active feedback — 100ms compress on press. */
+button:active:not(:disabled) { transform: scale(0.985); }
+button { transition: transform 100ms cubic-bezier(.32, 0, .67, 0), box-shadow .15s, background-color .15s; }
 .dcard-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 16px 8px;
@@ -520,6 +541,23 @@ input, textarea { font-family: inherit; color: inherit; }
   backdrop-filter: blur(2px);
   z-index: 50;
   animation: fade 0.2s;
+}
+/* WhyDrawer + ReplayModal slide-in (Phase 8 motion). */
+aside[style*="position: fixed"][style*="right: 0"] {
+  animation: drawerSlideIn 240ms cubic-bezier(.32, 0, .67, 0);
+}
+@keyframes drawerSlideIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+/* Soft modal pop-in for centered modals (ReplayModal, ImportModal, etc.). */
+div[style*="translate(-50%, -50%)"][style*="zIndex: 31"],
+div[style*="translate(-50%, -50%)"][style*="z-index: 31"] {
+  animation: modalPopIn 220ms cubic-bezier(.32, 0, .67, 0);
+}
+@keyframes modalPopIn {
+  from { transform: translate(-50%, -48%) scale(.96); opacity: 0; }
+  to   { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
 }
 .drawer {
   position: fixed;

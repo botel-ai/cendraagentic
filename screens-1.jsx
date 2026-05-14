@@ -1,5 +1,5 @@
 // Cendra screens: Today, Work, Work Detail, Approval
-const { Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar, DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState, confidenceBand } = window.CendraAtoms;
+const { Pill, AutonomyPill, ReasonPill, Seal, Btn, ActionBar, DecisionCard, WhyDrawer, EvidenceBeam, PageHeader, QuietState, confidenceBand, confidencePhrase } = window.CendraAtoms;
 const { StayHealthBadge, deriveStayHealth, deriveStayHealthSignals } = window.CendraAtoms2;
 const D = window.CENDRA_DATA;
 const DP = window.CENDRA_DATA2;
@@ -1777,8 +1777,8 @@ function CendraBriefing({ g, compact }) {
         {g.cendra_take}
       </p>
       {!compact && g.status === "needs_you" && (
-        <div style={{fontSize: 14.5, color:'var(--muted)', marginTop: 14, fontFamily:'var(--serif)'}}>
-          That's why I'm bringing it to you.
+        <div style={{fontSize: 14.5, color:'var(--muted)', marginTop: 14, fontFamily:'var(--serif)', fontStyle:'italic'}}>
+          {confidencePhrase(g.confidence)}. That's why I'm bringing it to you.
         </div>
       )}
     </div>
