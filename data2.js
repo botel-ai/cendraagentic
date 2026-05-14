@@ -1008,7 +1008,7 @@ window.CENDRA_DATA2 = {
         ],
         activity: [
           { time: "07:41:55", kind: "intake",   body: "Guest message received · Airbnb · BKG-44291" },
-          { time: "07:41:58", kind: "ai",       body: "Two intents detected · early check-in + Wi-Fi" },
+          { time: "07:41:58", kind: "reasoning",       body: "Two intents detected · early check-in + Wi-Fi" },
           { time: "07:42:01", kind: "check",    body: "PMS verified · 2 guests · confirmed" },
           { time: "07:42:02", kind: "check",    body: "Cleaning schedule pulled · same-day turnover" },
           { time: "07:42:02", kind: "rule",     body: "Owner rule applied · no early-checkin promise" },
@@ -1174,7 +1174,7 @@ window.CENDRA_DATA2 = {
         ],
         activity: [
           { time: "08:00:42", kind: "intake",  body: "Guest message · WhatsApp · 3 photos attached" },
-          { time: "08:01:14", kind: "ai",      body: "Image analysis · leak confirmed · severity medium" },
+          { time: "08:01:14", kind: "reasoning",      body: "Image analysis · leak confirmed · severity medium" },
           { time: "08:01:30", kind: "vendor",  body: "Auto-dispatched · Plumber A. Sözen" },
           { time: "08:01:45", kind: "auto",    body: "Acknowledged guest with reassurance + interim instructions" },
           { time: "08:02:00", kind: "vendor",  body: "Voice call placed to plumber · 1m 24s · ETA 11:20" },
@@ -1388,11 +1388,11 @@ window.CENDRA_DATA2 = {
         activity: [
           { time: "Yesterday 18:14", kind: "intake",  body: "Refund request received · Booking.com · €120" },
           { time: "Yesterday 18:15", kind: "rule",    body: "Owner rule · photos required for refunds > €100", tone: "warn" },
-          { time: "Yesterday 18:16", kind: "ai",      body: "Pattern flag · 3rd refund ask this trip · 2 prior granted on Airbnb with photos" },
+          { time: "Yesterday 18:16", kind: "reasoning",      body: "Pattern flag · 3rd refund ask this trip · 2 prior granted on Airbnb with photos" },
           { time: "Yesterday 18:18", kind: "auto",    body: "Auto-asked for photo evidence · Booking.com" },
           { time: "Yesterday 21:02", kind: "intake",  body: "Cross-channel · guest re-engaged via Instagram DM" },
           { time: "Yesterday 21:05", kind: "auto",    body: "Acknowledged on Instagram · pointed back to Booking thread" },
-          { time: "Yesterday 22:14", kind: "ai",      body: "Sentiment shift detected · review threat · outbound paused", tone: "warn" },
+          { time: "Yesterday 22:14", kind: "reasoning",      body: "Sentiment shift detected · review threat · outbound paused", tone: "warn" },
           { time: "Yesterday 23:01", kind: "owner",   body: "Owner notified · Galata Estates acknowledged" },
           { time: "Today 06:14",     kind: "vendor",  body: "Emailed maintenance · AC condition verification requested" },
           { time: "Today 07:02",     kind: "vendor",  body: "Maintenance reply · will verify on departure, logs clean" },

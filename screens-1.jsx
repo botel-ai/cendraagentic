@@ -130,7 +130,7 @@ function TodayScreen({ onOpen, tweaks }) {
             onToggle={() => setExpanded(e => e === 'missing' ? null : 'missing')}
           >
             {sections.missing_knowledge.map(it => (
-              <DigestItem key={it.id} title={`${it.scope} · ${it.fact}`} sub={it.asks ? `Asked ${it.asks}× in 30d.` : 'Conflict detected.'} reason="—" action={it.action} onClick={() => onOpen('property_brain')} />
+              <DigestItem key={it.id} title={`${it.scope} · ${it.fact}`} sub={it.asks ? `Asked ${it.asks}× in 30d.` : 'Conflict detected.'} reason="—" action={it.action} onClick={() => onOpen('properties')} />
             ))}
           </DigestRow>
         </div>
@@ -313,7 +313,7 @@ function TodaySignalStrip({ signals, onOpen }) {
     { label: "Cendra handled",     value: signals.actions_total.toLocaleString(), foot: signals.actions_delta, tone: "ink" },
     { label: "Need you",           value: signals.needs_you, foot: `${signals.approvals} approvals`, tone: "ink", route: "work" },
     { label: "At risk",            value: signals.risks,     foot: "SLA / sentiment",        tone: "warn" },
-    { label: "Missing facts",      value: signals.missing_facts, foot: "blocking automation", tone: "warn", route: "property_brain" },
+    { label: "Missing facts",      value: signals.missing_facts, foot: "blocking automation", tone: "warn", route: "properties" },
     { label: "Revenue opp.",       value: `€${signals.revenue_eur}`, foot: "this week",       tone: "ok" },
     { label: "Incidents",          value: signals.incidents, foot: "0 in 30d",                tone: "ok" },
     { label: "Ready to promote",   value: signals.promotions_ready, foot: "Late checkout",   tone: "ink", route: "autopilot" },
@@ -461,7 +461,7 @@ function RevenueRow({ item, onOpen }) {
 function MissingRow({ item, onOpen }) {
   const isLast = item === DP.today_sections.missing_knowledge[DP.today_sections.missing_knowledge.length-1];
   return (
-    <TodayRow onClick={() => onOpen("property_brain")} lastChild={isLast} columns="180px 1fr 100px 130px">
+    <TodayRow onClick={() => onOpen("properties")} lastChild={isLast} columns="180px 1fr 100px 130px">
       <div className="mono" style={{fontSize:12, color:'var(--ink)'}}>{item.scope}</div>
       <div style={{fontSize:14}}>{item.fact}</div>
       <div className="mono dim" style={{fontSize:11}}>{item.asks ? `${item.asks} asks` : "conflict"}</div>
@@ -891,39 +891,6 @@ function StayProgress({ done, total, checkout }) {
   );
 }
 
-// Journey group — section of guest cards, sorted by status urgency
-function JourneyGroup({ eyebrow, count, sub, guests, upcoming, onOpen, variant }) {
-  // Sort: needs_you → waiting → all_good (stable within)
-  const ordered = useMemo(() => {
-    if (!guests) return [];
-    const rank = { needs_you: 0, waiting: 1, all_good: 2 };
-    return [...guests].sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9));
-  }, [guests]);
-
-  return (
-    <section style={{marginBottom: 32}}>
-      <div style={{display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom: 12, gap:12}}>
-        <div>
-          <div className="mono dim" style={{fontSize:10, letterSpacing:'.18em', marginBottom:4}}>
-            {eyebrow} · {count}
-          </div>
-          {sub && <div className="dim" style={{fontSize:12.5}}>{sub}</div>}
-        </div>
-      </div>
-
-      {variant === "upcoming" ? (
-        <UpcomingTable upcoming={upcoming} onOpen={onOpen} />
-      ) : ordered.length === 0 ? (
-        <div className="dim" style={{padding:'14px 18px', border:'1px solid var(--hair-soft)', borderRadius:4, fontSize:13}}>None.</div>
-      ) : (
-        <div style={{display:'grid', gap: 10}}>
-          {ordered.map(g => <GuestJourneyCard key={g.id} g={g} onOpen={onOpen} variant={variant} />)}
-        </div>
-      )}
-    </section>
-  );
-}
-
 // Individual guest card — Cendra's micro-take + status + stay
 function GuestJourneyCard({ g, onOpen, variant }) {
   const accent = g.status === "needs_you" ? 'var(--warn)' : g.status === "waiting" ? 'var(--info)' : 'var(--ok)';
@@ -991,53 +958,6 @@ function GuestJourneyCard({ g, onOpen, variant }) {
         <span className="mono dim" style={{fontSize:10.5, alignSelf:'flex-end'}}>Open journey →</span>
       </div>
     </button>
-  );
-}
-
-// Compact arriving-this-week table — these don't need cards, just a glance
-function UpcomingTable({ upcoming, onOpen }) {
-  if (!upcoming?.length) return null;
-  return (
-    <div className="dcard" style={{padding:0, overflow:'hidden'}}>
-      <table className="table" style={{minWidth: 0}}>
-        <thead>
-          <tr>
-            <th style={{width:90}}>When</th>
-            <th>Guest</th>
-            <th>Property · Channel</th>
-            <th style={{width:80, textAlign:'center'}}>Nights</th>
-            <th style={{width:200}}>Prep</th>
-          </tr>
-        </thead>
-        <tbody>
-          {upcoming.map(u => (
-            <tr key={u.id} style={{cursor:'default'}}>
-              <td>
-                <div style={{fontFamily:'var(--serif)', fontSize:14}}>{u.eta_day}</div>
-                <div className="mono dim" style={{fontSize:10.5}}>{u.eta_time}</div>
-              </td>
-              <td>
-                <div style={{fontSize:13.5, fontWeight:500}}>{u.name}</div>
-              </td>
-              <td>
-                <div style={{fontSize:12.5}}>{u.property}</div>
-                <div className="mono dim" style={{fontSize:10.5}}>{u.channel}</div>
-              </td>
-              <td className="mono" style={{fontSize:11.5, textAlign:'center'}}>{u.nights}</td>
-              <td>
-                {u.prep_state === "all_set" ? (
-                  <Pill tone="ok">All set</Pill>
-                ) : u.prep_state === "needs_id" ? (
-                  <Pill tone="warn">{u.flag || "Needs attention"}</Pill>
-                ) : (
-                  <Pill tone="info">{u.flag || u.prep_state}</Pill>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
@@ -2377,7 +2297,6 @@ function ActivityFeed({ guest }) {
   }
   const kindMeta = {
     intake:    { dot: 'var(--info)', label: 'intake'    },
-    ai:        { dot: 'var(--ink)',  label: 'reasoning' },  // legacy alias
     reasoning: { dot: 'var(--ink)',  label: 'reasoning' },
     check:     { dot: 'var(--info)', label: 'check'     },
     rule:      { dot: 'var(--warn)', label: 'rule'      },

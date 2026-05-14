@@ -111,7 +111,6 @@ function App() {
           <TweakButton label="Playbook builder" onClick={() => goto("playbook")} secondary />
           <TweakButton label="Properties · portfolio" onClick={() => goto("properties")} secondary />
           <TweakButton label="Property detail · Karaköy 12" onClick={() => goto("property_detail", "p_kara12")} secondary />
-          <TweakButton label="Property Brain · gaps" onClick={() => goto("property_brain")} secondary />
           <TweakButton label="Playbook library" onClick={() => goto("playbook_library")} secondary />
           <TweakButton label="Insights · Ask Cendra" onClick={() => goto("insights")} secondary />
           <TweakButton label="Trust Center" onClick={() => goto("trust")} secondary />
@@ -476,12 +475,6 @@ function Nav({ route, goto }) {
     { id: "properties", label: "Properties", count: 47 },
     { id: "brain",      label: "Brain",      count: null },
   ];
-  const sub = [
-    { id: "approval", label: "Approval flow" },
-    { id: "integrations", label: "Integrations" },
-    { id: "audit", label: "Audit trail" },
-    { id: "mobile", label: "Mobile · approval" },
-  ];
   return (
     <nav className="nav">
       <div className="nav-section">OPERATIONS</div>
@@ -491,24 +484,14 @@ function Nav({ route, goto }) {
           className={"nav-item" + (
             route.name === n.id ||
             (n.id === "work" && route.name === "work_detail") ||
-            (n.id === "properties" && (route.name === "property_detail" || route.name === "property_brain")) ||
-            (n.id === "brain" && ["playbook_library", "autopilot", "learning", "insights", "trust", "playbook"].includes(route.name))
+            (n.id === "properties" && route.name === "property_detail") ||
+            (n.id === "brain" && ["playbook_library", "autopilot", "learning", "insights", "trust", "playbook", "approval", "audit", "integrations"].includes(route.name))
               ? " active" : ""
           )}
           onClick={() => goto(n.id)}
         >
           <span>{n.label}</span>
           {n.count != null && <span className="count">{n.count}</span>}
-        </button>
-      ))}
-      <div className="nav-section">FLOWS</div>
-      {sub.map(n => (
-        <button
-          key={n.id}
-          className={"nav-item" + (route.name === n.id ? " active" : "")}
-          onClick={() => goto(n.id)}
-        >
-          <span>{n.label}</span>
         </button>
       ))}
 
@@ -555,7 +538,6 @@ function Routes({ route, goto, tweaks }) {
                                 ? <PropertyDetailScreen onOpen={onOpen} arg={route.arg} />
                                 : <PropertiesScreen onOpen={onOpen} />;
     case "property_detail":  return <PropertyDetailScreen onOpen={onOpen} arg={route.arg} />;  /* legacy alias */
-    case "property_brain":   return <PropertyDetailScreen onOpen={onOpen} arg={route.arg || "p_kara12"} focus="attention" />;  /* legacy alias → property's attention view */
     case "insights":         return <InsightsScreen onOpen={onOpen} />;
     case "trust":            return <TrustScreen onOpen={onOpen} />;
     case "integrations":     return <IntegrationsScreen onOpen={onOpen} />;
